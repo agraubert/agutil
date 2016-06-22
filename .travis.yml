@@ -2,6 +2,10 @@ branches:
   only:
     - master
     - dev
+notifications:
+  email:
+    on_success: always
+    on_failure: always
 language: python
 python:
   - "3.5"
