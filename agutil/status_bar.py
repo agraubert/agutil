@@ -51,12 +51,3 @@ class status_bar:
             self._write(' '*index)
             self._backtrack_to(0)
 
-
-def simple_test(num):
-    import time
-    q = status_bar(num, True)
-    for i in range(num):
-        time.sleep(1)
-        q.update(i)
-    q.update(num)
-    print()
