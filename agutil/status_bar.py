@@ -49,8 +49,9 @@ class status_bar:
             self.last_value = value
 
     def clear(self, erase=False):
-        index = self.cursor
         self._backtrack_to(0)
         if erase:
-            self._write(' '*index)
+            self._write(' '*(self.cols + 2))
+            if self.show_percent:
+                self._write(' '*8)
             self._backtrack_to(0)
