@@ -3,7 +3,7 @@ from shutil import get_terminal_size
 
 
 class status_bar:
-    def __init__(self, maximum, show_percent = False, init=True,  cols=int(get_terminal_size()[0]/2), update_threshold=.05, debugging=False):
+    def __init__(self, maximum, show_percent = False, init=True,  cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False):
         self.current = 0
         self.last_value = 0
         self.maximum = maximum
@@ -13,7 +13,7 @@ class status_bar:
         self.cursor = 0
         self.threshold = self.maximum / self.cols
         self.debugging = debugging
-        self.update_threshold = self.threshold*update_threshold if show_percent else -1
+        self.update_threshold = self.maximum*update_threshold if show_percent else -1
         self.progress = 0
         if init:
             self._initialize()
