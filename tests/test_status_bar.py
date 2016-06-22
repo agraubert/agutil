@@ -2,6 +2,7 @@ import unittest
 import os
 from py_compile import compile
 import random
+import sys
 
 class test(unittest.TestCase):
     @classmethod
