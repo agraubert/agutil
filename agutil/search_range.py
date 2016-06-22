@@ -3,19 +3,30 @@ class search_range:
         self.offset = start
         self.data_range = stop-start if stop>=start else 0
         self.data = 0
+        self.rc = 0
         if fill and self.data_range>0:
             self.data = (1<<self.data_range)-1
+            self.rc = self.data_range
 
     def add_range(self, start, stop):
+        old = self.data
         if start < self.offset:
-            self.data = self.data << (self.offset-start)
+            self.data <<= (self.offset-start)
+            old <<=(self.offset - start)
             self.data_range += self.offset-start
             self.offset = start
         if stop > self.offset+self.data_range:
             self.data_range = stop - self.offset
         self.data |= ((1<<(stop-start))-1)<<(start-self.offset)
+        new_bits = self.data & (~old)
+        new_bits >>= (start-self.offset)
+        for i in range(start,stop):
+            if new_bits & 1:
+                self.rc+=1
+            new_bits>>=1
 
     def remove_range(self, start, stop):
+        old = self.data
         if start < self.offset:
             start = self.offset
         if stop > self.data_range + self.offset:
@@ -23,6 +34,12 @@ class search_range:
         if stop < start:
             return
         self.data &= ~(((1<<(stop-start))-1)<<(start-self.offset))
+        new_bits = old & (~self.data)
+        new_bits>>=(start-self.offset)
+        for i in range(start, stop):
+            if new_bits & 1:
+                self.rc-=1
+            new_bits>>=1
 
     def check(self, coord):
         if coord < self.offset or coord-self.offset > self.data_range:
@@ -48,7 +65,7 @@ class search_range:
             self.data<<(self.offset-lower),
             other.data<<(other.offset-lower)
         )
-        output.rc = sum(1 for i in range(size) if output.data & (1<<i))
+        output.rc = sum(1 for _ in output)
         return output
 
     def union(self, other):
@@ -105,7 +122,7 @@ class search_range:
         return "["+", ".join(str(i) for i in self)+"]"
 
     def range_count(self):
-        return sum(1 for i in range(self.data_range) if self.data & (1<<i))
+        return self.rc
 
     def __bool__(self):
         return bool(self.range_count())
