@@ -4,7 +4,7 @@ import sys
 if sys.version_info[0]<3:
     print("This python version is not supported:")
     print(sys.version)
-    print("pVAC-Seq requires python 3.0 or greater")
+    print("agutil requires python 3.0 or greater")
     sys.exit(1)
 
 setup(
@@ -28,5 +28,5 @@ setup(
     description = "A collection of python utilities",
     license = "MIT",
     keywords = "range progress bar loading utilities",
-    url = "https://github.com/agraubert/aguti",   #
+    url = "https://github.com/agraubert/agutil",   #
 )
