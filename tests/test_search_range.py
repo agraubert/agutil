@@ -22,6 +22,7 @@ class test(unittest.TestCase):
                     os.path.abspath(__file__)
                 )
             ),
+            "agutil",
             "search_range.py"
         )
         sys.path.append(os.path.dirname(cls.script_path))
@@ -31,7 +32,7 @@ class test(unittest.TestCase):
         self.assertTrue(compiled_path)
 
     def test_core_functions(self):
-        import search_range as sr
+        import agutil.search_range as sr
         a = sr.search_range()
         self.assertFalse(a.data)
         a.add_range(10,20)
@@ -49,7 +50,7 @@ class test(unittest.TestCase):
         self.assertEqual(b.range_count(), 10)
 
     def test_add_remove_random(self):
-        import search_range as sr
+        import agutil.search_range as sr
         for trial in range(100):
             a = sr.search_range()
             control = [0]*1000
@@ -86,7 +87,7 @@ class test(unittest.TestCase):
                 add = not add
 
     def test_operators_random(self):
-        import search_range as sr
+        import agutil.search_range as sr
         for trial in range(100):
             a = sr.search_range()
             b = sr.search_range()
@@ -150,7 +151,7 @@ class test(unittest.TestCase):
                 add_a = not add_a
 
     def test_ranges_random(self):
-        import search_range as sr
+        import agutil.search_range as sr
         for trial in range(100):
             a = sr.search_range()
             control = [0]*1000
