@@ -3,14 +3,16 @@ from shutil import get_terminal_size
 
 
 class status_bar:
-    def __init__(self, maximum, show_percent = False, init=True,  cols=int(get_terminal_size()[0]/2)):
+    def __init__(self, maximum, show_percent = False, init=True,  cols=int(get_terminal_size()[0]/2), update_threshold=.05):
         self.current = 0
+        self.last_value = 0
         self.maximum = maximum
         self.show_percent = show_percent
         self.display = ""
         self.cols = cols
         self.cursor = 0
         self.threshold = self.maximum / self.cols
+        self.update_threshold = self.threshold*update_threshold if show_percent else -1
         if init:
             self._initialize()
         else:
@@ -38,11 +40,13 @@ class status_bar:
         if not self.initialized:
             self._initialize
         self.current = value
-        self._backtrack_to(1)
-        self._write('=' * int(self.current/self.threshold))
-        if self.show_percent:
+        if self.cursor != 1+int(self.current/self.threshold):
+            self._backtrack_to(1)
+            self._write('=' * int(self.current/self.threshold))
+        if self.show_percent and value>=self.last_value+self.update_threshold:
             self._write(" " * (self.cols - self.cursor + 1))
             self._write("] %0.3f%%" % ((100.0 *self.current)/(self.cols * self.threshold)))
+            self.last_value = value
 
     def clear(self, erase=False):
         index = self.cursor
@@ -50,4 +54,3 @@ class status_bar:
         if erase:
             self._write(' '*index)
             self._backtrack_to(0)
-
