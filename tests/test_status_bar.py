@@ -29,7 +29,7 @@ class test(unittest.TestCase):
         self.assertEqual(q.display, '['+(' '*q.cols)+'] 0.000%')
         threshold = 10000/q.cols
         self.assertEqual(q.threshold, threshold)
-        self.assertEqual(q.update_threshold, .05 * threshold)
+        self.assertEqual(q.update_threshold, .00005 * 10000)
         for i in range(10000):
             q.update(i)
             num = int(i*q.cols/10000.0)
