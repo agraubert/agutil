@@ -22,3 +22,26 @@ class test(unittest.TestCase):
     def test_compilation(self):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
+
+    def test_rolling(self):
+        from agutil.status_bar import status_bar
+        q = status_bar(10000, True, debugging=True)
+        self.assertEqual(q.display, '['+(' '*q.cols)+'] 0.000%')
+        threshold = 10000/q.cols
+        self.assertEqual(q.threshold, threshold)
+        for i in range(10000):
+            q.update(i)
+            num = int(i*q.cols/10000.0)
+            self.assertEqual(q.progress, num)
+            self.assertEqual(q.display[0], '[')
+            for j in range(q.cols):
+                self.assertEqual(q.display[j+1], '=' if j < num else ' ')
+            self.assertEqual(q.display[0], '[')
+        for i in range(10000, 0, -1):
+            q.update(i)
+            num = int(i*q.cols/10000.0)
+            self.assertEqual(q.progress, num)
+            self.assertEqual(q.display[0], '[')
+            for j in range(q.cols):
+                self.assertEqual(q.display[j+1], '=' if j < num else ' ')
+            self.assertEqual(q.display[0], '[')
