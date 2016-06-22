@@ -65,7 +65,7 @@ class search_range:
             self.data<<(self.offset-lower),
             other.data<<(other.offset-lower)
         )
-        output.rc = sum(1 for i in range(size) if output.data & (1<<i))
+        output.rc = sum(1 for _ in output)
         return output
 
     def union(self, other):
