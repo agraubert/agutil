@@ -10,6 +10,8 @@ def set_range(bits, start, stop, on=True):
     return [bit for bit in bits]
 
 def collapse(bits):
+    if not len(bits):
+        return 0
     return int(''.join(str(bit) for bit in reversed(bits)),2)
 
 class test(unittest.TestCase):
@@ -79,8 +81,14 @@ class test(unittest.TestCase):
                 while i >=0:
                     self.assertEqual(a.check(i), bool(control[i]))
                     i-=random.randint(5,500)
-                if collapse(control):
-                    self.assertTrue(a.check_range(0,1000))
+                for region in range(5):
+                    check_start = random.randint(c_start,1000)
+                    check_stop = random.randint(check_start, 1000)
+                    self.assertEqual(
+                        a.check_range(check_start, check_stop),
+                        bool(collapse(control[check_start:check_stop]))
+                    )
+                self.assertEqual(a.check_range(0,1000), bool(collapse(control)))
                 for i in a:
                     self.assertTrue(control[i])
                 self.assertEqual(a.range_count(), sum(control))

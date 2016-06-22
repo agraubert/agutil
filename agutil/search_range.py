@@ -1,13 +1,10 @@
 class search_range:
     def __init__(self, start=0, stop=0, fill=True):
         self.offset = start
-        self.data_range = stop-start
+        self.data_range = stop-start if stop>=start else 0
         self.data = 0
-        if fill:
-            index = 1
-            for i in range(stop-start):
-                self.data |= index
-                index <<= 1
+        if fill and self.data_range>0:
+            self.data = (1<<self.data_range)-1
 
     def add_range(self, start, stop):
         if start < self.offset:
@@ -35,10 +32,11 @@ class search_range:
     def check_range(self, start, stop):
         if start < self.offset:
             start = self.offset
-        for i in range(start, stop):
-            if self.check(i):
-                return True
-        return False
+        if start > self.offset + self.data_range:
+            return False
+        if stop < start:
+            return False
+        return bool(self.data & ((1<<(stop-start))-1)<<(start-self.offset))
 
     def _merge(self, other, op):
         if type(other)!=search_range:
