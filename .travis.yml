@@ -2,6 +2,7 @@ branches:
   only:
   - master
   - dev
+  - staging
 notifications:
   email:
     on_success: always

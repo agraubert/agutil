@@ -9,8 +9,14 @@ if sys.version_info[0]<3:
 
 setup(
     name="agutil",
-    version="0.0.1dev1",
-    packages=["agutil"],
+    version="0.1.0a",
+    packages=["agutil", "agutil.bio"],
+    entry_points={
+        "console_scripts":[
+            "maf2bed = agutil.bio.maf2bed:main",
+            "tsvmanip = agutil.tsvmanip:main"
+        ]
+    },
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
 
