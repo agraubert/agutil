@@ -8,6 +8,9 @@ A collection of python utilities
 * search_range (A utility for manipulating numerical ranges)
 * status_bar (A simple progress bar indicator)
 
+The __bio__ package:
+* maf2bed (A command line utility for parsing a .maf file, converting coordinates from 1-based (maf standard) to 0-based (bed standard))
+
 
 ## SEARCH_RANGE
 The `agutil.search_range` module defines a single class, `search_range`
@@ -101,3 +104,18 @@ The display is only updated when necessary, so there is minimal drawback for upd
 
 * status_bar.append(text)
   Displays _text_ to the right of the bar.  It will always remain to the right of the bar as the display updates.  **WARNING** Appended text extends the display.  If any part of the bar (including prepended or appended text) extends beyond a single line of the console, the status bar will not display properly.  Appended text should be kept short
+
+## bio.MAF2BED
+The `agutil.bio.maf2bed` module provides a command line interface for converting maf files into bed files
+To follow the bed format, and to reduce the size of the bed itself, maf2bed generates two files by default.
+A `.bed` file with entries in the format of: Chromosome Start Stop Key
+and a `.key` file with entries in the format of: Key <All fields present in the maf>
+
+######COMMAND LINE API
+* `$ maf2bed convert <input> <output> [--exclude-silent] [--skip-keyfile]`
+  Converts the file _input_ to _output_ and _output_.key files.
+  If _--exclude-silent_ is set, silent mutations are not included in the output
+  If _--skip-keyfile_ is set, the program only generates a single file, _output_ which is identical to the _input_ file, except that start and stop coordinates have been shifted to 0-based
+
+* `$ maf2bed lookup <input> <keys...>`
+  Looks up the entries for each key listed in _keys_ in the keyfile _input_
