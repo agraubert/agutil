@@ -14,6 +14,12 @@ def bedkey(args):
     args.input.close()
 
 def maf2bed(args):
+    if args.v and sys.platform=="win32":
+        print("Maf2bed does not yet support this feature on windows")
+        args.v = False
+    if args.v:
+        from subprocess import run, PIPE
+        args.v = int(run(['wc -l %s'%args.input.name], shell=True, stdout=PIPE).stdout.decode().split()[0])
     key_file = None
     if not args.skip_keyfile:
         key_file = open(args.output.name+".key", mode='w')
@@ -25,9 +31,16 @@ def maf2bed(args):
     writer = csv.DictWriter(args.output, writer_fields, delimiter='\t', lineterminator='\n')
 
     keyWriter.writeheader()
+    i = 0
+    bar = None
+    if args.v:
+        from ..status_bar import status_bar
+        bar = status_bar(args.v, show_percent=True)
     for row in reader:
         if args.exclude_silent and row['Variant_Classification'] == 'Silent':
             continue
+        bar.update(i)
+        i+=1
         if not args.skip_keyfile:
             row["Key"] = "%s_%d" %(row["Chromosome"], i)
         row["Chromosome"] = "chr"+row["Chromosome"]
@@ -41,6 +54,7 @@ def maf2bed(args):
         keyWriter.writerow({key:row[key] for key in keyWriter.fieldnames})
         writer.writerow({key:row[key] for key in writer.fieldnames})
     args.output.close()
+    bar.clear(True)
 
 def main():
     parser = argparse.ArgumentParser("maf2bed")
@@ -67,6 +81,11 @@ def main():
         '--skip-keyfile',
         action='store_true',
         help="Don't generate a keyfile.  The output will be a single file which is identical to the original maf, except coordinates have been 0-indexed."
+    )
+    maf2bed_parser.add_argument(
+        '-v',
+        action='store_true',
+        help="Show a progress indicator"
     )
 
     bedkey_parser = subparsers.add_parser("lookup", help="Lookup a full .maf entry from a key")
