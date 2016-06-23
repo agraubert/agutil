@@ -8,8 +8,10 @@ A collection of python utilities
 * search_range (A utility for manipulating numerical ranges)
 * status_bar (A simple progress bar indicator)
 
+
 The __bio__ package:
 * maf2bed (A command line utility for parsing a .maf file, converting coordinates from 1-based (maf standard) to 0-based (bed standard))
+* tsvmanip (A command line utility for filtering, rearranging, and modifying tsv files)
 
 
 ## SEARCH_RANGE
@@ -119,3 +121,66 @@ and a `.key` file with entries in the format of: Key <All fields present in the 
 
 * `$ maf2bed lookup <input> <keys...>`
   Looks up the entries for each key listed in _keys_ in the keyfile _input_
+
+
+## bio.TSVMANIP
+The `agutil.tsvManip` module provides a command line interface for modifying large tsv files
+While not _strictly_ biology oriented, its original purpose was to parse and rearrange different fields of bed files
+
+######COMMAND USAGE
+* `$ tsvmanip <input> <output> [--no-headers] [-c COLUMN] [-d DELIMITER] [--i0 COL] [-s COL] [-m IN:OUT] [-v]`
+
+  Parses _input_ according to the following arguments, and writes to _output_
+
+  Optional arguments:
+
+  _--no-headers_          Flag indicating that there are is no header row
+
+  _-c COLUMN, --col COLUMN_
+                        Column containing input data to parse (0-indexed).
+                        Multiple columns can be selected by providing the
+                        option multiple times (Ex: --col 0 --col 5 --col 6).
+                        All columns are selected by default
+
+  _-d DELIMITER, --delim DELIMITER_
+                        Delimiters for splitting input columns into multiple
+                        new columns for output Delimiters can be specified for
+                        multiple columns by providing the option multiple
+                        times Delimiters are matched to colums by order
+                        provided. For example, the first delimiter provided
+                        matches to the first column parsed for input. An
+                        underscore (\_) indicates no delimiter for that column.
+                        To use a delimiter consisting entirely of one or more
+                        underscores, append a single underscore to the end of
+                        the delimiter string. (Ex: '--delim \__' (two
+                        underscores) indicates a delimiter of '\_' (one
+                        underscore) ). Multiple delimiters can be provided for
+                        the same column by prefixing the delimiters for the
+                        string with <column #>: Delimiters for the same column
+                        are applied in the order provided to all resulting
+                        columns from subsequent splits. Prefixed delimiter
+                        inputs will not affect the matching of unprefixed
+                        delimiters to columns. (Ex: --col 0 --col 1 --delim
+                        <used for col 0> --delim <used for col 1>) (Ex: --col
+                        1 --col 4 --delim <used for col 1> --delim <used for
+                        col 4> --delim 1:<used for col 1>)
+
+  _--i0 COL_              Selected columns should be shifted from 1 to 0 index.
+                        This is applied after selected columns are plucked
+                        from the input, and split by delimiters. Provided
+                        column numbers match the indecies of columns after
+                        those steps. Multiple columns can be selected by
+                        supplying the argument multiple times
+
+  _-s COL, --strip-commas COL_
+                        Strip commas from the specified columns. Column
+                        numbers reference before mapping, but after splitting
+
+  _-m IN:OUT, --map IN:OUT_
+                        Mappings to map plucked columns to output columns. Use
+                        to change the order of columns. Maps are in the format
+                        of: <input column #>:<output column #> This is the
+                        last step in parsing, so input column #'s should be
+                        relative to any changes made by plucking and splitting
+
+  _-v_                    Provide verbose output

@@ -13,7 +13,8 @@ setup(
     packages=["agutil", "agutil.bio"],
     entry_points={
         "console_scripts":[
-            "maf2bed = agutil.bio.maf2bed:main"
+            "maf2bed = agutil.bio.maf2bed:main",
+            "tsvmanip = agutil.tsvmanip:main"
         ]
     },
     classifiers=[
