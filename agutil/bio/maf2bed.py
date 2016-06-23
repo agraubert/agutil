@@ -26,20 +26,28 @@ def maf2bed(args):
     reader = csv.DictReader(args.input, delimiter='\t')
     keyWriter = None
     writer_fields = reader.fieldnames if args.skip_keyfile else ["Chromosome", "Start_position", "End_position", "Key"]
+    writer = csv.DictWriter(args.output, writer_fields, delimiter='\t', lineterminator='\n')
     if not args.skip_keyfile:
         keyWriter = csv.DictWriter(key_file, ["Key"] + reader.fieldnames, delimiter='\t', lineterminator='\n')
-    writer = csv.DictWriter(args.output, writer_fields, delimiter='\t', lineterminator='\n')
+        keyWriter.writeheader()
+    else:
+        writer.writeheader()
 
-    keyWriter.writeheader()
     i = 0
     bar = None
     if args.v:
-        from ..status_bar import status_bar
-        bar = status_bar(args.v, show_percent=True)
+        try:
+            from ..status_bar import status_bar
+        except SystemError:
+            import os.path
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            from agutil.status_bar import status_bar
+        bar = status_bar(args.v, show_percent=True, prepend="Converting file... ")
     for row in reader:
         if args.exclude_silent and row['Variant_Classification'] == 'Silent':
             continue
-        bar.update(i)
+        if args.v:
+            bar.update(i)
         i+=1
         if not args.skip_keyfile:
             row["Key"] = "%s_%d" %(row["Chromosome"], i)
@@ -51,10 +59,12 @@ def maf2bed(args):
                 row["End_position"] -= 1
         else:
             row["Start_position"] -= 1
-        keyWriter.writerow({key:row[key] for key in keyWriter.fieldnames})
+        if not args.skip_keyfile:
+            keyWriter.writerow({key:row[key] for key in keyWriter.fieldnames})
         writer.writerow({key:row[key] for key in writer.fieldnames})
     args.output.close()
-    bar.clear(True)
+    if args.v:
+        bar.clear(True)
 
 def main():
     parser = argparse.ArgumentParser("maf2bed")
