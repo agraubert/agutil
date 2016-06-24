@@ -112,8 +112,12 @@ def main():
     )
     args = parser.parse_args()
 
-    args.func(args)
-
+    try:
+        args.func(args)
+    except AttributeError:
+        print("usage: maf2bed [-h] {convert,lookup} ...")
+        print("maf2bed: error: must provide a command (choose from 'convert', 'lookup')")
+        sys.exit(-1)
 
 
 
