@@ -71,7 +71,11 @@ class status_bar:
 
     def update(self, value):
         if not self.initialized:
-            self._initialize
+            self._initialize()
+        if value < 0:
+            value = 0
+        elif value > self.maximum:
+            value = self.maximum
         self.current = value
         if self.progress != int(self.current/self.threshold):
             self._backtrack_to(1+len(self.pre))
