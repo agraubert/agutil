@@ -25,17 +25,18 @@ class test(unittest.TestCase):
                 )
             ),
             "agutil",
+            "src",
             "search_range.py"
         )
-        sys.path.append(os.path.dirname(cls.script_path))
+        sys.path.append(os.path.dirname(os.path.dirname(cls.script_path)))
 
     def test_compilation(self):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
     def test_core_functions(self):
-        import agutil.search_range as sr
-        a = sr.search_range()
+        from agutil import search_range
+        a = search_range()
         self.assertFalse(a.data)
         a.add_range(10,20)
         self.assertEqual(a.data, 0b11111111110000000000)
@@ -47,21 +48,21 @@ class test(unittest.TestCase):
         self.assertEqual(a.data, 0b1100000000111110000000000)
         self.assertEqual(a.range_count(), 7)
         self.assertTrue(a.check(13))
-        b = sr.search_range(10,20)
+        b = search_range(10,20)
         self.assertEqual(b.data, 0b1111111111)
         self.assertEqual(b.range_count(), 10)
 
     def test_add_remove_random(self):
-        import agutil.search_range as sr
+        from agutil import search_range
         for trial in range(100):
-            a = sr.search_range()
+            a = search_range()
             control = [0]*1000
             c_start = 0
             add = bool(trial%2)
             if trial % 5 == 0:
                 start = random.randint(0,1000)
                 stop = random.randint(start, 1000)
-                a = sr.search_range(start, stop)
+                a = search_range(start, stop)
                 control = set_range(control, start, stop)
                 c_start = start
 
@@ -95,10 +96,10 @@ class test(unittest.TestCase):
                 add = not add
 
     def test_operators_random(self):
-        import agutil.search_range as sr
+        from agutil import search_range
         for trial in range(100):
-            a = sr.search_range()
-            b = sr.search_range()
+            a = search_range()
+            b = search_range()
             control_a = [0]*1000
             control_b = [0]*1000
             c_start = 0
@@ -108,10 +109,10 @@ class test(unittest.TestCase):
             if trial%5==0:
                 start_a = random.randint(0,1000)
                 stop_a = random.randint(start_a, 1000)
-                a = sr.search_range(start_a, stop_a)
+                a = search_range(start_a, stop_a)
                 start_b = random.randint(0,1000)
                 stop_b = random.randint(start_b, 1000)
-                b = sr.search_range(start_b, stop_b)
+                b = search_range(start_b, stop_b)
                 control_a = set_range(control_a, start_a, stop_a)
                 control_b = set_range(control_b, start_b, stop_b)
                 c_start = min(start_a, start_b)
@@ -159,16 +160,16 @@ class test(unittest.TestCase):
                 add_a = not add_a
 
     def test_ranges_random(self):
-        import agutil.search_range as sr
+        from agutil import search_range
         for trial in range(100):
-            a = sr.search_range()
+            a = search_range()
             control = [0]*1000
             c_start = 0
             add = bool(trial%2)
             if trial % 5 == 0:
                 start = random.randint(0,1000)
                 stop = random.randint(start, 1000)
-                a = sr.search_range(start, stop)
+                a = search_range(start, stop)
                 control = set_range(control, start, stop)
                 c_start = start
 

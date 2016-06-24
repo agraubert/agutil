@@ -37,7 +37,7 @@ def maf2bed(args):
     bar = None
     if args.v:
         try:
-            from ..status_bar import status_bar
+            from .. import status_bar
         except SystemError:
             import os.path
             sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
