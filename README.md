@@ -113,7 +113,7 @@ To follow the bed format, and to reduce the size of the bed itself, maf2bed gene
 A `.bed` file with entries in the format of: Chromosome Start Stop Key
 and a `.key` file with entries in the format of: Key <All fields present in the maf>
 
-######COMMAND LINE API
+######COMMAND USAGE
 * `$ maf2bed convert <input> <output> [--exclude-silent] [--skip-keyfile]`
   Converts the file _input_ to _output_ and _output_.key files.
   If _--exclude-silent_ is set, silent mutations are not included in the output
