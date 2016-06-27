@@ -4,6 +4,10 @@ from shutil import get_terminal_size
 
 class status_bar:
     def __init__(self, maximum, show_percent = False, init=True,  prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False, transcript=None):
+        if maximum <=0:
+            raise ValueError("status_bar maximum must be >0 (maximum was {val})".format(
+                val=repr(maximum)
+            ))
         self.current = 0
         self.logger = None if not transcript else open(transcript, mode='w')
         self.last_value = 0
@@ -26,6 +30,8 @@ class status_bar:
 
     def _initialize(self):
         self.initialized = True
+        self._backtrack_to(0)
+        self.progress = 0
         if len(self.pre):
             self._write(self.pre)
         self._write('[%s]' % (" "*self.cols))
@@ -64,14 +70,18 @@ class status_bar:
                 self._log((" "*(self.cursor-1)+"V\n"))
                 self._log(self.display)
                 self.logger.flush()
-                
+
     def _log(self, text):
         if self.logger:
             self.logger.write(text)
 
     def update(self, value):
         if not self.initialized:
-            self._initialize
+            self._initialize()
+        if value < 0:
+            value = 0
+        elif value > self.maximum:
+            value = self.maximum
         self.current = value
         if self.progress != int(self.current/self.threshold):
             self._backtrack_to(1+len(self.pre))

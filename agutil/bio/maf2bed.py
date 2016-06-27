@@ -37,11 +37,11 @@ def maf2bed(args):
     bar = None
     if args.v:
         try:
-            from ..status_bar import status_bar
+            from .. import status_bar
         except SystemError:
             import os.path
             sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-            from agutil.status_bar import status_bar
+            from agutil import status_bar
         bar = status_bar(args.v, show_percent=True, prepend="Converting file... ")
     for row in reader:
         if args.exclude_silent and row['Variant_Classification'] == 'Silent':

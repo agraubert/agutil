@@ -4,6 +4,8 @@
 
 A collection of python utilities
 
+__Version:__ 0.2.0a
+
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
 * status_bar (A simple progress bar indicator)
@@ -15,7 +17,7 @@ The __bio__ package:
 
 
 ## SEARCH_RANGE
-The `agutil.search_range` module defines a single class, `search_range`
+The `agutil` module includes the class, `search_range`
 A `search_range` class instance keeps track of a set of numerical ranges
 Any number of ranges can be included or excluded from the instance
 A single point, or range of points can be checked against the instance for intersection
@@ -23,7 +25,7 @@ Multiple instances can be combined with union, difference, and intersection oper
 The set of points in the search range is implemented as a bitset for efficiency
 
 ###### API
-* search_range(start=0, stop=0, fill=True) _(constructor)_
+* search\_range(start=0, stop=0, fill=True) _(constructor)_
   Creates a new `search_range` instance with the range [_start_, _stop_) included
   `search_range.check(i)` will return True for any point within [_start_, _stop_)
 
@@ -50,7 +52,7 @@ The set of points in the search range is implemented as a bitset for efficiency
     * Difference: _a-b_
     * Intersection: _a&b_   _a*b_
 
-* search_range.__iter__() _(iteration)_
+* search\_range.\_\_iter\_\_() _(iteration)_
   search_ranges support iteration, which produces a sequence of points included in the range
 
 * search_range.gen_ranges()
@@ -59,17 +61,17 @@ The set of points in the search range is implemented as a bitset for efficiency
 * search_range.range_count()
   Returns the number of points included in the range
 
-* search_range.__str__()
+* search\_range.\_\_str\_\_()
   Produces a string which lists the ranges produced by gen_ranges()
 
-* search_range.__repr__()
+* search\_range.\_\_repr\_\_()
   Produces a string which lists each point included in the range
 
-* search_range.__bool__()
+* search\_range.\_\_bool\_\_()
   Returns True if there is at least one point included in the range
 
 ## STATUS_BAR
-The `agutil.status_bar` module defines a single class, `status_bar`
+The `agutil` module includes the class, `status_bar`
 A `status_bar` instance provides a status indicator which can be updated at any time
 The display is only updated when necessary, so there is minimal drawback for updating the instance frequently
 
@@ -77,7 +79,7 @@ The display is only updated when necessary, so there is minimal drawback for upd
 * status_bar(maximum, show_percent = False, init=True, prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False, transcript=None) _(constructor)_
   Creates a new status_bar instance ranging from 0 to _maximum_
 
-  _show_percent_ toggles whether or not a percentage meter should be displayed to the right of the bar
+  _show\_percent_ toggles whether or not a percentage meter should be displayed to the right of the bar
 
   _init_ sets whether or not the status_bar should immediately display.  If set to false, the bar is displayed at the first update
 
@@ -87,7 +89,7 @@ The display is only updated when necessary, so there is minimal drawback for upd
 
   _cols_ sets how long the bar should be.  It defaults to half the terminal size
 
-  _update_threshold_ sets the minimum change in percentage to trigger an update to the percentage meter
+  _update\_threshold_ sets the minimum change in percentage to trigger an update to the percentage meter
 
   _debugging_ triggers the status_bar to never print to stdout.  If set true, no output will be produced, but exact string of what *would* be displayed is maintained at all times in the _display_ attribute
 
@@ -113,7 +115,7 @@ To follow the bed format, and to reduce the size of the bed itself, maf2bed gene
 A `.bed` file with entries in the format of: Chromosome Start Stop Key
 and a `.key` file with entries in the format of: Key <All fields present in the maf>
 
-######COMMAND LINE API
+######COMMAND USAGE
 * `$ maf2bed convert <input> <output> [--exclude-silent] [--skip-keyfile]`
   Converts the file _input_ to _output_ and _output_.key files.
   If _--exclude-silent_ is set, silent mutations are not included in the output

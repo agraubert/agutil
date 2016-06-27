@@ -15,16 +15,17 @@ class test(unittest.TestCase):
                 )
             ),
             "agutil",
+            "src",
             "status_bar.py"
         )
-        sys.path.append(os.path.dirname(cls.script_path))
+        sys.path.append(os.path.dirname(os.path.dirname(cls.script_path)))
 
     def test_compilation(self):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
     def test_rolling(self):
-        from agutil.status_bar import status_bar
+        from agutil import status_bar
         q = status_bar(10000, True, prepend="PRE ", append=" POST", debugging=True)
         self.assertEqual(q.display, 'PRE ['+(' '*q.cols)+'] 0.000% POST')
         threshold = 10000/q.cols
