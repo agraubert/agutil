@@ -4,6 +4,8 @@
 
 A collection of python utilities
 
+__Version:__ 0.2.0a
+
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
 * status_bar (A simple progress bar indicator)
