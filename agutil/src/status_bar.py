@@ -28,6 +28,8 @@ class status_bar:
 
     def _initialize(self):
         self.initialized = True
+        self._backtrack_to(0)
+        self.progress = 0
         if len(self.pre):
             self._write(self.pre)
         self._write('[%s]' % (" "*self.cols))
