@@ -9,7 +9,7 @@ if sys.version_info[0]<3:
 
 setup(
     name="agutil",
-    version="0.1.4a",
+    version="0.2.0a",
     packages=["agutil", "agutil.bio", "agutil.src"],
     entry_points={
         "console_scripts":[
