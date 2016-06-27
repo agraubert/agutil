@@ -1,5 +1,10 @@
 class search_range:
     def __init__(self, start=0, stop=0, fill=True):
+        if stop < start:
+            raise ValueError("search_range stop must be >= start (start: {start}, stop: {stop})".format(
+                start = start,
+                stop = stop
+            ))
         self.offset = start
         self.data_range = stop-start if stop>=start else 0
         self.data = 0
@@ -17,6 +22,8 @@ class search_range:
             self.offset = start
         if stop > self.offset+self.data_range:
             self.data_range = stop - self.offset
+        if stop < start:
+            return
         self.data |= ((1<<(stop-start))-1)<<(start-self.offset)
         new_bits = self.data & (~old)
         new_bits >>= (start-self.offset)

@@ -5,7 +5,9 @@ from shutil import get_terminal_size
 class status_bar:
     def __init__(self, maximum, show_percent = False, init=True,  prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False, transcript=None):
         if maximum <=0:
-            raise ValueError("status_bar maximum must be >0 (maximum was {val})".format(val=repr(maximum)))
+            raise ValueError("status_bar maximum must be >0 (maximum was {val})".format(
+                val=repr(maximum)
+            ))
         self.current = 0
         self.logger = None if not transcript else open(transcript, mode='w')
         self.last_value = 0
