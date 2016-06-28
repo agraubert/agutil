@@ -7,6 +7,15 @@ if sys.version_info[0]<3:
     print("agutil requires python 3.0 or greater")
     sys.exit(1)
 
+long_desc = "A collection of python utilities"
+
+try:
+    reader = open("README.rst", mode='r')
+    long_desc = reader.read()
+    reader.close()
+except OSError:
+    pass
+
 setup(
     name="agutil",
     version="0.2.0a",
@@ -32,6 +41,7 @@ setup(
     author = "Aaron Graubert",
     author_email = "captianjroot@live.com",
     description = "A collection of python utilities",
+    long_description = long_desc,
     license = "MIT",
     keywords = "range progress bar loading utilities",
     url = "https://github.com/agraubert/agutil",   #
