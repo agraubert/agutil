@@ -13,7 +13,7 @@ python:
 - '3.5'
 install: true
 script:
-- python3 -m unittest discover -v -s tests
+- python3 -m unittest discover -v
 before_deploy:
   - wget http://github.com/jgm/pandoc/releases/download/1.17.1/pandoc-1.17.1-2-amd64.deb
   - sudo dpkg -i pandoc-1.17.1-2-amd64.deb
