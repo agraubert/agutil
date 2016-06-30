@@ -1,10 +1,10 @@
 # agutil
-* Master build status: [![Build Status](https://travis-ci.org/agraubert/agutil.svg?branch=master)](https://travis-ci.org/agraubert/agutil)
-* Development build status: [![Build Status](https://travis-ci.org/agraubert/agutil.svg?branch=dev)](https://travis-ci.org/agraubert/agutil)
+* Master build status: [![Master Build Status](https://travis-ci.org/agraubert/agutil.svg?branch=master)](https://travis-ci.org/agraubert/agutil)
+* Development build status: [![Dev Build Status](https://travis-ci.org/agraubert/agutil.svg?branch=dev)](https://travis-ci.org/agraubert/agutil)
 
 A collection of python utilities
 
-__Version:__ 0.2.0a
+__Version:__ 0.2.1a
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
@@ -181,7 +181,7 @@ While not _strictly_ biology oriented, its original purpose was to parse and rea
   _-m IN:OUT, --map IN:OUT_
                         Mappings to map plucked columns to output columns. Use
                         to change the order of columns. Maps are in the format
-                        of: <input column #>:<output column #> This is the
+                        of: &lt;input column #&gt;:&lt;output column #&gt; This is the
                         last step in parsing, so input column #'s should be
                         relative to any changes made by plucking and splitting
 

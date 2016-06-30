@@ -105,7 +105,7 @@ class status_bar:
         if erase:
             self._write(' '*(self.cols + 2+len(self.pre)))
             if self.show_percent:
-                self._write(' '*8)
+                self._write(' '*9)
             self._write(' '*(len(self.post)))
             self._backtrack_to(0)
         if self.logger:
