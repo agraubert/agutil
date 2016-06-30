@@ -27,7 +27,7 @@ setup(
         ]
     },
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 3 - Alpha',
 
         'Intended Audience :: Developers',
         'Topic :: Software Development',
