@@ -18,7 +18,7 @@ except OSError:
 
 setup(
     name="agutil",
-    version="0.2.0a",
+    version="0.2.1a",
     packages=["agutil", "agutil.bio", "agutil.src"],
     entry_points={
         "console_scripts":[

@@ -10,7 +10,10 @@ notifications:
     on_failure: always
 language: python
 python:
-- '3.5'
+  - '3.2'
+  - '3.3'
+  - '3.4'
+  - '3.5'
 install: true
 script:
 - python3 -m unittest discover -v
