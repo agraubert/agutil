@@ -112,8 +112,8 @@ The display is only updated when necessary, so there is minimal drawback for upd
 ## bio.MAF2BED
 The `agutil.bio.maf2bed` module provides a command line interface for converting maf files into bed files.
 To follow the bed format, and to reduce the size of the bed itself, maf2bed generates two files by default.
-A `.bed` file with entries in the format of: Chromosome Start Stop Key
-and a `.key` file with entries in the format of: Key &lt;_All fields present in the original maf_&gt;
+A `.bed` file with entries in the format of: `Chromosome Start Stop Key`
+and a `.key` file with entries in the format of: `Key &lt;_All fields present in the original maf_&gt;`
 
 ######COMMAND USAGE
 * `$ maf2bed convert <input> <output> [--exclude-silent] [--skip-keyfile]`
