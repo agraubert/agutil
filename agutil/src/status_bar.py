@@ -23,6 +23,7 @@ class status_bar:
         self.debugging = debugging
         self.update_threshold = self.maximum*update_threshold if show_percent else -1
         self.progress = 0
+        self.pending_text_update=False
         if init:
             self._initialize()
         else:
@@ -41,6 +42,7 @@ class status_bar:
             self.post_start = self.cursor+1
             self._write(self.post)
         self._backtrack_to(1+len(self.pre))
+        self.pending_text_update=False
 
 
     def _write(self, text):
@@ -76,7 +78,7 @@ class status_bar:
             self.logger.write(text)
 
     def update(self, value):
-        if not self.initialized:
+        if self.pending_text_update or not self.initialized:
             self._initialize()
         if value < 0:
             value = 0
@@ -111,14 +113,16 @@ class status_bar:
         if self.logger:
             self.logger.close()
 
-    def prepend(self, text):
+    def prepend(self, text, updateText=True):
         self.pre = text
-        if self.initialized:
+        if self.initialized and updateText:
             self._initialize()
             self.update(self.value)
+        self.pending_text_update |= not updateText
 
-    def append(self, text):
+    def append(self, text, updateText=True):
         self.post = text
-        if self.initialized:
+        if self.initialized and updateText:
             self._initialize()
             self.update(self.value)
+        self.pending_text_update |= not updateText
