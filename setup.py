@@ -8,17 +8,23 @@ if sys.version_info<(3,3):
     sys.exit(1)
 
 long_desc = "A collection of python utilities"
+version = None
 
+import re
 try:
     reader = open("README.rst", mode='r')
     long_desc = reader.read()
+    version = re.search(r'\*\*Version:\*\* ([0-9\.a-zA-Z]*)', long_desc).group(1)
     reader.close()
 except OSError:
     pass
 
+if not version:
+    raise ValueError("Unable to parse version number from README.rst")
+
 setup(
     name="agutil",
-    version="0.2.1a",
+    version=version,
     packages=["agutil", "agutil.bio", "agutil.src"],
     entry_points={
         "console_scripts":[
