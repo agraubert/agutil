@@ -103,11 +103,11 @@ The display is only updated when necessary, so there is minimal drawback for upd
   If _erase_ is true, the readout is cleared entirely.
   Otherwise, the cursor position is simply reset to the front of the bar, which will overwrite characters in the readout with subsequent output to stdout by any source
 
-* status_bar.prepend(text)
-  Displays _text_ to the left of the bar. It will always remain to the left of the bar as the display updates.  **WARNING** Prepended text offsets the bar.  If any part of the bar (including prepended or appended text) extends beyond a single line on the console, the status bar will not display properly.  Prepended text should be kept short
+* status_bar.prepend(text, updateText=True)
+  Displays _text_ to the left of the bar. It will always remain to the left of the bar as the display updates.  **WARNING** Prepended text offsets the bar.  If any part of the bar (including prepended or appended text) extends beyond a single line on the console, the status bar will not display properly.  Prepended text should be kept short. If _updateText_ is True, the display is immediately re-drawn to reflect the new text.  Otherwise, the display will wait until the next time update() is called before updating the text
 
-* status_bar.append(text)
-  Displays _text_ to the right of the bar.  It will always remain to the right of the bar as the display updates.  **WARNING** Appended text extends the display.  If any part of the bar (including prepended or appended text) extends beyond a single line of the console, the status bar will not display properly.  Appended text should be kept short
+* status_bar.append(text, updateText=True)
+  Displays _text_ to the right of the bar.  It will always remain to the right of the bar as the display updates.  **WARNING** Appended text extends the display.  If any part of the bar (including prepended or appended text) extends beyond a single line of the console, the status bar will not display properly.  Appended text should be kept short. If _updateText_ is True, the display is immediately re-drawn to reflect the new text.  Otherwise, the display will wait until the next time update() is called before updating the text
 
 ## bio.MAF2BED
 The `agutil.bio.maf2bed` module provides a command line interface for converting maf files into bed files.
