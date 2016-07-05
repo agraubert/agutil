@@ -12,16 +12,16 @@ __Version:__ 0.2.1a
 
 
 The __bio__ package:
-* maf2bed (A command line utility for parsing a .maf file, converting coordinates from 1-based (maf standard) to 0-based (bed standard))
+* maf2bed (A command line utility for parsing a .maf file and converting coordinates from 1-based (maf standard) to 0-based (bed standard))
 * tsvmanip (A command line utility for filtering, rearranging, and modifying tsv files)
 
 
 ## SEARCH_RANGE
-The `agutil` module includes the class, `search_range`
-A `search_range` class instance keeps track of a set of numerical ranges
-Any number of ranges can be included or excluded from the instance
-A single point, or range of points can be checked against the instance for intersection
-Multiple instances can be combined with union, difference, and intersection operators to produce new `search_ranges`
+The `agutil` module includes the class, `search_range`.
+A `search_range` class instance keeps track of a set of numerical ranges.
+Any number of ranges can be included or excluded from the instance.
+A single point, or range of points can be checked against the instance for intersection.
+Multiple instances can be combined with union, difference, and intersection operators to produce new `search_range` instances.
 The set of points in the search range is implemented as a bitset for efficiency
 
 ###### API
@@ -36,17 +36,17 @@ The set of points in the search range is implemented as a bitset for efficiency
   Removes the range [s_tart_, _stop_) from the set of points in the search range
 
 * search_range.check(coord)
-  Returns True if _coord_ exists within the set of points included in the search range
+  Returns True if _coord_ exists within the set of points included in the search range.
   Returns False otherwise
 
 * search_range.check_range(start, stop)
-  Returns True if any point within the range [_start_, _stop_) is included in the search range
+  Returns True if any point within the range [_start_, _stop_) is included in the search range.
   Returns False otherwise
 
 * search_range.union(other)
 * search_range.difference(other)
 * search_range.intersection(other)
-  Returns a new search_range whose set of points is the result of the union, difference, or intersection (respectively) of this search_range and _other_
+  Returns a new search_range whose set of points is the result of the union, difference, or intersection (respectively) of this search_range and _other_.
   These methods can also be accessed through the following binary operators:
     * Union: _a|b_   _a+b_
     * Difference: _a-b_
@@ -71,8 +71,8 @@ The set of points in the search range is implemented as a bitset for efficiency
   Returns True if there is at least one point included in the range
 
 ## STATUS_BAR
-The `agutil` module includes the class, `status_bar`
-A `status_bar` instance provides a status indicator which can be updated at any time
+The `agutil` module includes the class, `status_bar`.
+A `status_bar` instance provides a status indicator which can be updated at any time.
 The display is only updated when necessary, so there is minimal drawback for updating the instance frequently
 
 ###### API
@@ -96,11 +96,11 @@ The display is only updated when necessary, so there is minimal drawback for upd
   _transcript_ is a filepath to where the status bar should keep a log of all changes to the display.  If _transcript_ is None (the default value) or False, logging is disabled.  **WARNING** Using the transcript will slow down performance by requiring the status bar to make frequent i/o every time the display is modified.  Useful for debugging issues with prepended or appended text, but not recommended if the transcript is not needed
 
 * status_bar.update(value)
-  updates the display iff _value_ would require a change in the length of the progress bar, or if it changes the percentage readout by at least _update_threshold_
+  updates the display iff _value_ would require a change in the length of the progress bar, or if it changes the percentage readout by at least _update\_threshold_
 
 * status_bar.clear(erase=False)
-  Clears the readout from stdout
-  If _erase_ is true, the readout is cleared entirely
+  Clears the readout from stdout.
+  If _erase_ is true, the readout is cleared entirely.
   Otherwise, the cursor position is simply reset to the front of the bar, which will overwrite characters in the readout with subsequent output to stdout by any source
 
 * status_bar.prepend(text)
@@ -110,15 +110,15 @@ The display is only updated when necessary, so there is minimal drawback for upd
   Displays _text_ to the right of the bar.  It will always remain to the right of the bar as the display updates.  **WARNING** Appended text extends the display.  If any part of the bar (including prepended or appended text) extends beyond a single line of the console, the status bar will not display properly.  Appended text should be kept short
 
 ## bio.MAF2BED
-The `agutil.bio.maf2bed` module provides a command line interface for converting maf files into bed files
+The `agutil.bio.maf2bed` module provides a command line interface for converting maf files into bed files.
 To follow the bed format, and to reduce the size of the bed itself, maf2bed generates two files by default.
 A `.bed` file with entries in the format of: Chromosome Start Stop Key
-and a `.key` file with entries in the format of: Key <All fields present in the maf>
+and a `.key` file with entries in the format of: Key &lt;_All fields present in the original maf_&gt;
 
 ######COMMAND USAGE
 * `$ maf2bed convert <input> <output> [--exclude-silent] [--skip-keyfile]`
   Converts the file _input_ to _output_ and _output_.key files.
-  If _--exclude-silent_ is set, silent mutations are not included in the output
+  If _--exclude-silent_ is set, silent mutations are not included in the output.
   If _--skip-keyfile_ is set, the program only generates a single file, _output_ which is identical to the _input_ file, except that start and stop coordinates have been shifted to 0-based
 
 * `$ maf2bed lookup <input> <keys...>`
@@ -126,7 +126,7 @@ and a `.key` file with entries in the format of: Key <All fields present in the 
 
 
 ## bio.TSVMANIP
-The `agutil.tsvManip` module provides a command line interface for modifying large tsv files
+The `agutil.tsvManip` module provides a command line interface for modifying large tsv files.
 While not _strictly_ biology oriented, its original purpose was to parse and rearrange different fields of bed files
 
 ######COMMAND USAGE
