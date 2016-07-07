@@ -45,6 +45,9 @@ class Socket:
             return msg.decode()
         return msg
 
+    def settimeout(self, time):
+        self.sock.settimeout(time)
+
     def close(self):
         try:
             self.sock.setblocking(True)
