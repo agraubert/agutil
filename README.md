@@ -15,6 +15,10 @@ The __bio__ package:
 * maf2bed (A command line utility for parsing a .maf file and converting coordinates from 1-based (maf standard) to 0-based (bed standard))
 * tsvmanip (A command line utility for filtering, rearranging, and modifying tsv files)
 
+The __io__ package:
+* Socket (A low-level network IO class built on top of the standard socket class)
+* SocketServer (A low-level listen server to accept connections and return Socket classes)
+
 
 ## SEARCH_RANGE
 The `agutil` module includes the class, `search_range`.
@@ -185,4 +189,50 @@ While not _strictly_ biology oriented, its original purpose was to parse and rea
                         last step in parsing, so input column #'s should be
                         relative to any changes made by plucking and splitting
 
-  _-v_                    Provide verbose output
+  _-v_                  Provide verbose output
+
+##io.SOCKET
+The `agutil.io` module includes the class `Socket`.
+`Socket` instances provide a simple interface built on top of the standard library's `socket`.
+
+#####API
+* Socket(address, port) _(constructor)_
+  Creates a connection to _address_:_port_
+
+* Socket.send(msg)
+  Encodes and sends _msg_ over the connection.
+  _msg_ must either be a str or bytes object.
+  Transmission starts with a sequence of bytes representing ascii numerals equaling
+  the length (in bytes) of the following payload.  The length transmission is terminated
+  with ascii 124 (the pipe character, | ).  Then the payload (the message sent) follows.
+
+* Socket.recv(decode=False)
+  Receives a message over the connection (following the above protocol)
+  The received payload is returned (the length string and pipe character are discarded)
+  If _decode_ is true, then the payload will be decoded into a str object before returned
+
+* Socket.settimeout(time)
+  Passes the value _time_ (in seconds) to the internal socket object's settimeout method.
+  A non-zero value will set all socket operations to have a timeout equal to _time_
+  If _time_ is 0, the socket is set to non-blocking mode
+  If _time_ is None, the socket is set to blocking mode
+
+* Socket.close()
+  Shuts down and closes the connection
+
+
+##io.SOCKETSERVER
+The `agutil.io` module includes the class `SocketServer`.
+`SocketServer` instances provide a simple interface to listen for and accept incoming connections as `Socket` objects.
+
+#####API
+* SocketServer(port, address='', queue=3) _(constructor)_
+  Begins listening for connections on _port_.  If _address_ is specified, only connections to that specific address will be accepted
+  (in the case for systems with multiple addresses).
+  _queue_ defines how many incoming connections will be queued to be accepted before new connections are rejected
+
+* SocketServer.accept()
+  Blocks until an incoming connection is established, then returns a `Socket` object for the incoming connection
+
+* SocketServer.close()
+  Closes and unbinds the socket.  Note that the underlying TCP connection will linger for a few seconds before closing.

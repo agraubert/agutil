@@ -25,7 +25,13 @@ if not version:
 setup(
     name="agutil",
     version=version,
-    packages=["agutil", "agutil.bio", "agutil.src"],
+    packages=[
+        "agutil",
+        "agutil.bio",
+        "agutil.src",
+        "agutil.io",
+        "agutil.io.src"
+    ],
     entry_points={
         "console_scripts":[
             "maf2bed = agutil.bio.maf2bed:main",
