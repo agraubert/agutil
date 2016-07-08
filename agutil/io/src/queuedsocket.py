@@ -13,14 +13,14 @@ class QueuedSocket:
         self.iolock = threading.Condition()
         self._thread = threadding.Thread(target=ioThread, args=(self))
 
-    def read(self):
+    def recv(self):
         self.iolock.acquire()
         self.iolock.wait_for(lambda :len(self.inqueue))
         output = self.inqueue.pop(0)
         self.iolock.release()
         return output
 
-    def write(self, msg):
+    def send(self, msg):
         self.iolock.acquire()
         self.outqueue.append(msg)
         self.iolock.release()
