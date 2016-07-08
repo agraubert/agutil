@@ -1,6 +1,6 @@
 from .socket import Socket
 import threading
-from socket import timeout
+from socket import timeout, error
 
 class QueuedSocket:
     def __init__(self, _socket):
@@ -15,6 +15,9 @@ class QueuedSocket:
         self._thread.start()
 
     def recv(self, decode=False):
+        if self.shutdown:
+            self.close()
+            raise IOError("This QueuedSocket has already been shutdown")
         self.iolock.acquire()
         self.iolock.wait_for(lambda :len(self.inqueue))
         output = self.inqueue.pop(0)
@@ -24,6 +27,9 @@ class QueuedSocket:
         return output
 
     def send(self, msg):
+        if self.shutdown:
+            self.close()
+            raise IOError("This QueuedSocket has already been shutdown")
         self.iolock.acquire()
         self.outqueue.append(msg)
         self.iolock.release()
@@ -38,22 +44,24 @@ class QueuedSocket:
 
 def ioThread(owner):
     while not owner.shutdown:
-        if len(owner.outqueue):
-            print("Attempting to send")
-            owner.iolock.acquire()
-            item = owner.outqueue.pop(0)
-            owner.iolock.release()
-            owner.sock.settimeout(None)
-            owner.sock.send(item)
-        else:
-            owner.sock.settimeout(1)
-            item = None
-            print("Attempting to read")
-            try:
-                item = owner.sock.recv()
-            except timeout:
-                pass
-            if item!=None:
+        try:
+            if len(owner.outqueue):
                 owner.iolock.acquire()
-                owner.inqueue.append(item)
+                item = owner.outqueue.pop(0)
                 owner.iolock.release()
+                owner.sock.settimeout(None)
+                owner.sock.send(item)
+            else:
+                owner.sock.settimeout(.2)
+                item = None
+                try:
+                    item = owner.sock.recv()
+                except timeout:
+                    pass
+                if item!=None:
+                    owner.iolock.acquire()
+                    owner.inqueue.append(item)
+                    owner.iolock.notify_all()
+                    owner.iolock.release()
+        except error:
+            break
