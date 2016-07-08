@@ -17,24 +17,7 @@ The __bio__ package:
 
 The __io__ package:
 * Socket (A low-level network IO class built on top of the standard socket class)
-* QueuedSocket (An IO class built on top of the agutil.io.Socket class.  Performs IO on a background thread and exchanges data with other threads through queues)
 * SocketServer (A low-level listen server to accept connections and return Socket classes)
 
 ##Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)
-
-##Features in development:
-
-##io.QUEUEDSOCKET
-The `agutil.io` module includes the `QueuedSocket` class, which operates similarly to the `Socket` class,
-except that IO is constantly performed on a background thread.  The send() and recv() methods enqueue data for transmission
-or dequeue received data, respectively
-
-##API
-* QueuedSocket(\_socket): _(constructor)_
-  Wraps a QueuedSocket around an already connected `agutil.io.Socket` class
-
-* QueuedSocket.send()
-* QueuedSocket.recv()
-* QueuedSocket.close()
-  These methods present the same API as the `agutil.io.Socket` class
