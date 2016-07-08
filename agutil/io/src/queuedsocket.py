@@ -11,7 +11,8 @@ class QueuedSocket:
         self.outqueue = []
         self.shutdown = False
         self.iolock = threading.Condition()
-        self._thread = threadding.Thread(target=ioThread, args=(self))
+        self._thread = threading.Thread(target=ioThread, args=(self))
+        self._thread.start()
 
     def recv(self):
         self.iolock.acquire()
