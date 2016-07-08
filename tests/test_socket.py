@@ -20,6 +20,7 @@ def server_comms(ss, payload):
         payload.intake.append(sock.recv(True))
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
+        print("Server Cycle")
     sock.close()
 
 def client_comms(_sockClass, port, payload):
@@ -46,6 +47,7 @@ def client_comms_queued(_sockClass, _queueClass, port, payload):
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
         payload.intake.append(sock.recv(True))
+        print("Client Cycle")
     sock.close()
 
 class test(unittest.TestCase):

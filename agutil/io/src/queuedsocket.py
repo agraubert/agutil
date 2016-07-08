@@ -11,14 +11,16 @@ class QueuedSocket:
         self.outqueue = []
         self.shutdown = False
         self.iolock = threading.Condition()
-        self._thread = threading.Thread(target=ioThread, args=(self))
+        self._thread = threading.Thread(target=ioThread, args=(self,))
         self._thread.start()
 
-    def recv(self):
+    def recv(self, decode=False):
         self.iolock.acquire()
         self.iolock.wait_for(lambda :len(self.inqueue))
         output = self.inqueue.pop(0)
         self.iolock.release()
+        if decode:
+            return output.decode()
         return output
 
     def send(self, msg):
@@ -36,7 +38,8 @@ class QueuedSocket:
 
 def ioThread(owner):
     while not owner.shutdown:
-        if len(outqueue):
+        if len(owner.outqueue):
+            print("Attempting to send")
             owner.iolock.acquire()
             item = owner.outqueue.pop(0)
             owner.iolock.release()
@@ -45,6 +48,7 @@ def ioThread(owner):
         else:
             owner.sock.settimeout(1)
             item = None
+            print("Attempting to read")
             try:
                 item = owner.sock.recv()
             except timeout:
