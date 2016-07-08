@@ -4,6 +4,7 @@ import rsa
 import os
 import Crypto.Cipher.AES as AES
 import pickle
+import threading
 
 RSA_CPU = os.cpu_count()
 if RSA_CPU == None:
@@ -92,25 +93,34 @@ class SecureSocket:
         self.remotePub = pickle.loads(unpadstring(self.baseCipher.decrypt(self.sock.recv())))
 
         self.channels = {}
+        self.actionqueue = []
+        self.actionlock = threading.Condition()
+        self._thread = threading.thread(target=SocketWorker, args=(self,))
+        self._thread.start()
         if initiator:
             self.new_channel('_default_')
 
     def new_channel(self, name, rsabits=4096, mode='text'):
         if name in self.channels:
             raise KeyError("Channel name '%s' already exists" % (name))
-        _ch = None
-        if mode=='text':
-            _ch = TextChannel
-        elif mode=='files':
-            _ch = FileChannel
-        else:
-            raise ValueError("Mode must be 'text' or 'files'")
-        self.channels[name]= {
-            'rsabits': rsabits,
-            'mode': mode,
-            'channel': _ch(rsabits, True)
-        }
+
+        # _ch = None
+        # if mode=='text':
+        #     _ch = TextChannel
+        # elif mode=='files':
+        #     _ch = FileChannel
+        # else:
+        #     raise ValueError("Mode must be 'text' or 'files'")
+        # self.channels[name]= {
+        #     'rsabits': rsabits,
+        #     'mode': mode,
+        #     'channel': _ch(rsabits, True)
+        # }
 
     def send(self, payload, channel="_default_"):
         if channel not in self.channels:
             raise KeyError("Channel name '%s' not opened" %(channel))
+
+
+def SocketWorker(_socket):
+    pass
