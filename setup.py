@@ -30,7 +30,9 @@ setup(
         "agutil.bio",
         "agutil.src",
         "agutil.io",
-        "agutil.io.src"
+        "agutil.io.src",
+        "agutil.security",
+        "agutil.security.src"
     ],
     entry_points={
         "console_scripts":[
@@ -38,6 +40,10 @@ setup(
             "tsvmanip = agutil.bio.tsvmanip:main"
         ]
     },
+    install_requires=[
+        'pycrypto',
+        'rsa'
+    ],
     classifiers=[
         'Development Status :: 3 - Alpha',
 
