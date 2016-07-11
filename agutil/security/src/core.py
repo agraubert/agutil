@@ -1,5 +1,5 @@
-import ..io
-import .channel
+from .. import io
+from . import channel
 
 def new(address, port, password=None):
     if address == 'listen' or address == '':

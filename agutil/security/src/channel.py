@@ -5,7 +5,7 @@ import os
 import Crypto.Cipher.AES as AES
 import pickle
 import threading
-import .protocols
+from . import protocols
 
 RSA_CPU = os.cpu_count()
 if RSA_CPU == None:

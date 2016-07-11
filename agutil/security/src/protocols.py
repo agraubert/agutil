@@ -7,7 +7,7 @@ _TEXT_PAYLOAD_CMD = "<payload> <channel|%s> <md5|%s> <signature|%s>"
 _CONSOLE = False
 
 def parsecmd(cmd):
-    parts = [item[1:-1] for item in cmd..strip().split(' ')]
+    parts = [item[1:-1] for item in cmd.strip().split(' ')]
     output = {
         '_CMD_' : parts[0],
         '_RAW_' : ""+cmd
@@ -36,7 +36,8 @@ def unpadstring(msg):
         current = msg[len(tmp):len(tmp)+1]
         if current == b'|':
             break
-        else tmp+=current.decode()
+        else:
+             tmp+=current.decode()
     size = int(tmp)
     return msg[len(tmp)+1:len(tmp)+1+size]
 
@@ -52,7 +53,7 @@ def _SocketWorker(_socket):
             _socket.sock.settimeout(.5)
             try:
                 action = rsa.decrypt(
-                    _socket.sock.recv()
+                    _socket.sock.recv(),
                     _socket.priv
                 ).decode()
             except timeout:
