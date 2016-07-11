@@ -23,10 +23,11 @@ class _dummyCipher:
         return msg
 
 class SecureSocket:
-    def __init__(self, socket, initiator=False, initPassword=None, defaultbits=4096):
+    def __init__(self, socket, initiator=False, initPassword=None, defaultbits=4096, verbose=False, console=False):
         self.port = socket.port
         self.defaultbits = defaultbits
         self._ready = False
+        self.v = verbose
         if type(socket) != io.Socket:
             self.sock.close()
             raise TypeError("socket argument must be of type agutil.io.Socket")
@@ -37,7 +38,7 @@ class SecureSocket:
         if initiator:
             protocolstring = _protocol
             if initPassword!=None:
-                protocolstring = _protocol+" <password-%d>"%(
+                protocolstring = _protocol+" <password-%s>"%(
                     hashlib.sha512(
                         hashlib.sha512(initPassword.encode()+b"lol").hexdigest().encode()
                     ).hexdigest()
@@ -50,7 +51,7 @@ class SecureSocket:
         else:
             protocolstring = _protocol
             if initPassword!=None:
-                protocolstring = _protocol+" <password-%d>"%(
+                protocolstring = _protocol+" <password-%s>"%(
                     hashlib.sha512(
                         hashlib.sha512(initPassword.encode()+b"lol").hexdigest().encode()
                     ).hexdigest()
@@ -88,36 +89,35 @@ class SecureSocket:
         self.actionqueue = []
         self.actionlock = threading.Condition()
         self._shutdown = False
-        self._thread = threading.Thread(target=protocols._SocketWorker, args=(self,))
+        self._thread = threading.Thread(target=protocols._SocketWorker, args=(self,), name="Worker thread")
         self._thread.start()
         self._ready =True
         self.defaultlock = threading.Condition()
         if initiator:
-            self.init_thread = threading.Thread(target=SecureSocket.new_channel, args=(self, '_default_'))
+            self.init_thread = threading.Thread(target=SecureSocket.new_channel, args=(self, '_default_'), name="Initializer thread")
             self.init_thread.start()
         self.defaultlock.acquire()
-        print("Waiting for default channel to initialize")
+
         self.defaultlock.wait()
         # self.defaultlock.wait_for(lambda :'_default_' in self.channels)
         self.defaultlock.release()
         if initiator:
-            print("Joining the initialization thread")
+
             self.init_thread.join()
-        print("initialization complete", initiator)
             # self.new_channel('_default_')
             # self.new_channel('_default_file_')
 
     def new_channel(self, name, rsabits=-1, mode='text', _initiator=True):
         if name in self.channels:
             raise KeyError("Channel name '%s' already exists" % (name))
-        print("Opening new channel")
+
         if mode!='text' and mode!='files':
             raise ValueError("Mode must be 'text' or 'files'")
         if rsabits == -1:
             rsabits = self.defaultbits
-        print("Generating RSA keypair")
+
         (_pub, _priv) = rsa.newkeys(rsabits, True, RSA_CPU)
-        print("Generated keys")
+
         self.channels[name]= {
             'rsabits': rsabits,
             'mode': mode,
@@ -133,7 +133,7 @@ class SecureSocket:
         }
         if _initiator:
             self.actionlock.acquire()
-            print("Queueing new channel")
+
             self.actionqueue.append(protocols._NEW_CHANNEL_CMD%(
                 name,
                 rsabits,
@@ -158,22 +158,23 @@ class SecureSocket:
             return False
         return self.channels[channel]['_confirmed']
 
-    def disconnect(self):
+    def disconnect(self, notify=True):
         if not self._ready:
             self.sock.close()
             return
+        self._ready = False
         self.actionlock.acquire()
         self._shutdown = True
         self.actionqueue = []
         self.actionlock.release()
-        self.sock.send(rsa.encrypt(b'<disconnect>', self.remotePub))
+        if notify:
+            self.sock.send(rsa.encrypt(b'<disconnect>', self.remotePub))
         self.sock.close()
+
         self._thread.join()
 
-    def close(self):
-        self.disconnect()
 
-    def __del__(self):
+    def close(self):
         self.disconnect()
 
     def send(self, payload, channel="_default_"):
@@ -195,7 +196,6 @@ class SecureSocket:
         pass
 
     def _text_out(self, message, channel):
-        print("THE MESSAGE IS:", message)
         signature = rsa.sign(
             message.encode(),
             self.channels[channel]['priv'],
@@ -228,6 +228,17 @@ class SecureSocket:
             raw,
             self.channels[channel]['priv']
         )
-        print("THE MESSAGE WAS:", msg.decode())
         rsa.verify(msg, sig, self.channels[channel]['rpub'])
         return msg.decode()
+
+    def _remote_shutdown(self):
+        self.shutdown_thread = threading.Thread(target=_remote_shutdown_worker, args=(self,), name='Shutdown thread')
+        self.shutdownlock = threading.Condition()
+        self.shutdownlock.acquire()
+        self.shutdown_thread.start()
+
+def _remote_shutdown_worker(self):
+    self.shutdownlock.acquire()
+    self.shutdownlock.release()
+
+    self.disconnect(False)

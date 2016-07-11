@@ -17,7 +17,7 @@ class Socket:
         elif type(msg)!=bytes:
             raise TypeError("msg argument must be str or bytes")
         payload_size = len(msg)
-        print("Sending: <", payload_size, ">",msg)
+        # print("Sending: <", payload_size, ">",msg)
         self.sock.send(str(payload_size).encode())
         self.sock.send(b"|")
         while payload_size > 0:
@@ -42,12 +42,11 @@ class Socket:
                     size+=current.decode()
 
         while len(msg) < size:
-            print("Waiting for additional packets")
             msg += self.sock.recv(min(4096, size-len(msg)))
 
         if decode:
             return msg.decode()
-        print("Received: <", size, ">", msg)
+        # print("Received: <", size, ">", msg)
         return msg
 
     def settimeout(self, time):

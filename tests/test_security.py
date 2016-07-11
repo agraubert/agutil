@@ -17,12 +17,9 @@ def server_comms(fn, port, payload):
     payload.intake=[]
     payload.output=[]
     for trial in range(5):
-        print('=====================================')
-        print("IO CYCLE", trial)
         payload.intake.append(sock.read())
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
-    sock.close()
 
 def client_comms(_sockClass, port, payload):
     sock = _sockClass('localhost', port, defaultbits=1024)
@@ -75,7 +72,7 @@ class test(unittest.TestCase):
         server_thread = None
         found_port = -1
         for port in range(4000, 10000):
-            server_thread = threading.Thread(target=server_comms, args=(new, port, server_payload))
+            server_thread = threading.Thread(target=server_comms, args=(new, port, server_payload), name='Server thread')
             server_thread.start()
             server_thread.join(1)
             if server_thread.is_alive():
@@ -85,11 +82,11 @@ class test(unittest.TestCase):
         self.assertGreater(found_port, 3999, "Failed to bind to any ports on [4000, 10000]")
         # self.assertIsInstance(ssWrapper.payload, SecureSocket, "Failed to bind to any ports on [4000, 10000]")
         client_payload = lambda x:None
-        client_thread = threading.Thread(target=client_comms, args=(new, found_port, client_payload))
+        client_thread = threading.Thread(target=client_comms, args=(new, found_port, client_payload), name="Client thread")
         client_thread.start()
-        server_thread.join()
+        server_thread.join(30)
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
-        client_thread.join()
+        client_thread.join(30)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))

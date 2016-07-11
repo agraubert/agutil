@@ -40,7 +40,6 @@ def unpadstring(msg):
     return msg[len(tmp)+1:len(tmp)+1+size]
 
 def _SocketWorker(_socket):
-    print("Socket worker initialized")
     _socket.actionlock.acquire()
     while not _socket._shutdown:
         action = None
@@ -59,8 +58,10 @@ def _SocketWorker(_socket):
                 ).decode()
             except timeout:
                 pass
+            except OSError:
+                _socket.sock.close()
+                return
         if action!=None:
-            print("New action", action, starter)
             args = parsecmd(action)
             if args['_CMD_'] == 'new-channel':
                 if starter:
@@ -72,13 +73,14 @@ def _SocketWorker(_socket):
                     _text_payload_init(_socket, args)
                 else:
                     _text_payload(_socket, args)
+            elif args['_CMD_'] == 'disconnect':
+                _socket._remote_shutdown()
+                _socket.shutdownlock.release()
+
         #do stuff
         _socket.actionlock.acquire()
 
-
-
 def _newChannel_init(_socket, cmd):
-    print("Worker opening new channel")
     _socket.sock.settimeout(None)
     _socket.sock.send(rsa.encrypt(
         cmd['_RAW_'].encode(),
@@ -90,18 +92,14 @@ def _newChannel_init(_socket, cmd):
     ).decode()
     if response == 'BAD':
         raise KeyError("Channel name '%s' already exists on remote socket" % (cmd['name']))
-    print("Confirmed with remote to open channel")
     _socket.channels[cmd['name']]['rpub'] = pickle.loads(
         unpadstring(_socket.baseCipher.decrypt(_socket.sock.recv()))
     )
-    print("Obtained remote public key")
     _socket.sock.send(
         _socket.baseCipher.encrypt(
             padstring(pickle.dumps(_socket.channels[cmd['name']]['pub']))
         )
     )
-    print("Sent local public key")
-    print("Confirming encryption with remote")
     _socket.sock.send(rsa.encrypt(
         b'OK',
         _socket.channels[cmd['name']]['rpub']
@@ -118,13 +116,11 @@ def _newChannel_init(_socket, cmd):
     _socket.channels[cmd['name']]['datalock'].release()
     if cmd['name'] == '_default_' or cmd['name'] == '_default_file_':
         _socket.defaultlock.acquire()
-        print("Notifying initiator that default channel is open")
         _socket.defaultlock.notify_all()
         _socket.defaultlock.release()
 
 
 def _newChannel(_socket, cmd):
-    print("Worker connecting new channel")
     _socket.sock.settimeout(None)
     try:
         _socket.new_channel(
@@ -139,22 +135,18 @@ def _newChannel(_socket, cmd):
             _socket.remotePub
         ))
         return
-    print("Sending confirmation to initiator")
     _socket.sock.send(rsa.encrypt(
         b'OK',
         _socket.remotePub
     ))
-    print("Sending pubkey to initiator")
     _socket.sock.send(
         _socket.baseCipher.encrypt(
             padstring(pickle.dumps(_socket.channels[cmd['name']]['pub']))
         )
     )
-    print("Receving initiator's pubkey")
     _socket.channels[cmd['name']]['rpub'] = pickle.loads(
         unpadstring(_socket.baseCipher.decrypt(_socket.sock.recv()))
     )
-    print("Confirming encryption with initiator")
     _socket.sock.send(rsa.encrypt(
         b'OK',
         _socket.channels[cmd['name']]['rpub']
@@ -167,49 +159,38 @@ def _newChannel(_socket, cmd):
         raise ValueError("Failed to confirm encryption on this channel")
     if cmd['name'] == '_default_' or cmd['name'] == '_default_file_':
         _socket.defaultlock.acquire()
-        print("Notifying recipient that default channel is open")
         _socket.defaultlock.notify_all()
         _socket.defaultlock.release()
 
 def _text_payload_init(_socket, cmd):
-    print("Initializing new text message")
     _socket.sock.settimeout(None)
     if cmd['channel'] in _socket.channels:
-        print("Sending command string to remote")
         _socket.sock.send(rsa.encrypt(
             cmd['_RAW_'].encode(),
             _socket.remotePub
         ))
-        print("Waiting for response from remote")
         response = rsa.decrypt(
             _socket.sock.recv(),
             _socket.priv
         ).decode()
         if response != 'OK':
             raise KeyError("Channel name '%s' does not exist on remote socket" % (cmd['name']))
-        print("Now sending message and signature")
         _socket.channels[cmd['channel']]['datalock'].acquire()
-        print("--Sending signature")
         _socket.sock.send(_socket.channels[cmd['channel']]['signatures'].pop(0))
-        print("--Sending message")
+        _socket.sock.recv()
         _socket.sock.send(_socket.channels[cmd['channel']]['output'].pop(0))
-        print("--Done")
         _socket.channels[cmd['channel']]['datalock'].release()
 
 def _text_payload(_socket, cmd):
-    print("Preparing for inbound text payload")
     _socket.sock.settimeout(None)
     if cmd['channel'] in _socket.channels:
         _socket.sock.send(rsa.encrypt(
             b"OK",
             _socket.remotePub
         ))
-        print("Sent payload confirmation\n--Receiving signature")
         sig = _socket.sock.recv()
-        print("--Receiving message")
+        _socket.sock.send("continue")
         msg = _socket.sock.recv()
-        print("--Done")
-        print("Stashing message and hash")
         _socket.channels[cmd['channel']]['datalock'].acquire()
         _socket.channels[cmd['channel']]['input'].append(msg)
         _socket.channels[cmd['channel']]['hashes'].append(sig)
@@ -219,6 +200,5 @@ def _text_payload(_socket, cmd):
                 print("Type '!!FIX THIS MESSAGE!!' to decrypt and read message")
             else:
                 print("Use the .read() method of this SecureSocket to decrypt and read this message")
-        print("Notifying threads of received data")
         _socket.channels[cmd['channel']]['datalock'].notify_all()
         _socket.channels[cmd['channel']]['datalock'].release()
