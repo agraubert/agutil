@@ -13,7 +13,7 @@ def make_random_string():
     return "".join(chr(random.randint(0,255)) for i in range(25))
 
 def server_comms(fn, port, payload):
-    sock = fn('listen', port, defaultbits=1024)
+    sock = fn('listen', port, 'password', defaultbits=1024)
     payload.intake=[]
     payload.output=[]
     for trial in range(5):
@@ -22,7 +22,7 @@ def server_comms(fn, port, payload):
         sock.send(payload.output[-1])
 
 def client_comms(_sockClass, port, payload):
-    sock = _sockClass('localhost', port, defaultbits=1024)
+    sock = _sockClass('localhost', port, 'password', defaultbits=1024)
     payload.intake=[]
     payload.output=[]
     for trial in range(5):
@@ -93,8 +93,6 @@ class test(unittest.TestCase):
         self.assertListEqual(server_payload.intake, client_payload.output)
         self.assertListEqual(server_payload.output, client_payload.intake)
 
-    def test_connection_with_password(self):
-        pass
 
     def test_files_io(self):
         pass
