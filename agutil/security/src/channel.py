@@ -19,12 +19,6 @@ class _dummyCipher:
     def decrypt(self, msg):
         return msg
 
-class TextChannel:
-    pass
-
-class FileChannel:
-    pass
-
 class SecureSocket:
     def __init__(self, socket, initiator=False, initPassword=None):
         if type(socket) != io.Socket:
@@ -86,28 +80,99 @@ class SecureSocket:
     def new_channel(self, name, rsabits=4096, mode='text'):
         if name in self.channels:
             raise KeyError("Channel name '%s' already exists" % (name))
-        # _ch = None
-        # if mode=='text':
-        #     _ch = TextChannel
-        # elif mode=='files':
-        #     _ch = FileChannel
-        # else:
-        #     raise ValueError("Mode must be 'text' or 'files'")
-        # self.channels[name]= {
-        #     'rsabits': rsabits,
-        #     'mode': mode,
-        #     'channel': _ch(rsabits, True)
-        # }
+        _ch = None
+        if mode!='text' and mode!='files':
+            raise ValueError("Mode must be 'text' or 'files'")
+        (_pub, _priv) = rsa.newkeys(rsabits, True, RSA_CPU)
+        self.channels[name]= {
+            'rsabits': rsabits,
+            'mode': mode,
+            'pub': _pub,
+            'priv': _priv,
+            'input': [],
+            'output': [],
+            'signatures':[],
+            'hashes':[],
+            'datalock': theading.Condition(),
+            'notify': False
+        }
+        self.actionlock.acquire()
+        self.actionqueue.append(protocols._NEW_CHANNEL_CMD%(
+            name,
+            rsabits,
+            mode
+        ))
+        self.actionqueue.release()
+
+    def close_channel(self, name):
+        if name not in self.channels:
+            raise KeyError("Channel name '%s' not opened" %(name))
+        self.actionlock.acquire()
+        self.actionqueue.append(protocols._CLOSE_CHANNEL_CMD%(name))
+        self.actionlock.release()
+
+
+    def disconnect(self):
+        self.actionlock.acquire()
+        self._shutdown = True
+        self.actionqueue = []
+        self.actionlock.release()
+        self.sock.send(rsa.encrypt(b'<disconnect>', self.remotePub))
+        self.sock.close()
+
+    def __del__(self):
+        self.disconnect()
 
     def send(self, payload, channel="_default_"):
         if channel not in self.channels:
             raise KeyError("Channel name '%s' not opened" %(channel))
+        if self.channels[channel]['mode']=='text':
+            self._text_out(payload, channel)
 
     def sendfile(self, filepath, channel="_default_file_"):
         self.send(filepath, channel)
 
     def read(self, channel="_default_"):
-        pass
+        if channel not in self.channels:
+            raise KeyError("Channel name '%s' not opened" %(channel))
+        if self.channels[channel]['mode']=='text':
+            return self._text_in(channel)
 
     def savefile(self, filepath, channel="_default_file_"):
         pass
+
+    def _text_out(self, message, channel):
+        md5 = hashlib.md5(message.encode()).hexdigest()
+        signature = rsa.sign(
+            message.encode(),
+            self.channels[channel]['priv'],
+            'SHA-256'
+        )
+        payload = rsa.encrypt(
+            message.encode(),
+            self.channels[channel]['rpub']
+        )
+        self.channels[channel]['datalock'].acquire()
+        self.actionlock.acquire()
+        self.channels[channel]['output'].append(payload)
+        self.channels[channel]['signatures'].append(signature)
+        self.actionqueue.append(protocols._TEXT_PAYLOAD_CMD%(
+            channel,
+            md5
+        ))
+        self.actionlock.release()
+        self.channels[channel]['datalock'].release()
+
+    def _text_in(self, channel):
+        self.channels[channel]['datalock'].acquire()
+        self.channels[channel]['datalock'].wait_for(lambda :len(self.channels[channel]['input']))
+        raw = self.channels[channel]['input'].pop(0)
+        md5 = self.channels[channel]['hashes'].pop(0)
+        self.channels[channel]['datalock'].release()
+        msg = rsa.decrypt(
+            raw,
+            self.channels[channel]['priv']
+        )
+        if md5!=hashlib.md5(msg).hexdigest():
+            raise ValueError("Hashcheck failed when receiving message")
+        return msg.decode()

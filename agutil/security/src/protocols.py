@@ -3,7 +3,8 @@ import rsa
 import pickle
 import hashlib
 _NEW_CHANNEL_CMD = "<new-channel> <name|%s> <rsabits|%d> <mode|%s>"
-_TEXT_PAYLOAD_CMD = "<payload> <channel|%s> <md5|%s> <signature|%s>"
+_TEXT_PAYLOAD_CMD = "<payload> <channel|%s> <md5|%s>"
+_CLOSE_CHANNEL_CMD = "<close-channel> <name|%s>"
 _CONSOLE = False
 
 def parsecmd(cmd):
@@ -42,9 +43,9 @@ def unpadstring(msg):
     return msg[len(tmp)+1:len(tmp)+1+size]
 
 def _SocketWorker(_socket):
+    _socket.actionlock.acquire()
     while not _socket._shutdown:
         action = None
-        _socket.actionlock.acquire()
         if len(_socket.actionqueue):
             action = _socket.actionqueue.pop(0)
             _socket.actionlock.release()
@@ -60,6 +61,8 @@ def _SocketWorker(_socket):
                 pass
         if action!=None:
             args = parsecmd(action)
+        #do stuff
+        _socket.actionlock.acquire()
 
 
 
@@ -121,7 +124,10 @@ def _text_payload_init(_socket, cmd):
         ).decode()
         if response != 'OK':
             raise KeyError("Channel name '%s' does not exist on remote socket" % (cmd['name']))
+        _socket.channels[cmd['channel']]['datalock'].acquire()
+        _socket.sock.send(_socket.channels[cmd['name']]['signatures'].pop(0))
         _socket.sock.send(_socket.channels[cmd['name']]['output'].pop(0))
+        _socket.channels[cmd['channel']]['datalock'].release()
 
 def _text_payload(_socket, cmd):
     _socket.sock.settimeout(None)
@@ -130,10 +136,18 @@ def _text_payload(_socket, cmd):
             b"OK",
             _socket.remotePub
         ))
-        _socket.channels[cmd['channel']]['input'].append(_socket.sock.recv())
+        _socket.channels[cmd['channel']]['datalock'].acquire()
+        sig = _socket.sock.recv()
+        msg = _socket.sock.recv()
+        if not rsa.verify(msg, sig, _socket.channels[cmd['channel']]['pub']):
+            print("Message verification failed.  Signature did not match")
+        _socket.channels[cmd['channel']]['input'].append(msg)
+        _socket.channels[cmd['channel']]['hashes'].append(cmd['md5'])
         if _socket.channels[cmd['channel']]['notify']:
             print("New message received on channel", cmd['channel'])
             if _CONSOLE:
                 print("Type '!!FIX THIS MESSAGE!!' to decrypt and read message")
             else:
                 print("Use the .read() method of this SecureSocket to decrypt and read this message")
+        _socket.channels[cmd['channel']]['datalock'].notify_all()
+        _socket.channels[cmd['channel']]['datalock'].release()
