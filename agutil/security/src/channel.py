@@ -5,31 +5,12 @@ import os
 import Crypto.Cipher.AES as AES
 import pickle
 import threading
+import .protocols
 
 RSA_CPU = os.cpu_count()
 if RSA_CPU == None:
     RSA_CPU = 2
 RSA_CPU/=2
-
-def padstring(msg):
-    if type(msg)==str:
-        msg = msg.encode()
-    if type(msg)!=bytes:
-        raise TypeError("msg must be type str or bytes")
-    payload_size = len(msg)
-    msg = str(payload_size).encode() + b'|' + msg
-    return msg + bytes((16-len(msg))%16)
-
-def unpadstring(msg):
-    tmp = ""
-    while not found_string:
-        current = msg[len(tmp):len(tmp)+1]
-        if current == b'|':
-            break
-        else tmp+=current.decode()
-    size = int(tmp)
-    return msg[len(tmp)+1:len(tmp)+1+size]
-
 
 class _dummyCipher:
     def encrypt(self, msg):
@@ -89,16 +70,18 @@ class SecureSocket:
         else:
             self.baseCipher = _dummyCipher()
 
-        self.sock.send(self.baseCipher.encrypt(padstring(pickle.dumps(self.pub))))
-        self.remotePub = pickle.loads(unpadstring(self.baseCipher.decrypt(self.sock.recv())))
+        self.sock.send(self.baseCipher.encrypt(protocols.padstring(pickle.dumps(self.pub))))
+        self.remotePub = pickle.loads(protocols.unpadstring(self.baseCipher.decrypt(self.sock.recv())))
 
         self.channels = {}
         self.actionqueue = []
         self.actionlock = threading.Condition()
         self._thread = threading.thread(target=SocketWorker, args=(self,))
         self._thread.start()
+        self._shutdown = False
         if initiator:
             self.new_channel('_default_')
+            self.new_channel('_default_file_')
 
     def new_channel(self, name, rsabits=4096, mode='text'):
         if name in self.channels:
@@ -120,6 +103,11 @@ class SecureSocket:
         if channel not in self.channels:
             raise KeyError("Channel name '%s' not opened" %(channel))
 
+    def sendfile(self, filepath, channel="_default_file_"):
+        self.send(filepath, channel)
 
-def SocketWorker(_socket):
-    pass
+    def read(self, channel="_default_"):
+        pass
+
+    def savefile(self, filepath, channel="_default_file_"):
+        pass
