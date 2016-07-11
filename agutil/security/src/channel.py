@@ -180,9 +180,6 @@ class SecureSocket:
     def close(self):
         self.disconnect()
 
-    def __del__(self):
-        self.sock.close()
-
     def send(self, payload, channel="_default_"):
         if channel not in self.channels:
             raise KeyError("Channel name '%s' not opened" %(channel))
