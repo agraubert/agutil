@@ -64,6 +64,8 @@ class SecureSocket:
             self.sock.send('OK')
 
         #now generate the base 1024-bit rsa key
+        if self.v:
+            print("Generating base 1024-bit rsa key")
         (self.pub, self.priv) = rsa.newkeys(1024, True, RSA_CPU)
 
         if initPassword!=None:
@@ -71,6 +73,8 @@ class SecureSocket:
         else:
             self.baseCipher = _dummyCipher()
 
+        if self.v:
+            print("Exchanging base keys with the remote socket")
         self.sock.send(self.baseCipher.encrypt(protocols.padstring(pickle.dumps(self.pub))))
         self.remotePub = pickle.loads(protocols.unpadstring(self.baseCipher.decrypt(self.sock.recv())))
 
@@ -96,25 +100,26 @@ class SecureSocket:
         if initiator:
             self.init_thread = threading.Thread(target=SecureSocket.new_channel, args=(self, '_default_'), name="Initializer thread")
             self.init_thread.start()
+        elif self.v:
+            print("Waiting for the remote socket to open the default channel...")
         self.defaultlock.acquire()
 
         self.defaultlock.wait()
         # self.defaultlock.wait_for(lambda :'_default_' in self.channels)
         self.defaultlock.release()
         if initiator:
-
             self.init_thread.join()
-            # self.new_channel('_default_')
-            # self.new_channel('_default_file_')
 
     def new_channel(self, name, rsabits=-1, mode='text', _initiator=True):
         if name in self.channels:
             raise KeyError("Channel name '%s' already exists" % (name))
-
         if mode!='text' and mode!='files':
             raise ValueError("Mode must be 'text' or 'files'")
         if rsabits == -1:
             rsabits = self.defaultbits
+        if self.v:
+            print("Opening a new channel '%s'" %(name))
+            print("Generating a new %d-bit key.  (This may take a while)"%(rsabits))
 
         (_pub, _priv) = rsa.newkeys(rsabits, True, RSA_CPU)
 
@@ -128,23 +133,19 @@ class SecureSocket:
             'signatures':[],
             'hashes':[],
             'datalock': threading.Condition(),
-            'notify': False,
+            'notify': self.v,
             '_confirmed': not _initiator
         }
         if _initiator:
             self.actionlock.acquire()
-
+            if self.v:
+                print("Securing the channel with the remote socket... (this may take a while)")
             self.actionqueue.append(protocols._NEW_CHANNEL_CMD%(
                 name,
                 rsabits,
                 mode
             ))
             self.actionlock.release()
-            # self.channels[name]['datalock'].acquire()
-            # # self.channels[name]['datalock'].wait()
-            # # self.channels[name]['datalock'].wait_for(lambda :self._channel_confirmed(name))
-            # print("Channel confirmed")
-            # self.channels[name]['datalock'].release()
 
     def close_channel(self, name):
         if name not in self.channels:
@@ -168,6 +169,8 @@ class SecureSocket:
         self.actionqueue = []
         self.actionlock.release()
         if notify:
+            if self.v:
+                print("Disconnecting from the remote socket")
             self.sock.send(rsa.encrypt(b'<disconnect>', self.remotePub))
         self.sock.close()
 
@@ -176,6 +179,9 @@ class SecureSocket:
 
     def close(self):
         self.disconnect()
+
+    def __del__(self):
+        self.sock.close()
 
     def send(self, payload, channel="_default_"):
         if channel not in self.channels:
@@ -240,5 +246,6 @@ class SecureSocket:
 def _remote_shutdown_worker(self):
     self.shutdownlock.acquire()
     self.shutdownlock.release()
-
+    if self.v:
+        print("The remote socket has disconnected")
     self.disconnect(False)

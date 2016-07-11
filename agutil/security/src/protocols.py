@@ -111,10 +111,12 @@ def _newChannel_init(_socket, cmd):
     if response != b'OK':
         raise ValueError("Failed to confirm encryption on this channel")
     _socket.channels[cmd['name']]['datalock'].acquire()
+    if _socket.v:
+        print("Channel '%s' opened and secured"%(cmd['name']))
     _socket.channels[cmd['name']]['confirmed'] = True
     _socket.channels[cmd['name']]['datalock'].notify_all()
     _socket.channels[cmd['name']]['datalock'].release()
-    if cmd['name'] == '_default_' or cmd['name'] == '_default_file_':
+    if cmd['name'] == '_default_':
         _socket.defaultlock.acquire()
         _socket.defaultlock.notify_all()
         _socket.defaultlock.release()
@@ -123,6 +125,8 @@ def _newChannel_init(_socket, cmd):
 def _newChannel(_socket, cmd):
     _socket.sock.settimeout(None)
     try:
+        if _socket.v:
+            print("The remote socket has requested to open a new channel")
         _socket.new_channel(
             cmd['name'],
             int(cmd['rsabits']),
@@ -157,7 +161,9 @@ def _newChannel(_socket, cmd):
     )
     if response != b'OK':
         raise ValueError("Failed to confirm encryption on this channel")
-    if cmd['name'] == '_default_' or cmd['name'] == '_default_file_':
+    if _socket.v:
+        print("Channel '%s' opened and secured"%(cmd['name']))
+    if cmd['name'] == '_default_':
         _socket.defaultlock.acquire()
         _socket.defaultlock.notify_all()
         _socket.defaultlock.release()
