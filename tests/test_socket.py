@@ -71,7 +71,7 @@ class test(unittest.TestCase):
             if ss!=None:
                 break
         warnings.resetwarnings()
-        self.assertIsInstance(ss, SocketServer)
+        self.assertIsInstance(ss, SocketServer, "Failed to bind to any ports on [4000, 10000]")
         startup_lock.acquire()
         server_payload = lambda x:None
         client_payload = lambda x:None
@@ -80,9 +80,9 @@ class test(unittest.TestCase):
         server_thread.start()
         client_thread.start()
         server_thread.join(10)
-        self.assertFalse(server_thread.is_alive())
+        self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(10)
-        self.assertFalse(client_thread.is_alive())
+        self.assertFalse(client_thread.is_alive(), "Client thread still running")
         ss.close()
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
