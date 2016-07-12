@@ -2,8 +2,13 @@ from socket import timeout, error
 import rsa
 import pickle
 import hashlib
+import Crypto.Cipher.AES as AES
+import os
+import tempfile
+
 _NEW_CHANNEL_CMD = "<new-channel> <name|%s> <rsabits|%d> <mode|%s>"
 _TEXT_PAYLOAD_CMD = "<text-payload> <channel|%s>"
+_FILE_PAYLOAD_CMD = "<file-payload> <channel|%s>"
 _CLOSE_CHANNEL_CMD = "<close-channel> <name|%s>"
 _CONSOLE = False
 
@@ -76,6 +81,11 @@ def _SocketWorker(_socket):
             elif args['_CMD_'] == 'disconnect':
                 _socket._remote_shutdown()
                 _socket.shutdownlock.release()
+            elif args['_CMD_'] == 'file-payload':
+                if starter:
+                    _file_payload_init(_socket, args)
+                else:
+                    _file_payload(_socket, args)
 
         #do stuff
         _socket.actionlock.acquire()
@@ -170,7 +180,7 @@ def _newChannel(_socket, cmd):
 
 def _text_payload_init(_socket, cmd):
     _socket.sock.settimeout(None)
-    if cmd['channel'] in _socket.channels:
+    if cmd['channel'] in _socket.channels and _socket.channels[cmd['channel']]['mode']=='text':
         _socket.sock.send(rsa.encrypt(
             cmd['_RAW_'].encode(),
             _socket.remotePub
@@ -206,5 +216,102 @@ def _text_payload(_socket, cmd):
                 print("Type '!!FIX THIS MESSAGE!!' to decrypt and read message")
             else:
                 print("Use the .read() method of this SecureSocket to decrypt and read this message")
+        _socket.channels[cmd['channel']]['datalock'].notify_all()
+        _socket.channels[cmd['channel']]['datalock'].release()
+
+def _file_payload_init(_socket, cmd):
+    _socket.sock.settimeout(None)
+    if cmd['channel'] in _socket.channels and _socket.channels[cmd['channel']]['mode']=='files':
+        _socket.sock.send(rsa.encrypt(
+            cmd['_RAW_'].encode(),
+            _socket.remotePub
+        ))
+        response = rsa.decrypt(
+            _socket.sock.recv(),
+            _socket.priv
+        ).decode()
+        if response != 'OK':
+            raise KeyError("Channel name '%s' does not exist on remote socket" % (cmd['name']))
+        _socket.channels[cmd['channel']]['datalock'].acquire()
+        signature = _socket.channels[cmd['channel']]['signatures'].pop(0)
+        filepath = _socket.channels[cmd['channel']]['output'].pop(0)
+        _socket.channels[cmd['channel']]['datalock'].release()
+        aes_key = rsa.randnum.read_random_bits(256)
+        aes_iv = rsa.randnum.read_random_bits(128)
+        _socket.sock.send(rsa.encrypt(
+            aes_key,
+            _socket.channels[cmd['channel']]['rpub']
+        ))
+        _socket.sock.recv()
+        _socket.sock.send(rsa.encrypt(
+            aes_iv,
+            _socket.channels[cmd['channel']]['rpub']
+        ))
+        cipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
+        reader = open(filepath, mode='rb')
+        _socket.sock.recv()
+        intake = reader.read(4096)
+        while len(intake)>0:
+            _socket.sock.send(rsa.encrypt(
+                b'payload',
+                _socket.remotePub
+            ))
+            _socket.sock.recv()
+            _socket.sock.send(cipher.encrypt(padstring(intake)))
+            _socket.sock.recv()
+            intake = reader.read(4096)
+        _socket.sock.send(rsa.encrypt(
+            b'end',
+            _socket.remotePub
+        ))
+        reader.close()
+        _socket.sock.recv()
+        _socket.sock.send(signature)
+
+def _file_payload(_socket, cmd):
+    _socket.sock.settimeout(None)
+    if cmd['channel'] in _socket.channels and _socket.channels[cmd['channel']]['mode']=='files':
+        _socket.sock.send(rsa.encrypt(
+            b'OK',
+            _socket.remotePub
+        ))
+        aes_key = rsa.decrypt(
+            _socket.sock.recv(),
+            _socket.channels[cmd['channel']]['priv']
+        )
+        _socket.sock.send(b'continue')
+        aes_iv = rsa.decrypt(
+            _socket.sock.recv(),
+            _socket.channels[cmd['channel']]['priv']
+        )
+        filepath = os.path.abspath(tempfile.NamedTemporaryFile().name)
+        cipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
+        writer = open(filepath, mode='wb')
+        _socket.sock.send(b'continue')
+        signal = rsa.decrypt(
+            _socket.sock.recv(),
+            _socket.priv
+        )
+        while signal == b'payload':
+            _socket.sock.send(b'continue')
+            writer.write(unpadstring(cipher.decrypt(_socket.sock.recv())))
+            _socket.sock.send(b'continue')
+            signal = rsa.decrypt(
+                _socket.sock.recv(),
+                _socket.priv
+            )
+            writer.flush()
+        _socket.sock.send(b'continue')
+        signature = _socket.sock.recv()
+        writer.close()
+        _socket.channels[cmd['channel']]['datalock'].acquire()
+        _socket.channels[cmd['channel']]['input'].append(filepath)
+        _socket.channels[cmd['channel']]['hashes'].append(signature)
+        if _socket.channels[cmd['channel']]['notify']:
+            print("New file received on channel", cmd['channel'])
+            if _CONSOLE:
+                print("Type '!!FIX THIS MESSAGE!!' to decrypt and read message")
+            else:
+                print("Use the .read() method of this SecureSocket to save this file")
         _socket.channels[cmd['channel']]['datalock'].notify_all()
         _socket.channels[cmd['channel']]['datalock'].release()

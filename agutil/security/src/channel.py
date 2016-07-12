@@ -6,6 +6,7 @@ import os
 import Crypto.Cipher.AES as AES
 import pickle
 import threading
+import shutil
 from . import protocols
 
 RSA_CPU = os.cpu_count()
@@ -93,12 +94,12 @@ class SecureSocket:
         self.actionqueue = []
         self.actionlock = threading.Condition()
         self._shutdown = False
-        self._thread = threading.Thread(target=protocols._SocketWorker, args=(self,), name="Worker thread")
+        self._thread = threading.Thread(target=protocols._SocketWorker, args=(self,), name="Worker thread", daemon=True)
         self._thread.start()
         self._ready =True
         self.defaultlock = threading.Condition()
         if initiator:
-            self.init_thread = threading.Thread(target=SecureSocket.new_channel, args=(self, '_default_'), name="Initializer thread")
+            self.init_thread = threading.Thread(target=SecureSocket.new_channel, args=(self, '_default_'), name="Initializer thread", daemon=True)
             self.init_thread.start()
         elif self.v:
             print("Waiting for the remote socket to open the default channel...")
@@ -174,11 +175,24 @@ class SecureSocket:
                 print("Disconnecting from the remote socket")
             self.sock.send(rsa.encrypt(b'<disconnect>', self.remotePub))
         self.sock.close()
-
+        once = False
+        for channel in self.channels:
+            if self.channels[channel]['mode']=='files':
+                self.channels[channel]['datalock'].acquire()
+                if len(self.channels[channel]['input']):
+                    if self.v and not once:
+                        print("Cleaning up leftover files")
+                        once = True
+                    for filepath in self.channels[channel]['input']:
+                        os.remove(filepath)
+                self.channels[channel]['datalock'].release()
         self._thread.join()
 
 
     def close(self):
+        self.disconnect()
+
+    def __del__(self):
         self.disconnect()
 
     def send(self, payload, channel="_default_"):
@@ -186,8 +200,12 @@ class SecureSocket:
             raise KeyError("Channel name '%s' not opened" %(channel))
         if self.channels[channel]['mode']=='text':
             self._text_out(payload, channel)
+        elif self.channels[channel]['mode']=='files':
+            self._file_out(payload, channel)
 
     def sendfile(self, filepath, channel="_default_file_"):
+        if channel=="_default_file_" and channel not in self.channels:
+            self.new_channel("_default_file_", mode="files")
         self.send(filepath, channel)
 
     def read(self, channel="_default_"):
@@ -197,7 +215,10 @@ class SecureSocket:
             return self._text_in(channel)
 
     def savefile(self, filepath, channel="_default_file_"):
-        pass
+        if channel not in self.channels:
+            raise KeyError("Channel name '%s' not opened" %(channel))
+        if self.channels[channel]['mode']=='files':
+            return self._file_in(channel, filepath)
 
     def _text_out(self, message, channel):
         signature = rsa.sign(
@@ -234,6 +255,47 @@ class SecureSocket:
         )
         rsa.verify(msg, sig, self.channels[channel]['rpub'])
         return msg.decode()
+
+    def _file_out(self, filepath, channel):
+        filepath = os.path.abspath(filepath)
+        reader = open(filepath, mode='rb')
+        intake = reader.read(4096)
+        reader.close()
+        signature = rsa.sign(
+            intake,
+            self.channels[channel]['priv'],
+            'SHA-256'
+        )
+        rsa.verify(
+            intake,
+            signature,
+            self.channels[channel]['pub']
+        )
+        self.channels[channel]['datalock'].acquire()
+        self.actionlock.acquire()
+        self.channels[channel]['output'].append(filepath)
+        self.channels[channel]['signatures'].append(signature)
+        self.actionqueue.append(protocols._FILE_PAYLOAD_CMD%(channel))
+        self.actionlock.release()
+        self.channels[channel]['datalock'].release()
+
+    def _file_in(self, channel, destination=None):
+        self.channels[channel]['datalock'].acquire()
+        self.channels[channel]['datalock'].wait_for(lambda :len(self.channels[channel]['input']))
+        filepath = self.channels[channel]['input'].pop(0)
+        sig = self.channels[channel]['hashes'].pop(0)
+        self.channels[channel]['datalock'].release()
+        reader = open(filepath, mode='rb')
+        intake = reader.read(4096)
+        reader.close()
+        rsa.verify(intake, sig, self.channels[channel]['rpub'])
+        if destination==None and self.v:
+            print("A file has been downloaded on channel '%s'"%channel)
+            print("The file's authenticity has been verified")
+            destination = os.path.abspath(input("Path to save the downloaded file: "))
+        shutil.copyfile(filepath, destination)
+        os.remove(filepath)
+        return destination
 
     def _remote_shutdown(self):
         self.shutdown_thread = threading.Thread(target=_remote_shutdown_worker, args=(self,), name='Shutdown thread')
