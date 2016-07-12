@@ -75,8 +75,8 @@ class test(unittest.TestCase):
         startup_lock.acquire()
         server_payload = lambda x:None
         client_payload = lambda x:None
-        server_thread = threading.Thread(target=server_comms, args=(ss, server_payload))
-        client_thread = threading.Thread(target=client_comms, args=(Socket, ss.port, client_payload))
+        server_thread = threading.Thread(target=server_comms, args=(ss, server_payload), daemon=True)
+        client_thread = threading.Thread(target=client_comms, args=(Socket, ss.port, client_payload), daemon=True)
         server_thread.start()
         client_thread.start()
         server_thread.join(10)
