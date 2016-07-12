@@ -103,9 +103,7 @@ class SecureSocket:
         elif self.v:
             print("Waiting for the remote socket to open the default channel...")
         self.defaultlock.acquire()
-
         self.defaultlock.wait()
-        # self.defaultlock.wait_for(lambda :'_default_' in self.channels)
         self.defaultlock.release()
         if initiator:
             self.init_thread.join()
@@ -146,6 +144,9 @@ class SecureSocket:
                 mode
             ))
             self.actionlock.release()
+            self.channels[name]['datalock'].acquire()
+            self.channels[name]['datalock'].wait()
+            self.channels[name]['datalock'].release()
 
     def close_channel(self, name):
         if name not in self.channels:

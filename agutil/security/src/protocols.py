@@ -113,7 +113,7 @@ def _newChannel_init(_socket, cmd):
     _socket.channels[cmd['name']]['datalock'].acquire()
     if _socket.v:
         print("Channel '%s' opened and secured"%(cmd['name']))
-    _socket.channels[cmd['name']]['confirmed'] = True
+    _socket.channels[cmd['name']]['_confirmed'] = True
     _socket.channels[cmd['name']]['datalock'].notify_all()
     _socket.channels[cmd['name']]['datalock'].release()
     if cmd['name'] == '_default_':
