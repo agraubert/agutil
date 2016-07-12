@@ -312,6 +312,6 @@ def _file_payload(_socket, cmd):
             if _CONSOLE:
                 print("Type '!!FIX THIS MESSAGE!!' to decrypt and read message")
             else:
-                print("Use the .read() method of this SecureSocket to save this file")
+                print("Use the .savefile() method of this SecureSocket to save this file")
         _socket.channels[cmd['channel']]['datalock'].notify_all()
         _socket.channels[cmd['channel']]['datalock'].release()
