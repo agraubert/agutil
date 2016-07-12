@@ -30,7 +30,7 @@ def padstring(msg):
     if type(msg)!=bytes:
         raise TypeError("msg must be type str or bytes")
     payload_size = len(msg)
-    msg = str(payload_size).encode() + b'|' + msg
+    msg = format(payload_size, 'x').encode() + b'|' + msg
     return msg + bytes((16-len(msg))%16)
 
 def unpadstring(msg):
@@ -41,7 +41,7 @@ def unpadstring(msg):
             break
         else:
              tmp+=current.decode()
-    size = int(tmp)
+    size = int(tmp, 16)
     return msg[len(tmp)+1:len(tmp)+1+size]
 
 def _SocketWorker(_socket):
@@ -126,7 +126,7 @@ def _newChannel_init(_socket, cmd):
     _socket.channels[cmd['name']]['_confirmed'] = True
     _socket.channels[cmd['name']]['datalock'].notify_all()
     _socket.channels[cmd['name']]['datalock'].release()
-    if cmd['name'] == '_default_':
+    if cmd['name'] == '_default_' or cmd['name'] == '_default_file_':
         _socket.defaultlock.acquire()
         _socket.defaultlock.notify_all()
         _socket.defaultlock.release()
@@ -173,7 +173,7 @@ def _newChannel(_socket, cmd):
         raise ValueError("Failed to confirm encryption on this channel")
     if _socket.v:
         print("Channel '%s' opened and secured"%(cmd['name']))
-    if cmd['name'] == '_default_':
+    if cmd['name'] == '_default_' or cmd['name']=='_default_file_':
         _socket.defaultlock.acquire()
         _socket.defaultlock.notify_all()
         _socket.defaultlock.release()

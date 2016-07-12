@@ -9,11 +9,15 @@ import threading
 import shutil
 from . import protocols
 
-RSA_CPU = os.cpu_count()
-if RSA_CPU == None:
-    RSA_CPU = 2
-RSA_CPU = int(RSA_CPU/2)
-if not RSA_CPU:
+RSA_CPU = None
+try:
+    RSA_CPU = os.cpu_count()
+    if RSA_CPU == None:
+        RSA_CPU = 2
+    RSA_CPU = int(RSA_CPU/2)
+    if not RSA_CPU:
+        RSA_CPU = 1
+except AttributeError:
     RSA_CPU = 1
 
 class _dummyCipher:
@@ -148,6 +152,7 @@ class SecureSocket:
             self.channels[name]['datalock'].acquire()
             self.channels[name]['datalock'].wait()
             self.channels[name]['datalock'].release()
+        print("Channel established", _initiator)
 
     def close_channel(self, name):
         if name not in self.channels:
@@ -204,8 +209,11 @@ class SecureSocket:
             self._file_out(payload, channel)
 
     def sendfile(self, filepath, channel="_default_file_"):
-        if channel=="_default_file_" and channel not in self.channels:
-            self.new_channel("_default_file_", mode="files")
+        if channel not in self.channels:
+            if channel=="_default_file_":
+                self.new_channel("_default_file_", mode="files")
+            else:
+                raise KeyError("Channel name '%s' not opened" %(channel))
         self.send(filepath, channel)
 
     def read(self, channel="_default_"):
@@ -216,7 +224,14 @@ class SecureSocket:
 
     def savefile(self, filepath, channel="_default_file_"):
         if channel not in self.channels:
-            raise KeyError("Channel name '%s' not opened" %(channel))
+            if channel=="_default_file_":
+                if self.v:
+                    print("Waiting for the remote socket to open the default file channel")
+                self.defaultlock.acquire()
+                self.defaultlock.wait()
+                self.defaultlock.release()
+            else:
+                raise KeyError("Channel name '%s' not opened" %(channel))
         if self.channels[channel]['mode']=='files':
             return self._file_in(channel, filepath)
 

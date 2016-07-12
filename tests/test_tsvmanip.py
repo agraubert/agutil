@@ -29,6 +29,7 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
+    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_manipulation(self):
         output_file = tempfile.NamedTemporaryFile()
         cmd = '%s %s %s %s -c 0 -c 4 -d 4:: -d 4:- --i0 2 -s 2 -s 3 -m 0:3' % (

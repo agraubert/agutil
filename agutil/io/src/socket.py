@@ -18,7 +18,7 @@ class Socket:
             raise TypeError("msg argument must be str or bytes")
         payload_size = len(msg)
         # print("Sending: <", payload_size, ">",msg)
-        self.sock.send(str(payload_size).encode())
+        self.sock.send(format(payload_size, 'x').encode())
         self.sock.send(b"|")
         while payload_size > 0:
             payload_size -= self.sock.send(msg)
@@ -33,7 +33,7 @@ class Socket:
             for i in range(len(intake)):
                 current = intake[i:i+1]
                 if current == b'|':
-                    size = int(size)
+                    size = int(size, 16)
                     msg = intake[i+1:i+1+size]
                     self.rollover = intake[i+1+size:]
                     found_size = True
