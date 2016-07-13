@@ -5,7 +5,10 @@ import sys
 import random
 import threading
 import warnings
+import os
 startup_lock = threading.Lock()
+
+TRAVIS = 'CI' in os.environ
 
 def make_random_string():
     return "".join(chr(random.randint(0,255)) for i in range(25))
@@ -71,7 +74,7 @@ class test(unittest.TestCase):
             if ss!=None:
                 break
         warnings.resetwarnings()
-        self.assertIsInstance(ss, SocketServer)
+        self.assertIsInstance(ss, SocketServer, "Failed to bind to any ports on [4000, 10000]")
         startup_lock.acquire()
         server_payload = lambda x:None
         client_payload = lambda x:None
@@ -79,10 +82,11 @@ class test(unittest.TestCase):
         client_thread = threading.Thread(target=client_comms, args=(Socket, ss.port, client_payload), daemon=True)
         server_thread.start()
         client_thread.start()
-        server_thread.join(10)
-        self.assertFalse(server_thread.is_alive())
-        client_thread.join(10)
-        self.assertFalse(client_thread.is_alive())
+        extra = 30 if TRAVIS else 0
+        server_thread.join(10+extra)
+        self.assertFalse(server_thread.is_alive(), "Server thread still running")
+        client_thread.join(10+extra)
+        self.assertFalse(client_thread.is_alive(), "Client thread still running")
         ss.close()
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))

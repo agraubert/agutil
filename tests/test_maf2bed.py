@@ -31,6 +31,7 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
+    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output(self):
         output_dir = tempfile.TemporaryDirectory()
         cmd = '%s %s convert %s %s' % (
@@ -68,6 +69,7 @@ class test(unittest.TestCase):
         ))
         output_dir.cleanup()
 
+    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output_noSilents(self):
         output_dir = tempfile.TemporaryDirectory()
         cmd = '%s %s convert %s %s --exclude-silent' % (
@@ -105,6 +107,7 @@ class test(unittest.TestCase):
         ))
         output_dir.cleanup()
 
+    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output_noKeyfile(self):
         output_file = tempfile.NamedTemporaryFile()
         cmd = '%s %s convert %s %s --skip-keyfile' % (
@@ -125,6 +128,7 @@ class test(unittest.TestCase):
             )
         ))
 
+    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output_noSilents_noKeyfile(self):
         output_file = tempfile.NamedTemporaryFile()
         cmd = '%s %s convert %s %s --exclude-silent --skip-keyfile' % (
