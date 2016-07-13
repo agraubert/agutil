@@ -124,6 +124,7 @@ def _newChannel_init(_socket, cmd):
     if _socket.v:
         print("Channel '%s' opened and secured"%(cmd['name']))
     _socket.channels[cmd['name']]['_confirmed'] = True
+    print("Notifying channel opened")
     _socket.channels[cmd['name']]['datalock'].notify_all()
     _socket.channels[cmd['name']]['datalock'].release()
     if cmd['name'] == '_default_' or cmd['name'] == '_default_file_':

@@ -152,6 +152,7 @@ class SecureSocket:
             '_confirmed': not _initiator
         }
         if _initiator:
+            self.channels[name]['datalock'].acquire()
             self.actionlock.acquire()
             if self.v:
                 print("Securing the channel with the remote socket... (this may take a while)")
@@ -161,7 +162,7 @@ class SecureSocket:
                 mode
             ))
             self.actionlock.release()
-            self.channels[name]['datalock'].acquire()
+            print("Waiting for channel to open")
             self.channels[name]['datalock'].wait()
             self.channels[name]['datalock'].release()
         print("Channel established", _initiator)
