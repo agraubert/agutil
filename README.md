@@ -4,7 +4,7 @@
 
 A collection of python utilities
 
-__Version:__ 0.3.0a
+__Version:__ 0.4.0b
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
@@ -18,6 +18,9 @@ The __bio__ package:
 The __io__ package:
 * Socket (A low-level network IO class built on top of the standard socket class)
 * SocketServer (A low-level listen server to accept connections and return Socket classes)
+
+The __security__ package:
+* SecureSocket (A basic network IO system for exchanging files and text securely)
 
 ##Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)
