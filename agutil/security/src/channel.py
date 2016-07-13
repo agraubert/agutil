@@ -75,7 +75,8 @@ class SecureSocket:
             self.pub = _debug_keys[0]
             self.priv = _debug_keys[1]
             self.debugging = True
-            print("Skipping base key generation")
+            if self.v:
+                print("Skipping base key generation")
         else:
             (self.pub, self.priv) = rsa.newkeys(1024, True, RSA_CPU)
             self.debugging = False
@@ -134,7 +135,8 @@ class SecureSocket:
         if self.debugging:
             _pub = self.pub
             _priv = self.priv
-            print("Skipping channel key generation")
+            if self.v:
+                print("Skipping channel key generation")
         else:
             (_pub, _priv) = rsa.newkeys(rsabits, True, RSA_CPU)
 
@@ -162,10 +164,8 @@ class SecureSocket:
                 mode
             ))
             self.actionlock.release()
-            print("Waiting for channel to open")
             self.channels[name]['datalock'].wait()
             self.channels[name]['datalock'].release()
-        print("Channel established", _initiator)
 
     def close_channel(self, name):
         if name not in self.channels:

@@ -92,29 +92,24 @@ def _SocketWorker(_socket):
 
 def _newChannel_init(_socket, cmd):
     _socket.sock.settimeout(None)
-    print("Sending new channel command to remote socket")
     _socket.sock.send(rsa.encrypt(
         cmd['_RAW_'].encode(),
         _socket.remotePub
     ))
-    print("Waiting for confirmation from remote")
     response = rsa.decrypt(
         _socket.sock.recv(),
         _socket.priv
     ).decode()
     if response == 'BAD':
         raise KeyError("Channel name '%s' already exists on remote socket" % (cmd['name']))
-    print("Sending pubkey")
     _socket.sock.send(
         _socket.baseCipher.encrypt(
             padstring(pickle.dumps(_socket.channels[cmd['name']]['pub']))
         )
     )
-    print("Receiving remote pubkey")
     _socket.channels[cmd['name']]['rpub'] = pickle.loads(
         unpadstring(_socket.baseCipher.decrypt(_socket.sock.recv()))
     )
-    print("Checking encryption")
     _socket.sock.send(rsa.encrypt(
         b'OK',
         _socket.channels[cmd['name']]['rpub']
@@ -123,14 +118,12 @@ def _newChannel_init(_socket, cmd):
         _socket.sock.recv(),
         _socket.channels[cmd['name']]['priv']
     )
-    print("Encryption confirmed")
     if response != b'OK':
         raise ValueError("Failed to confirm encryption on this channel")
     _socket.channels[cmd['name']]['datalock'].acquire()
     if _socket.v:
         print("Channel '%s' opened and secured"%(cmd['name']))
     _socket.channels[cmd['name']]['_confirmed'] = True
-    print("Notifying channel opened")
     _socket.channels[cmd['name']]['datalock'].notify_all()
     _socket.channels[cmd['name']]['datalock'].release()
     if cmd['name'] == '_default_' or cmd['name'] == '_default_file_':
