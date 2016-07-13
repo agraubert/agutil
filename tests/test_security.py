@@ -124,7 +124,7 @@ class test(unittest.TestCase):
         client_payload = lambda x:None
         client_thread = threading.Thread(target=client_comms, args=(new, found_port, client_payload, self.pub, self.priv), name="Client thread", daemon=True)
         client_thread.start()
-        runtime = None if TRAVIS else 45
+        runtime = 75 if TRAVIS else 45
         server_thread.join(runtime)
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(runtime)
@@ -157,7 +157,7 @@ class test(unittest.TestCase):
         client_payload = lambda x:None
         client_thread = threading.Thread(target=client_comms_files, args=(new, found_port, client_payload, directory.name, self.pub, self.priv), name="Client thread", daemon=True)
         client_thread.start()
-        runtime = None if TRAVIS else 45
+        runtime = 75 if TRAVIS else 45
         server_thread.join(runtime)
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(runtime)
