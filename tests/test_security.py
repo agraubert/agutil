@@ -16,7 +16,7 @@ def make_random_string():
     return "".join(chr(random.randint(1,255)) for i in range(25))
 
 def server_comms(fn, port, payload, pubkey, privkey):
-    sock = fn('listen', port, 'password', defaultbits=1024, verbose=TRAVIS, _debug_keys=(pubkey, privkey))
+    sock = fn('listen', port, 'password', defaultbits=1024, _debug_keys=(pubkey, privkey))
     payload.intake=[]
     payload.output=[]
     for trial in range(5):
@@ -25,20 +25,18 @@ def server_comms(fn, port, payload, pubkey, privkey):
         sock.send(payload.output[-1])
 
 def client_comms(_sockClass, port, payload, pubkey, privkey):
-    sock = _sockClass('localhost', port, 'password', defaultbits=1024, verbose=TRAVIS, _debug_keys=(pubkey, privkey))
+    sock = _sockClass('localhost', port, 'password', defaultbits=1024, _debug_keys=(pubkey, privkey))
     payload.intake=[]
     payload.output=[]
     time.sleep(1)
     for trial in range(5):
-        if TRAVIS:
-            print("IO Cycle", trial)
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
         payload.intake.append(sock.read())
     sock.close()
 
 def server_comms_files(fn, port, payload, directory, pubkey, privkey):
-    sock = fn('listen', port, 'password', defaultbits=1024, verbose=TRAVIS, _debug_keys=(pubkey, privkey))
+    sock = fn('listen', port, 'password', defaultbits=1024, _debug_keys=(pubkey, privkey))
     payload.intake=[]
     payload.output=[]
     for trial in range(5):
@@ -53,13 +51,11 @@ def server_comms_files(fn, port, payload, directory, pubkey, privkey):
         sock.sendfile(payload.output[-1])
 
 def client_comms_files(_sockClass, port, payload, directory, pubkey, privkey):
-    sock = _sockClass('localhost', port, 'password', defaultbits=1024, verbose=TRAVIS, _debug_keys=(pubkey, privkey))
+    sock = _sockClass('localhost', port, 'password', defaultbits=1024, _debug_keys=(pubkey, privkey))
     payload.intake=[]
     payload.output=[]
     time.sleep(1)
     for trial in range(5):
-        if TRAVIS:
-            print("IO Cycle", trial)
         writer = open(tempfile.NamedTemporaryFile(dir=directory).name+".output", mode='w')
         for line in range(5):
             writer.write(make_random_string()+"\n")
