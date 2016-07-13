@@ -1,5 +1,5 @@
 from ... import io
-from . import channel
+from . import securesocket
 
 def new(address, port, password=None, defaultbits=4096, verbose=False, _debug_keys=None):
     if address == 'listen' or address == '':
