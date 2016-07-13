@@ -28,7 +28,7 @@ class _dummyCipher:
         return msg
 
 class SecureSocket:
-    def __init__(self, socket, initiator=False, initPassword=None, defaultbits=4096, verbose=False, console=False):
+    def __init__(self, socket, initiator=False, initPassword=None, defaultbits=4096, verbose=False, console=False, _debug_keys=None):
         self.port = socket.port
         self.defaultbits = defaultbits
         self._ready = False
@@ -71,7 +71,14 @@ class SecureSocket:
         #now generate the base 1024-bit rsa key
         if self.v:
             print("Generating base 1024-bit rsa key")
-        (self.pub, self.priv) = rsa.newkeys(1024, True, RSA_CPU)
+        if _debug_keys != None:
+            self.pub = _debug_keys[0]
+            self.priv = _debug_keys[1]
+            self.debugging = True
+            print("Skipping base key generation")
+        else:
+            (self.pub, self.priv) = rsa.newkeys(1024, True, RSA_CPU)
+            self.debugging = False
 
         if initPassword!=None:
             self.baseCipher = AES.new(hashlib.sha256(initPassword.encode()).digest())
@@ -124,7 +131,12 @@ class SecureSocket:
             print("Opening a new channel '%s'" %(name))
             print("Generating a new %d-bit key.  (This may take a while)"%(rsabits))
 
-        (_pub, _priv) = rsa.newkeys(rsabits, True, RSA_CPU)
+        if self.debugging:
+            _pub = self.pub
+            _priv = self.priv
+            print("Skipping channel key generation")
+        else:
+            (_pub, _priv) = rsa.newkeys(rsabits, True, RSA_CPU)
 
         self.channels[name]= {
             'rsabits': rsabits,
