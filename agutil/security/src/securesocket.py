@@ -7,6 +7,7 @@ import Crypto.Cipher.AES as AES
 import pickle
 import threading
 import shutil
+from io import BytesIO
 from . import protocols
 
 RSA_CPU = None
@@ -28,12 +29,13 @@ class _dummyCipher:
         return msg
 
 class SecureSocket(io.QueuedSocket):
-    def __init__(self, socket, password=None, rsabits=4096, verbose=False):
+    def __init__(self, socket, password=None, rsabits=4096, verbose=False, timeout=3):
         if not isinstance(socket, io.Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
         super(SecureSocket, self).__init__(socket)
         self.v = verbose
         self.rsabits = rsabits
+        self.timeout = timeout
         protocolstring = _protocol
         if password!=None:
             protocolstring = _protocol+" <password-%s>"%(
@@ -45,19 +47,19 @@ class SecureSocket(io.QueuedSocket):
         else:
             self.baseCipher = _dummyCipher()
         self._sendq(protocolstring, '__control__')
-        remoteprotocol = self._recvq('__control__', decode=True, timeout=3)
+        remoteprotocol = self._recvq('__control__', decode=True, timeout=timeout)
         if remoteprotocol != protocolstring:
-            self._closeq()
+            self.close()
             raise ValueError("The remote socket provided an invalid protocol identifier. (Theirs: %s) (Ours: %s)" % (
                 remoteprotocol,
                 protocolstring
             ))
         self._sendq(self._baseEncrypt('OK'), '__control__')
-        if self._baseDecrypt(self._recvq('__control__', timeout=3)) != b'OK':
-            self._closeq()
+        if self._baseDecrypt(self._recvq('__control__', timeout=timeout)) != b'OK':
+            self.close()
             raise ValueError("Unable to confirm base encryption with the remote socket.  Are you sure you entered the correct password?")
         self._sendq(self._baseEncrypt(format(rsabits, 'x')), '__control__')
-        self.remote_rsabits = int(self._baseDecrypt(self._recvq('__control__', timeout=3)).decode(), 16)
+        self.remote_rsabits = int(self._baseDecrypt(self._recvq('__control__', timeout=timeout)).decode(), 16)
         self.maxsize = (self.remote_rsabits / 8) - 16
         (self.pub, self.priv) = rsa.newkeys(rsabits, True, RSA_CPU)
         self._sendq(self._baseEncrypt(pickle.dumps(self.pub)))
@@ -71,7 +73,7 @@ class SecureSocket(io.QueuedSocket):
             self.priv
         )
         if response != b'OK':
-            self._closeq()
+            self.close()
             raise ValueError("Unable to confirm RSA encryption with the remote socket.")
 
 
@@ -80,9 +82,6 @@ class SecureSocket(io.QueuedSocket):
 
     def _recvq(self, channel='__orphan__', decode=False, timeout=None):
         super(SecureSocket, self).recv(channel, decode, timeout)
-
-    def _closeq(self):
-        super(SecureSocket, self).close()
 
     def _baseEncrypt(self, msg):
         return self.baseCipher.encrypt(
@@ -94,7 +93,10 @@ class SecureSocket(io.QueuedSocket):
             self.baseCipher.decrypt(msg)
         )
 
-    def sendrsa(self, msg, channel='__rsa__', retries=1):
+    def send(self, msg, channel='__rsa__', retries=1):
+        self.sendRSA(msg, channel, retries)
+
+    def sendRSA(self, msg, channel='__rsa__', retries=1):
         if type(msg)==str:
             msg=msg.encode()
         elif type(msg)!=bytes:
@@ -111,11 +113,16 @@ class SecureSocket(io.QueuedSocket):
                     self.rpub
                 ), channel)
             self._sendq(hashlib.sha512(msg).hexdigest(), channel)
-            if self._baseDecrypt(self._recvq(channel, timeout=5)) == b'OK':
+            if self._baseDecrypt(self._recvq(channel, timeout=self.timeout+2)) == b'OK':
                 return
         raise IOError("Unable to encrypt and send message over channel %s in %d retries" %(channel, retries))
 
-    def recvrsa(self, channel='__rsa__', decode=False, timeout=3):
+    def recv(self, channel='__rsa__', decode=False, timeout=-1):
+        return self.recvRSA(channel, decode, timeout)
+
+    def recvRSA(self, channel='__rsa__', decode=False, timeout=-1):
+        if timeout == -1:
+            timeout = self.timeout
         retries = int(self._baseDecrypt(self._recvq(channel, timeout=timeout)).decode(), 16)
         for attempt in range(retries):
             chunks = int(self._baseDecrypt(self._recvq(channel, timeout=timeout)).decode(), 16)
@@ -133,6 +140,101 @@ class SecureSocket(io.QueuedSocket):
                 return msg
             self._sendq(self._baseEncrypt('FAIL'), channel)
         raise IOError("Unable to receive and decrypt message over channel %s in %d retries" %(channel, retries))
+
+    def sendAES(self, msg, channel='__aes__', key=False, iv=False):
+        if type(msg)==str:
+            msg=msg.encode()
+        if key == True:
+            key = rsa.randnum.read_random_bits(256)
+        if type(key)!=bytes:
+            raise TypeError("key must be either True or a bytes object")
+        if iv == True:
+            iv = rsa.randnum.read_random_bits(128)
+        if type(iv)!=bytes:
+            raise TypeError("iv must be either True or a bytes object")
+        #if key and iv are false, then encrypt using the base cipher
+        if not (key or iv):
+            mode = 'BASE'
+            cipher = self.baseCipher
+        #if key is true or a bytestring and iv is false, use AES ECB
+        elif not iv:
+            mode = 'ECB'
+            cipher = cipher = AES.new(key)
+        #if both key and iv are either true or bytestrings, use AES CBC
+        else:
+            mode = 'CBC'
+            cipher = AES.new(key, AES.MODE_CBC, iv)
+        self._sendq(self._baseEncrypt(mode), channel)
+        if key:
+            self.sendRSA(key, channel)
+        if iv:
+            # self._sendq(self._baseEncrypt('+'))
+            self._sendq(cipher.encrypt(rsa.randnum.read_random_bits(128)))
+        if issubclass(msg, BytesIO):
+            intake = msg.read(4092) #because padstring adds 4 bytes to a string of this size
+            while len(intake):
+                self._sendq(self._baseEncrypt('+'))
+                self._sendq(cipher.encrypt(protocols.padstring(intake)))
+                intake = msg.read(4092)
+            self._sendq(self._baseEncrypt('-'))
+        else:
+            if type(msg)!=bytes:
+                raise TypeError("msg argument must be str or bytes")
+            self._sendq(self._baseEncrypt('+'))
+            self._sendq(cipher.encrypt(protocols.padstring(msg)))
+            self._sendq(self._baseEncrypt('-'))
+
+    def recvAES(self, channel='__aes__', decode=False, timeout=-1, output_file=None):
+        if timeout == -1:
+            timeout = self.timeout
+        mode = self._baseDecrypt(self._recvq(channel, timeout=timeout))
+        if mode == 'BASE':
+            cipher = self.baseCipher
+        else:
+            cipher = AES.new(self.recvRSA(channel, timeout=timeout))
+            cipher.decrypt(self._recvq(channel, timeout=timeout))
+        writer = None
+        if type(output_file) == str:
+            writer = open(output_file, mode='wb')
+        elif issubclass(output_file, BytesIO):
+            writer = output_file
+        command = self._baseDecrypt(self._recvq(channel, timeout=timeout))
+        msg = b""
+        while command == b'+':
+            intake = cipher.decrypt(self._recvq(channel, timeout=timeout))
+            if writer != None:
+                writer.write(intake)
+            else:
+                msg += intake
+            command = self._baseDecrypt(self._recvq(channel, timeout=timeout))
+        if writer != None:
+            writer.close()
+            return writer.name
+        if decode:
+            msg = msg.decode()
+        return msg
+
+    def sendRAW(self, msg, channel='__raw__'):
+        if type(msg)==str:
+            msg=msg.encode()
+        elif type(msg)!=bytes:
+            raise TypeError("msg argument must be str or bytes")
+        self._sendq(msg, channel)
+
+    def recvRAW(self, channel='__raw__', decode=False, timeout=-1):
+        if timeout == -1:
+            timeout = self.timeout
+        msg = self._recvq(channel, decode, timeout)
+
+    def settimeout(self, timeout):
+        self.timeout = timeout
+
+    def gettimeout(self):
+        return self.timeout
+
+    def close(self):
+        super(SecureSocket, self).close()
+
 
 class SecureSocket_predecessor:
     def __init__(self, address, port, initPassword=None, defaultbits=4096, verbose=False, console=False, _debug_keys=None):
