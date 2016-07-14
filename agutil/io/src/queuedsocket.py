@@ -28,7 +28,7 @@ class QueuedSocket(Socket):
         self._thread.join(timeout)
         super(QueuedSocket, self).close()
 
-    def send(self, msg, channel):
+    def send(self, msg, channel='__orphan__'):
         if self._shutdown:
             raise IOError("This QueuedSocket has already been closed")
         self.datalock.acquire()
@@ -41,7 +41,7 @@ class QueuedSocket(Socket):
         self.outgoing_channels.append(""+channel)
         self.datalock.release()
 
-    def recv(self, channel, decode=False):
+    def recv(self, channel='__orphan', decode=False, timeout=None):
         if self._shutdown:
             raise IOError("This QueuedSocket has already been closed")
         self.datalock.acquire()
@@ -50,7 +50,10 @@ class QueuedSocket(Socket):
         if not self._check_channel(channel):
             if self._debug:
                 print("Waiting for input on channel", channel)
-            self.datalock.wait_for(lambda :self._check_channel(channel))
+            result = self.datalock.wait_for(lambda :self._check_channel(channel), timeout)
+            if not result:
+                self.datalock.release()
+                raise timeout()
             if self._debug:
                 print("Input dequeued")
         msg = self.incoming[channel].pop(0)
