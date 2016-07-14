@@ -15,8 +15,9 @@ def bedkey(args):
 
 def maf2bed(args):
     if args.v and sys.platform=="win32":
-        print("Maf2bed does not yet support this feature on windows")
-        args.v = False
+        reader = open(args.input.name, mode='r')
+        args.v = len([False for row in reader])
+        reader.close()
     if args.v:
         from subprocess import run, PIPE
         args.v = int(run(['wc -l %s'%args.input.name], shell=True, stdout=PIPE).stdout.decode().split()[0])
