@@ -28,18 +28,25 @@ class _dummyCipher:
         return msg
 
 class SecureSocket:
-    def __init__(self, socket, initiator=False, initPassword=None, defaultbits=4096, verbose=False, console=False, _debug_keys=None):
-        self.port = socket.port
-        self.defaultbits = defaultbits
+    def __init__(self, address, port, initPassword=None, defaultbits=4096, verbose=False, console=False, _debug_keys=None):
         self._ready = False
+        if address == 'listen' or address == '':
+            #listen for connections
+            if verbose:
+                print("Awaiting an incoming connection...")
+            ss = io.SocketServer(port, queue=0)
+            self.sock = ss.accept()
+            initiator = False
+            ss.close()
+        else:
+            self.sock = io.Socket(address, port)
+            initiator = True
+        self.port = port
+        self.defaultbits = defaultbits
         self.v = verbose
-        if type(socket) != io.Socket:
-            self.sock.close()
-            raise TypeError("socket argument must be of type agutil.io.Socket")
         if type(initPassword)!=str and type(initPassword)!=type(None):
             self.sock.close()
             raise TypeError("Password argument must be of type str or None")
-        self.sock = socket
         if initiator:
             protocolstring = _protocol
             if initPassword!=None:
@@ -181,7 +188,10 @@ class SecureSocket:
 
     def disconnect(self, notify=True):
         if not self._ready:
-            self.sock.close()
+            try:
+                self.sock.close()
+            except AttributeError:
+                pass
             return
         self._ready = False
         self.actionlock.acquire()

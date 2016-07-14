@@ -88,16 +88,16 @@ class test(unittest.TestCase):
             self.source_dir,
             "core.py"
         ))
-        channel_path = compile(os.path.join(
+        securesocket_path = compile(os.path.join(
             self.source_dir,
-            "channel.py"
+            "securesocket.py"
         ))
         protocols_path = compile(os.path.join(
             self.source_dir,
             "protocols.py"
         ))
         self.assertTrue(core_path, "core.py compilation error")
-        self.assertTrue(channel_path, "channel.py compilation error")
+        self.assertTrue(securesocket_path, "securesocket.py compilation error")
         self.assertTrue(protocols_path, "protocols.py compilation error")
 
     def test_text_io(self):
