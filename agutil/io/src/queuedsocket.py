@@ -41,7 +41,7 @@ class QueuedSocket(Socket):
         self.outgoing_channels.append(""+channel)
         self.datalock.release()
 
-    def recv(self, channel='__orphan', decode=False, timeout=None):
+    def recv(self, channel='__orphan__', decode=False, timeout=None):
         if self._shutdown:
             raise IOError("This QueuedSocket has already been closed")
         self.datalock.acquire()
