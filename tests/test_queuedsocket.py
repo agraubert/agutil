@@ -60,7 +60,7 @@ class test(unittest.TestCase):
             "agutil",
             "io",
             "src",
-            "socket.py"
+            "queuedsocket.py"
         )
         sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.script_path))))
         random.seed()
