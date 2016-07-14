@@ -100,7 +100,15 @@ class QueuedSocket(Socket):
                 self.datalock.release()
                 if self._debug:
                     print("Outgoing payload on channel", target)
-                self._send(payload, target)
+                try:
+                    self._send(payload, target)
+                except OSError as e:
+                    if self._shutdown:
+                        if self._debug:
+                            print("QueuedSocket worker stopped")
+                        return
+                    else:
+                        raise e
             self.settimeout(.5)
             try:
                 (channel, payload) = self._recv()
@@ -116,3 +124,10 @@ class QueuedSocket(Socket):
                 self.datalock.release()
             except timeout:
                 pass
+            except OSError as e:
+                if self._shutdown:
+                    if self._debug:
+                        print("QueuedSocket worker stopped")
+                    return
+                else:
+                    raise e
