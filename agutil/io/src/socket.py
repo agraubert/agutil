@@ -52,6 +52,9 @@ class Socket:
     def settimeout(self, time):
         self.sock.settimeout(time)
 
+    def gettimeout(self):
+        return self.sock.gettimeout()
+
     def close(self):
         try:
             self.sock.setblocking(True)
