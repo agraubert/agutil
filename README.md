@@ -82,3 +82,13 @@ The `.send()` and `.recv()` methods now take an (optional) additional _channel_ 
 
 * QueuedSocket.settimeout(timeout)
   Sets the socket timeout.  This method is identical to `agutil.io.Socket.settimeout()`
+
+* QueuedSocket.gettimeout()
+  Returns the current timeout.  This method is identical to `agutil.io.Socket.gettimeout()`
+
+
+The following change has been made to the `agutil.io.Socket` API:
+
+#####API
+* Socket.gettimeout()
+  Returns the timeout set on the underlying socket
