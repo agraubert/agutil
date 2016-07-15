@@ -1,17 +1,18 @@
 from .socket import Socket
-from socket import timeout
+from socket import timeout as sockTimeout
 import threading
 
 class QueuedSocket(Socket):
     def __init__(self, socket, _debug=False):
         if not isinstance(socket, Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
-        super(QueuedSocket, self).__init__(socket.addr, socket.port, socket.sock)
+        super().__init__(socket.addr, socket.port, socket.sock)
         self.incoming = {'__orphan__': []}
         self.outgoing = {}
         self.outgoing_channels = []
         self._shutdown = False
         self.datalock = threading.Condition()
+        self.iolock = threading.Condition()
         self._debug = _debug
         self._thread = threading.Thread(
             target=QueuedSocket._worker,
@@ -26,22 +27,26 @@ class QueuedSocket(Socket):
         self._shutdown = True
         self.datalock.release()
         self._thread.join(timeout)
-        super(QueuedSocket, self).close()
+        super().close()
 
     def send(self, msg, channel='__orphan__'):
+        if channel=='__orphan__':
+            raise ValueError("Orphan channel")
         if self._shutdown:
             raise IOError("This QueuedSocket has already been closed")
         self.datalock.acquire()
         if channel not in self.outgoing:
-            self.outgoing[channel] = [""+msg]
+            self.outgoing[channel] = [msg]
         else:
-            self.outgoing[channel].append(""+msg)
+            self.outgoing[channel].append(msg)
         if self._debug:
             print("Queued output on channel", channel)
         self.outgoing_channels.append(""+channel)
         self.datalock.release()
 
     def recv(self, channel='__orphan__', decode=False, timeout=None):
+        if channel=='__orphan__':
+            raise ValueError("Orphan channel")
         if self._shutdown:
             raise IOError("This QueuedSocket has already been closed")
         self.datalock.acquire()
@@ -53,7 +58,7 @@ class QueuedSocket(Socket):
             result = self.datalock.wait_for(lambda :self._check_channel(channel), timeout)
             if not result:
                 self.datalock.release()
-                raise timeout()
+                raise sockTimeout()
             if self._debug:
                 print("Input dequeued")
         msg = self.incoming[channel].pop(0)
@@ -62,15 +67,21 @@ class QueuedSocket(Socket):
             msg = msg.decode()
         return msg
 
-    def _send(self, msg, channel):
+    def _sends(self, msg, channel):
         channel = ":ch#"+channel+"|"
         if type(msg)==bytes:
             channel = channel.encode()
         msg = channel + msg
-        super(QueuedSocket, self).send(msg)
+        # print("Sends:", msg)
+        self.iolock.acquire()
+        super().send(msg)
+        self.iolock.release()
 
-    def _recv(self):
-        msg = super(QueuedSocket, self).recv()
+    def _recvs(self):
+        self.iolock.acquire()
+        msg = super().recv()
+        self.iolock.release()
+        # print("Recvs:", msg)
         if msg[:4] == b':ch#':
             channel = ""
             i = 4
@@ -84,6 +95,8 @@ class QueuedSocket(Socket):
         return len(self.incoming[channel])
 
     def _worker(self):
+        if self._debug:
+            print("Worker started")
         while True:
             self.datalock.acquire()
             status = self._shutdown
@@ -101,7 +114,7 @@ class QueuedSocket(Socket):
                 if self._debug:
                     print("Outgoing payload on channel", target)
                 try:
-                    self._send(payload, target)
+                    self._sends(payload, target)
                 except OSError as e:
                     if self._shutdown:
                         if self._debug:
@@ -109,9 +122,9 @@ class QueuedSocket(Socket):
                         return
                     else:
                         raise e
-            self.settimeout(.5)
+            super().settimeout(.05)
             try:
-                (channel, payload) = self._recv()
+                (channel, payload) = self._recvs()
                 if self._debug:
                     print("Incoming payload on channel", channel)
                 self.datalock.acquire()
@@ -122,7 +135,7 @@ class QueuedSocket(Socket):
                 if self._debug:
                     print("Threads waiting on", channel, "have been notified")
                 self.datalock.release()
-            except timeout:
+            except sockTimeout:
                 pass
             except OSError as e:
                 if self._shutdown:

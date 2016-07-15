@@ -32,7 +32,7 @@ class SecureSocket(io.QueuedSocket):
     def __init__(self, socket, password=None, rsabits=4096, verbose=False, timeout=3):
         if not isinstance(socket, io.Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
-        super(SecureSocket, self).__init__(socket)
+        super().__init__(socket, _debug=verbose)
         self.v = verbose
         self.rsabits = rsabits
         self.timeout = timeout
@@ -46,7 +46,11 @@ class SecureSocket(io.QueuedSocket):
             self.baseCipher = AES.new(hashlib.sha256(password.encode()).digest())
         else:
             self.baseCipher = _dummyCipher()
+        if self.v:
+            print("Sending protocol identifier")
         self._sendq(protocolstring, '__control__')
+        if self.v:
+            print("Receiving remote identifier")
         remoteprotocol = self._recvq('__control__', decode=True, timeout=timeout)
         if remoteprotocol != protocolstring:
             self.close()
@@ -54,22 +58,32 @@ class SecureSocket(io.QueuedSocket):
                 remoteprotocol,
                 protocolstring
             ))
+        if self.v:
+            print("Sending confirmation")
         self._sendq(self._baseEncrypt('OK'), '__control__')
+        if self.v:
+            print("Receving confirmation")
         if self._baseDecrypt(self._recvq('__control__', timeout=timeout)) != b'OK':
             self.close()
             raise ValueError("Unable to confirm base encryption with the remote socket.  Are you sure you entered the correct password?")
+        if self.v:
+            print("Sending RSA keysize")
         self._sendq(self._baseEncrypt(format(rsabits, 'x')), '__control__')
+        if self.v:
+            print("Receiving remote RSA keysize")
         self.remote_rsabits = int(self._baseDecrypt(self._recvq('__control__', timeout=timeout)).decode(), 16)
-        self.maxsize = (self.remote_rsabits / 8) - 16
+        self.maxsize = int((self.remote_rsabits / 8)) - 16
+        if self.v:
+            print("Generating keypair...")
         (self.pub, self.priv) = rsa.newkeys(rsabits, True, RSA_CPU)
-        self._sendq(self._baseEncrypt(pickle.dumps(self.pub)))
+        self._sendq(self._baseEncrypt(pickle.dumps(self.pub)), '__control__')
         self.rpub = pickle.loads(self._baseDecrypt(self._recvq('__control__')))
         self._sendq(rsa.encrypt(
             b'OK',
             self.rpub
         ), '__control__')
         response = rsa.decrypt(
-            self._recvq('__control__', timeout=3),
+            self._recvq('__control__', timeout=timeout),
             self.priv
         )
         if response != b'OK':
@@ -78,10 +92,10 @@ class SecureSocket(io.QueuedSocket):
 
 
     def _sendq(self, msg, channel='__orphan__'):
-        super(SecureSocket, self).send(msg, channel)
+        super().send(msg, channel)
 
     def _recvq(self, channel='__orphan__', decode=False, timeout=None):
-        super(SecureSocket, self).recv(channel, decode, timeout)
+        return super().recv(channel, decode, timeout)
 
     def _baseEncrypt(self, msg):
         return self.baseCipher.encrypt(
@@ -113,7 +127,7 @@ class SecureSocket(io.QueuedSocket):
                     self.rpub
                 ), channel)
             self._sendq(hashlib.sha512(msg).hexdigest(), channel)
-            if self._baseDecrypt(self._recvq(channel, timeout=self.timeout+2)) == b'OK':
+            if self._baseDecrypt(self._recvq(channel, timeout=(self.timeout+2 if self.timeout!=None else None))) == b'OK':
                 return
         raise IOError("Unable to encrypt and send message over channel %s in %d retries" %(channel, retries))
 
@@ -169,20 +183,20 @@ class SecureSocket(io.QueuedSocket):
             self.sendRSA(key, channel)
         if iv:
             # self._sendq(self._baseEncrypt('+'))
-            self._sendq(cipher.encrypt(rsa.randnum.read_random_bits(128)))
-        if issubclass(msg, BytesIO):
+            self._sendq(cipher.encrypt(rsa.randnum.read_random_bits(128)), channel)
+        if isinstance(msg, BytesIO):
             intake = msg.read(4092) #because padstring adds 4 bytes to a string of this size
             while len(intake):
-                self._sendq(self._baseEncrypt('+'))
-                self._sendq(cipher.encrypt(protocols.padstring(intake)))
+                self._sendq(self._baseEncrypt('+'), channel)
+                self._sendq(cipher.encrypt(protocols.padstring(intake)), channel)
                 intake = msg.read(4092)
-            self._sendq(self._baseEncrypt('-'))
+            self._sendq(self._baseEncrypt('-'), channel)
         else:
             if type(msg)!=bytes:
                 raise TypeError("msg argument must be str or bytes")
-            self._sendq(self._baseEncrypt('+'))
-            self._sendq(cipher.encrypt(protocols.padstring(msg)))
-            self._sendq(self._baseEncrypt('-'))
+            self._sendq(self._baseEncrypt('+'), channel)
+            self._sendq(cipher.encrypt(protocols.padstring(msg)), channel)
+            self._sendq(self._baseEncrypt('-'), channel)
 
     def recvAES(self, channel='__aes__', decode=False, timeout=-1, output_file=None):
         if timeout == -1:
@@ -190,18 +204,20 @@ class SecureSocket(io.QueuedSocket):
         mode = self._baseDecrypt(self._recvq(channel, timeout=timeout))
         if mode == 'BASE':
             cipher = self.baseCipher
-        else:
+        elif mode == 'ECB':
             cipher = AES.new(self.recvRSA(channel, timeout=timeout))
+        else:
+            cipher = AES.new(self.recvRSA(channel, timeout=timeout), AES.MODE_CBC,rsa.randnum.read_random_bits(128))
             cipher.decrypt(self._recvq(channel, timeout=timeout))
         writer = None
         if type(output_file) == str:
             writer = open(output_file, mode='wb')
-        elif issubclass(output_file, BytesIO):
+        elif isinstance(output_file, BytesIO):
             writer = output_file
         command = self._baseDecrypt(self._recvq(channel, timeout=timeout))
         msg = b""
         while command == b'+':
-            intake = cipher.decrypt(self._recvq(channel, timeout=timeout))
+            intake = protocols.unpadstring(cipher.decrypt(self._recvq(channel, timeout=timeout)))
             if writer != None:
                 writer.write(intake)
             else:
@@ -233,7 +249,7 @@ class SecureSocket(io.QueuedSocket):
         return self.timeout
 
     def close(self):
-        super(SecureSocket, self).close()
+        super().close()
 
 
 class SecureSocket_predecessor:
