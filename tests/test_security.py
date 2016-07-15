@@ -65,7 +65,7 @@ def client_comms_files(_sockClass, port, payload, directory, pubkey, privkey):
         payload.intake.append(sock.savefile(tempfile.NamedTemporaryFile(dir=directory).name+".intake"))
     sock.close()
 
-@unittest.skipIf(sys.platform.startswith("win"), "Pycrypto cannot compile on windows")
+@unittest.skip("Security interface is undergoing an overhaul")
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
