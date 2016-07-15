@@ -64,6 +64,9 @@ The following change has been made to the `agutil.io.Socket` API:
 ##security.SECURESOCKET
 The following change has been made to the `agutil.security.SecureSocket` API:
 
+The previous `agutl.security.SecureSocket` class has been renamed to `agutil.security.SecureSocket_predecessor` and is __ONLY__ accessible via `agutil.security.new()`.  This class will be __REMOVED__ when the High-level `Security` interface is added.
+The `agutil.security.new()` method now returns a SecureSocket_predecessor instance.  This will be changed when the High-level `Security` interface is added.
+
 The `agutil.security` module includes the `SecureSocket` class, which wraps over an `agutil.io.Socket` instance.
 A `SecureSocket` class allows for encrypted communications using RSA or AES encryption.
 
