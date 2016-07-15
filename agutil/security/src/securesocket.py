@@ -107,10 +107,10 @@ class SecureSocket(io.QueuedSocket):
             self.baseCipher.decrypt(msg)
         )
 
-    def send(self, msg, channel='__rsa__', retries=1):
-        self.sendRSA(msg, channel, retries)
+    def send(self, msg, channel='__rsa__'):
+        self.sendRSA(msg, channel)
 
-    def sendRSA(self, msg, channel='__rsa__', retries=1):
+    def sendRSA(self, msg, channel='__rsa__'):
         if type(msg)==str:
             msg=msg.encode()
         elif type(msg)!=bytes:
@@ -119,17 +119,12 @@ class SecureSocket(io.QueuedSocket):
         if chunks < len(msg)/self.maxsize:
             chunks += 1
         self._sendq(self._baseEncrypt('%x'%retries), channel)
-        for attempt in range(retries):
-            self._sendq(self._baseEncrypt('%x'%chunks), channel)
-            for i in range(chunks):
-                self._sendq(rsa.encrypt(
-                    msg[self.maxsize*i:self.maxsize*(i+1)],
-                    self.rpub
-                ), channel)
-            self._sendq(hashlib.sha512(msg).hexdigest(), channel)
-            if self._baseDecrypt(self._recvq(channel, timeout=(self.timeout+2 if self.timeout!=None else None))) == b'OK':
-                return
-        raise IOError("Unable to encrypt and send message over channel %s in %d retries" %(channel, retries))
+        self._sendq(self._baseEncrypt('%x'%chunks), channel)
+        for i in range(chunks):
+            self._sendq(rsa.encrypt(
+                msg[self.maxsize*i:self.maxsize*(i+1)],
+                self.rpub
+            ), channel)
 
     def recv(self, channel='__rsa__', decode=False, timeout=-1):
         return self.recvRSA(channel, decode, timeout)
@@ -137,23 +132,13 @@ class SecureSocket(io.QueuedSocket):
     def recvRSA(self, channel='__rsa__', decode=False, timeout=-1):
         if timeout == -1:
             timeout = self.timeout
-        retries = int(self._baseDecrypt(self._recvq(channel, timeout=timeout)).decode(), 16)
-        for attempt in range(retries):
-            chunks = int(self._baseDecrypt(self._recvq(channel, timeout=timeout)).decode(), 16)
-            msg = b""
-            for i in range(chunks):
-                msg += rsa.decrypt(
-                    self._recvq(channel, timeout=timeout),
-                    self.priv
-                )
-            hashcode = self._recvq(channel, True, timeout)
-            if hashcode == hashlib.sha512(msg).hexdigest():
-                self._sendq(self._baseEncrypt('OK'), channel)
-                if decode:
-                    msg = msg.decode()
-                return msg
-            self._sendq(self._baseEncrypt('FAIL'), channel)
-        raise IOError("Unable to receive and decrypt message over channel %s in %d retries" %(channel, retries))
+        chunks = int(self._baseDecrypt(self._recvq(channel, timeout=timeout)).decode(), 16)
+        msg = b""
+        for i in range(chunks):
+            msg += rsa.decrypt(
+                self._recvq(channel, timeout=timeout),
+                self.priv
+            )
 
     def sendAES(self, msg, channel='__aes__', key=False, iv=False):
         if type(msg)==str:
