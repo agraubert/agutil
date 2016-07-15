@@ -30,8 +30,6 @@ class QueuedSocket(Socket):
         super().close()
 
     def send(self, msg, channel='__orphan__'):
-        if channel=='__orphan__':
-            raise ValueError("Orphan channel")
         if self._shutdown:
             raise IOError("This QueuedSocket has already been closed")
         self.datalock.acquire()
@@ -45,8 +43,6 @@ class QueuedSocket(Socket):
         self.datalock.release()
 
     def recv(self, channel='__orphan__', decode=False, timeout=None):
-        if channel=='__orphan__':
-            raise ValueError("Orphan channel")
         if self._shutdown:
             raise IOError("This QueuedSocket has already been closed")
         self.datalock.acquire()
