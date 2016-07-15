@@ -254,6 +254,7 @@ class SecureSocket(io.QueuedSocket):
 
 class SecureSocket_predecessor:
     def __init__(self, address, port, initPassword=None, defaultbits=4096, verbose=False, console=False, _debug_keys=None):
+        _protocol_ = "<Agutil-security> <v1.0.0>"
         self._ready = False
         if address == 'listen' or address == '':
             #listen for connections
@@ -273,9 +274,9 @@ class SecureSocket_predecessor:
             self.sock.close()
             raise TypeError("Password argument must be of type str or None")
         if initiator:
-            protocolstring = _protocol
+            protocolstring = _protocol_
             if initPassword!=None:
-                protocolstring = _protocol+" <password-%s>"%(
+                protocolstring = _protocol_+" <password-%s>"%(
                     hashlib.sha512(
                         hashlib.sha512(initPassword.encode()+b"lol").hexdigest().encode()
                     ).hexdigest()
