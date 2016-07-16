@@ -44,6 +44,9 @@ def unpadstring(msg):
     size = int(tmp, 16)
     return msg[len(tmp)+1:len(tmp)+1+size]
 
+def _assign_task(cmd):
+    pass #return result from a lookup out of a cmd:function mapping table
+
 def _SocketWorker(_socket):
     _socket.actionlock.acquire()
     while not _socket._shutdown:

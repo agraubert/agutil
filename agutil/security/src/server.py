@@ -1,14 +1,12 @@
 from .securesocket import SecureSocket
 from ... import io
+from . import protocols
+from socket import timeout as socketTimeout
 import threading
 import random
 
 random.seed()
-_COMMANDS = {
-    'to': [0, 'text'],
-    'ti': [1, 'text'],
-    'kill': [2, ''],
-}
+_COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fti', 'fto']
 #commands: {command code byte}{hex payload size}{BAR |}{payload bytes}
 class SecureServer:
     def __init__(self, address, port, password=None, rsabits=4096, verbose=False, timeout=3):
@@ -27,10 +25,16 @@ class SecureServer:
         self.queuedmessages = [] #Queue of decrypted received text messages
         self.schedulingqueue = [] #Queue of task commands to be scheduled
         self._shutdown = False
-        self._listener = None #Constantly receives from __cmd__ and adds new tasks to the scheduling queue
-        self._scheduler = None #Pops new commands out of the scheduling queue, and spawns a new thread to deal with each task
+
+        #Pops new commands out of the scheduling queue, and spawns a new thread to deal with each task
         #Commands which require pre-authorization to start (ie: file transfer) are put in a holding queue instead of being scheduled
         #Once the user authorizes the command (ie: .savefile()) the task is scheduled properly
+        self._scheduler = threading.Thread(target=SecureServer._scheduler_worker, args=(self,), name="SecureSocket Task Scheduling", daemon=True)
+        self._scheduler.start()
+
+        #Constantly receives from __cmd__ and adds new tasks to the scheduling queue
+        self._listener = threading.Thread(target=SecureServer._listener_worker, args=(self,), name="SecureSocket Remote Task Listener", daemon=True)
+        self._listener.start()
 
     def _reserve_task(self, prefix):
         taskname = prefix+"_"+"".join(str(random.randint(0,9)) for _ in range(3))
@@ -44,12 +48,30 @@ class SecureServer:
             size = self.schedulinglock.wait_for(lambda :len(self.schedulingqueue), .05)
             if size:
                 command = self.schedulingqueue.pop(0)
-                if command[0] == _COMMANDS['kill'][0]:
+                if _COMMANDS[command[0]]=='kill':
                     self.tasks[command[1]].join(.05)
                     del self.tasks[command[1]]
                 elif command[0] < len(_COMMANDS):
-                    name = self._reserve_task
+                    if command[0] % 2:
+                        name = command[1]
+                    else:
+                        name = self._reserve_task(_COMMANDS[command[0]])
+                    worker = protocols._assign_task(_COMMANDS[command[0]])
+                    self.tasks[name] = threading.Thread(target=worker, args=(self,), name=name, daemon=True)
+                    self.tasks[name].start()
             self.schedulinglock.release()
+
+    def _listener_worker(self):
+        while not self._shutdown:
+            try:
+                # self.sock.recvRAW('__cmd__', timeout=.1)
+                cmd = self.sock.recvAES('__cmd__', True, timeout=.1)
+                self.schedulinglock.acquire()
+                self.schedulingqueue.append(protocols.parsecmd(cmd))
+                self.schedulinglock.notify_all()
+                self.schedulinglock.release()
+            except socketTimeout:
+                pass
 
     def shutdown(self, timeout=3):
         if self._shutdown:
