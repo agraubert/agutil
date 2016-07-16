@@ -118,7 +118,6 @@ class SecureSocket(io.QueuedSocket):
         chunks = int(len(msg)/self.maxsize)
         if chunks < len(msg)/self.maxsize:
             chunks += 1
-        self._sendq(self._baseEncrypt('%x'%retries), channel)
         self._sendq(self._baseEncrypt('%x'%chunks), channel)
         for i in range(chunks):
             self._sendq(rsa.encrypt(
