@@ -185,11 +185,11 @@ class SecureSocket(io.QueuedSocket):
             # self._sendq(self._baseEncrypt('+'))
             self._sendq(cipher.encrypt(rsa.randnum.read_random_bits(128)), channel)
         if isinstance(msg, BytesIO):
-            intake = msg.read(4092) #because padstring adds 4 bytes to a string of this size
+            intake = msg.read(4095)
             while len(intake):
                 self._sendq(self._baseEncrypt('+'), channel)
                 self._sendq(cipher.encrypt(protocols.padstring(intake)), channel)
-                intake = msg.read(4092)
+                intake = msg.read(4095)
             self._sendq(self._baseEncrypt('-'), channel)
         else:
             if type(msg)!=bytes:
