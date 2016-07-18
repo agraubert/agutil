@@ -19,8 +19,10 @@ class SecureServer:
             self.sock = SecureSocket(address, password, rsabits, verbose, timeout)
         self.tasks = {} #Queue of taskname : thread pairs for currently running tasks
         self.authqueue = [] #Queue of task commands pending authorization
+        self.filemap = {} #mapping of auth_key : filename pairs for files ready to transfer
         self.schedulinglock = threading.Condition()
         self.intakelock = threading.Condition()
+        self.authlock = threading.Condition()
         self.queuedmessages = [] #Queue of decrypted received text messages
         self.schedulingqueue = [] #Queue of task commands to be scheduled
         self._shutdown = False
