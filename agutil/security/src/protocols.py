@@ -35,6 +35,18 @@ def padstring(msg):
 def unpadstring(msg):
     return msg[:-1*msg[-1]]
 
+def intTobytes(num):
+    s = format(num, 'x')
+    if len(s)%2:
+        s = '0' + s
+    return bytes.fromhex(s)
+
+def bytesToint(num):
+    result = 0
+    for i in range(len(num)):
+        result += num[0]*(256**(len(num)-i))
+    return result
+
 def _SocketWorker(_socket):
     _socket.actionlock.acquire()
     while not _socket._shutdown:
