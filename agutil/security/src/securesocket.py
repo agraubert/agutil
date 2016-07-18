@@ -138,6 +138,9 @@ class SecureSocket(io.QueuedSocket):
                 self._recvq(channel, timeout=timeout),
                 self.priv
             )
+            if decode:
+                msg = msg.decode()
+            return msg
 
     def sendAES(self, msg, channel='__aes__', key=False, iv=False):
         if type(msg)==str:

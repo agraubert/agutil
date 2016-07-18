@@ -6,8 +6,7 @@ import threading
 import random
 
 random.seed()
-_COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fti', 'fto']
-#commands: {command code byte}{hex payload size}{BAR |}{payload bytes}
+
 class SecureServer:
     def __init__(self, address, port, password=None, rsabits=4096, verbose=False, timeout=3):
         if address == '' or address == 'listen':
@@ -48,16 +47,16 @@ class SecureServer:
             size = self.schedulinglock.wait_for(lambda :len(self.schedulingqueue), .05)
             if size:
                 command = self.schedulingqueue.pop(0)
-                if _COMMANDS[command[0]]=='kill':
-                    self.tasks[command[1]].join(.05)
-                    del self.tasks[command[1]]
-                elif command[0] < len(_COMMANDS):
-                    if command[0] % 2:
-                        name = command[1]
+                if protocols._COMMANDS[command['cmd']]=='kill':
+                    self.tasks[command['name']].join(.05)
+                    del self.tasks[command['name']]
+                elif command['cmd'] < len(protocols._COMMANDS):
+                    if command['cmd'] % 2:
+                        name = command['name']
                     else:
-                        name = self._reserve_task(_COMMANDS[command[0]])
-                    worker = protocols._assign_task(_COMMANDS[command[0]])
-                    self.tasks[name] = threading.Thread(target=worker, args=(self,), name=name, daemon=True)
+                        name = self._reserve_task(protocols._COMMANDS[command['cmd']])
+                    worker = protocols._assign_task(protocols._COMMANDS[command['cmd']])
+                    self.tasks[name] = threading.Thread(target=worker, args=(self,command,name), name=name, daemon=True)
                     self.tasks[name].start()
             self.schedulinglock.release()
 
@@ -84,9 +83,24 @@ class SecureServer:
         self.sock.close(timeout)
 
     def send(self, msg, retries=1):
+        if type(msg)==str:
+            msg=msg.encode()
+        elif type(msg)!=bytes:
+            raise TypeError("msg argument must be str or bytes")
         self.scheduleinglock.acquire()
-        self.schedulingqueue.append([
-            _TEXT_PAYLOAD,
-            msg,
-            retries
-        ])
+        self.schedulingqueue.append({
+            'cmd': protocols.lookupcmd('to'),
+            'msg': msg,
+            'retries': retries
+        })
+        self.schedulinglock.release()
+
+    def read(self, timeout=None):
+        self.intakelock.acquire()
+        result = self.intakelock.wait_for(lambda :len(self.queuedmessages))
+        if not result:
+            self.intakelock.release()
+            raise socketTimeout("No message recieved within the specified timeout")
+        msg = self.queuedmessages.pop(0)
+        self.intakelock.release()
+        return msg
