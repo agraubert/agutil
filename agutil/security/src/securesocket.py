@@ -8,7 +8,7 @@ import pickle
 import threading
 import shutil
 from io import BytesIO
-from . import protocols
+from . import protocols, files
 
 RSA_CPU = None
 try:
@@ -188,14 +188,14 @@ class SecureSocket(io.QueuedSocket):
             intake = msg.read(4095)
             while len(intake):
                 self._sendq(self._baseEncrypt('+'), channel)
-                self._sendq(cipher.encrypt(protocols.padstring(intake)), channel)
+                self._sendq(files._encrypt_chunk(intake, cipher), channel)
                 intake = msg.read(4095)
             self._sendq(self._baseEncrypt('-'), channel)
         else:
             if type(msg)!=bytes:
                 raise TypeError("msg argument must be str or bytes")
             self._sendq(self._baseEncrypt('+'), channel)
-            self._sendq(cipher.encrypt(protocols.padstring(msg)), channel)
+            self._sendq(files._encrypt_chunk(msg, cipher), channel)
             self._sendq(self._baseEncrypt('-'), channel)
 
     def recvAES(self, channel='__aes__', decode=False, timeout=-1, output_file=None):
@@ -217,7 +217,7 @@ class SecureSocket(io.QueuedSocket):
         command = self._baseDecrypt(self._recvq(channel, timeout=timeout))
         msg = b""
         while command == b'+':
-            intake = protocols.unpadstring(cipher.decrypt(self._recvq(channel, timeout=timeout)))
+            intake = files._decrypt_chunk(self._recvq(channel, timeout=timeout), cipher)
             if writer != None:
                 writer.write(intake)
             else:
