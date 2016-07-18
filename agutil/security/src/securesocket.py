@@ -6,7 +6,6 @@ import os
 import Crypto.Cipher.AES as AES
 import pickle
 import threading
-import shutil
 from io import BytesIO
 from . import protocols
 
