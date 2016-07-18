@@ -4,7 +4,6 @@ import hashlib
 import rsa
 import os
 import Crypto.Cipher.AES as AES
-import pickle
 import threading
 import shutil
 from io import BytesIO
@@ -76,8 +75,11 @@ class SecureSocket(io.QueuedSocket):
         if self.v:
             print("Generating keypair...")
         (self.pub, self.priv) = rsa.newkeys(rsabits, True, RSA_CPU)
-        self._sendq(self._baseEncrypt(pickle.dumps(self.pub)), '__control__')
-        self.rpub = pickle.loads(self._baseDecrypt(self._recvq('__control__')))
+        self._sendq(self._baseEncrypt(self.pub.n), '__control__')
+        self._sendq(self._baseEncrypt(self.pub.e), '__control__')
+        _n = self._baseDecrypt(self._recvq('__control__'))
+        _e = self._baseDecrypt(self._recvq('__control__'))
+        self.rpub = rsa.PublicKey(_n, _e)
         self._sendq(rsa.encrypt(
             b'OK',
             self.rpub
