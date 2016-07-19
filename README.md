@@ -22,6 +22,7 @@ The __io__ package:
 
 The __security__ package:
 * SecureSocket (A mid-level network IO class built to manage encrypted network communications)
+* encryptFile and decryptFile (Simple methods for encrypting and decrypting local files)
 
 ##Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)
@@ -109,3 +110,15 @@ A `SecureSocket` class allows for encrypted communications using RSA or AES encr
 
 * SecureSocket.close()
   Closes the underlying `Socket` and terminates the connection
+
+##security.ENCRYPTFILE security.DECRYPTFILE
+The `agutil.security` module includes two methods for file encryption and decryption: `encryptFile()` and `decryptFile()`.
+
+#####API
+* encryptFile(input\_filename, output\_filename, cipher)
+  Encrypts the file specified by _input\_filename_ and saves it to _output\_filename_ using _cipher_.
+  The cipher is not required to be any class, but it must support an `encrypt()` method, which takes a chunk of text, and returns a ciphered chunk.  Padding is handled internally (chunks are padded to 16-byte intervals).
+
+* decryptFile(input_filename, output_filename, cipher)
+  Decrypts the file specified by _input\_filename_ and saves it to _output\_filename_ using _cipher_.
+  The cipher is not required to be any class, but it must support an `decrypt()` method, which takes a chunk of ciphertext, and returns a deciphered chunk.  Unpadding is handled internally (chunks are padded to 16-byte intervals).
