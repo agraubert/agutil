@@ -6,14 +6,6 @@ import random
 _COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fto', 'fti']
 _CMD_LOOKUP = {}
 #commands: {command code byte}{item name}{colon ':'}{item size (hex bytes)}{bar '|'}{item bytes}...
-_WORKERS = {
-    'ti' : _text_in,
-    'to' : _text_out,
-    'fri' : _file_request_in,
-    'fro' : _file_request_out,
-    'fti' : _file_transfer_in,
-    'fto' : _file_transfer_out
-}
 _CONSOLE = False
 
 def lookupcmd(cmd):
@@ -141,3 +133,16 @@ def _file_transfer_in(sock,cmd,name):
     ))
     sock.sock.recvRAW(name, timeout=None)
     sock.sock.recvAES(name, output_file=cmd['filepath'])
+    sock.transferlock.acquire()
+    sock.completed_transfers.add(cmd['filepath'])
+    sock.transferlock.notify_all()
+    sock.transferlock.release()
+
+_WORKERS = {
+    'ti' : _text_in,
+    'to' : _text_out,
+    'fri' : _file_request_in,
+    'fro' : _file_request_out,
+    'fti' : _file_transfer_in,
+    'fto' : _file_transfer_out
+}

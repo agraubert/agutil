@@ -23,6 +23,8 @@ class SecureServer:
         self.schedulinglock = threading.Condition()
         self.intakelock = threading.Condition()
         self.authlock = threading.Condition()
+        self.transferlock = threading.Condition()
+        self.completed_transfers = set()
         self.queuedmessages = [] #Queue of decrypted received text messages
         self.schedulingqueue = [] #Queue of task commands to be scheduled
         self._shutdown = False
@@ -53,7 +55,7 @@ class SecureServer:
                     self.tasks[command['name']].join(.05)
                     del self.tasks[command['name']]
                 elif command['cmd'] < len(protocols._COMMANDS):
-                    if command['cmd'] % 2:
+                    if not command['cmd'] % 2:
                         name = command['name']
                     else:
                         name = self._reserve_task(protocols._COMMANDS[command['cmd']])
@@ -89,12 +91,13 @@ class SecureServer:
             msg=msg.encode()
         elif type(msg)!=bytes:
             raise TypeError("msg argument must be str or bytes")
-        self.scheduleinglock.acquire()
+        self.schedulinglock.acquire()
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('to'),
             'msg': msg,
             'retries': retries
         })
+        self.schedulinglock.notify_all()
         self.schedulinglock.release()
 
     def read(self, timeout=None):
@@ -106,3 +109,47 @@ class SecureServer:
         msg = self.queuedmessages.pop(0)
         self.intakelock.release()
         return msg
+
+    def sendfile(self, filename):
+        self.schedulinglock.acquire()
+        self.schedulingqueue.append({
+            'cmd': protocols.lookupcmd('fro'),
+            'filepath': os.path.abspath(filename)
+        })
+        self.schedulingqueue.notify_all()
+        self.schedulinglock.release()
+
+    def savefile(self, destination, timeout=None, force=False):
+        self.authlock.acquire()
+        result = self.authlock.wait_for(lambda :len(self.authqueue), timeout)
+        if not result:
+            self.authlock.release()
+            raise SocketTimeout("No file transfer requests recieved within the specified timeout")
+        (filename, auth) = self.authqueue.pop(0)
+        self.authlock.release()
+        if not force:
+            print("The remote socket is attempting to send the file '%s'")
+            accepted = False
+            choice = ""
+            while not accepted:
+                choice = input("Accept this transfer (y/n): ")
+                choice = choice.lower()
+                if choice not in {'y', 'n', 'yes', 'no'}:
+                    print("Please enter y, Y, yes, n, N, or no")
+                else:
+                    accepted = True
+            if choice[0] != 'y':
+                return #should queue a reject-transfer command
+        self.schedulinglock.acquire()
+        self.schedulingqueue.append({
+            'cmd': protocols.lookupcmd('fti'),
+            'auth': auth,
+            'filepath': destination
+        })
+        self.schedulinglock.notify_all()
+        self.schedulinglock.release()
+        self.transferlock.acquire()
+        self.transferlock.wait_for(lambda :destination in self.completed_transfers)
+        self.completed_transfers.remove(destination)
+        self.transferlock.release()
+        return destination
