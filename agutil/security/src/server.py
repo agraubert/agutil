@@ -185,7 +185,3 @@ class SecureServer:
         self._shutdown = True
         self._scheduler.join(.1)
         self.sock.close()
-        self.authlock.acquire()
-        for key in self.filemap:
-            os.remove(self.filemap[key])
-        self.authlock.release()

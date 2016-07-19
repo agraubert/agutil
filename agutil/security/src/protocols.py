@@ -1,8 +1,6 @@
 import rsa
 import os
-import tempfile
 import random
-import shutil
 
 _COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fto', 'fti']
 _CMD_LOOKUP = {}
@@ -152,9 +150,7 @@ def _file_request_out(sock,cmd,name):
     auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
     while auth_key in sock.filemap:
         auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
-    staging_location = tempfile.NamedTemporaryFile().name
-    shutil.copyfile(cmd['filepath'], staging_location)
-    sock.filemap[auth_key] = staging_location
+    sock.filemap[auth_key] = cmd['filepath']
     sock.authlock.release()
     sock.sock.sendAES(packcmd(
         'fri',
@@ -191,7 +187,6 @@ def _file_transfer_out(sock,cmd,name):
         sock.sock.sendRAW('+', name)
         sock.sock.sendAES(reader, name, True, True)
         reader.close()
-    os.remove(filepath)
     sock.schedulinglock.acquire()
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
