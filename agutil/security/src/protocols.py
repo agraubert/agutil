@@ -84,9 +84,23 @@ def _text_in(sock,cmd,name):
             sock.queuedmessages.append(msg)
             sock.intakelock.notify_all()
             sock.intakelock.release()
+            sock.schedulinglock.acquire()
+            sock.schedulingqueue.append({
+                'cmd': lookupcmd('kill'),
+                'name': name
+            })
+            sock.schedulinglock.notify_all()
+            sock.schedulinglock.release()
             return
         except rsa.pkcs1.VerificationError:
             sock.sock.sendRAW('-', name)
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
     raise IOError("Background worker %s was unable to receive and decrypt the message in %d retries" % (name, retries))
 
 def _text_out(sock,cmd,name):
@@ -104,7 +118,21 @@ def _text_out(sock,cmd,name):
             'SHA-256'
         ), name)
         if sock.sock.recvRAW(name, True) == '+':
+            sock.schedulinglock.acquire()
+            sock.schedulingqueue.append({
+                'cmd': lookupcmd('kill'),
+                'name': name
+            })
+            sock.schedulinglock.notify_all()
+            sock.schedulinglock.release()
             return
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
     raise IOError("Background worker %s was unable to encrypt and send the message in %d retries" % (name, int(cmd['retries'])))
 
 def _file_request_out(sock,cmd,name):
@@ -120,12 +148,26 @@ def _file_request_out(sock,cmd,name):
         'fri',
         {'auth':auth_key, 'filename':os.path.basename(cmd['filepath']), 'name':name}
     ), '__cmd__')
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
 
 def _file_request_in(sock,cmd,name):
     sock.authlock.acquire()
     sock.authqueue.append((cmd['filename'], cmd['auth']))
     sock.authlock.notify_all()
     sock.authlock.release()
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
 
 def _file_transfer_out(sock,cmd,name):
     sock.authlock.acquire()
@@ -137,6 +179,13 @@ def _file_transfer_out(sock,cmd,name):
     sock.sock.sendAES(reader, name, True, True)
     reader.close()
     os.remove(filepath)
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
 
 
 def _file_transfer_in(sock,cmd,name):
@@ -150,6 +199,13 @@ def _file_transfer_in(sock,cmd,name):
     sock.completed_transfers.add(cmd['filepath'])
     sock.transferlock.notify_all()
     sock.transferlock.release()
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
 
 _WORKERS = {
     'ti' : _text_in,
