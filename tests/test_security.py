@@ -6,47 +6,34 @@ import random
 import threading
 import warnings
 import os
-startup_lock = threading.Lock()
 
 TRAVIS = 'CI' in os.environ
 
 def make_random_string():
     return "".join(chr(random.randint(48,122)) for i in range(25))
 
-def server_comms(secureclass, queueclass, ss, payload):
-    global startup_lock
-    startup_lock.release()
-    sock = secureclass(ss.accept(), rsabits=1024, verbose=False)
-    ss.close()
+def server_comms(secureClass, port, payload):
+    sock = secureClass('listen', port, password='password', rsabits=1024)
     payload.intake=[]
     payload.output=[]
+    sock.sock.sendRAW("+")
     for trial in range(5):
-        if trial%2:
-            payload.intake.append(sock.recvAES(decode=True))
-            payload.output.append(make_random_string())
-            sock.sendAES(payload.output[-1], key=True, iv=True)
-        else:
-            payload.intake.append(sock.recvRSA(decode=True))
-            payload.output.append(make_random_string())
-            sock.sendRSA(payload.output[-1])
+        payload.output.append(make_random_string())
+        sock.send(payload.output[-1])
+    for trial in range(5):
+        payload.intake.append(sock.read())
     payload.sock = sock
 
-def client_comms(secureclass, queueclass, _sockClass, port, payload):
-    global startup_lock
-    startup_lock.acquire()
-    startup_lock.release()
-    sock = secureclass(_sockClass('localhost', port), rsabits=1024, verbose=False)
+def client_comms(secureclass, port, payload):
+    sock = secureclass('localhost', port, password='password', rsabits=1024, verbose=False)
     payload.intake=[]
     payload.output=[]
+    payload.comms_check = sock.sock.recvRAW(decode=True)
     for trial in range(5):
-        if trial%2:
-            payload.output.append(make_random_string())
-            sock.sendAES(payload.output[-1], key=True, iv=True)
-            payload.intake.append(sock.recvAES(decode=True))
-        else:
-            payload.output.append(make_random_string())
-            sock.sendRSA(payload.output[-1])
-            payload.intake.append(sock.recvRSA(decode=True))
+        payload.output.append(make_random_string())
+        sock.send(payload.output[-1])
+    for trial in range(5):
+        payload.intake.append(sock.read())
     payload.sock = sock
 
 class test(unittest.TestCase):
@@ -70,31 +57,23 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    @unittest.skip("Security interface test not implimented yet")
-    def test_server_bind_and_communication(self):
-        # warnings.simplefilter('error', ResourceWarning)
-        from agutil.io import SocketServer
-        from agutil.io import QueuedSocket
-        from agutil.io import Socket
-        from agutil.security import SecureSocket
-        ss = None
+    def test_text_io(self):
+        from agutil.security import SecureServer
+        server_payload = lambda x:None
         warnings.simplefilter('ignore', ResourceWarning)
+        server_thread = None
+        found_port = -1
         for port in range(4000, 10000):
-            try:
-                ss = SocketServer(port)
-            except OSError:
-                if ss!=None:
-                    ss.close()
-            if ss!=None:
+            server_thread = threading.Thread(target=server_comms, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
+            server_thread.start()
+            server_thread.join(1)
+            if server_thread.is_alive():
+                found_port = port
                 break
         warnings.resetwarnings()
-        self.assertIsInstance(ss, SocketServer, "Failed to bind to any ports on [4000, 10000]")
-        startup_lock.acquire()
-        server_payload = lambda x:None
+        self.assertGreater(found_port, 3999, "Failed to bind to any ports on [4000, 10000]")
         client_payload = lambda x:None
-        server_thread = threading.Thread(target=server_comms, args=(SecureSocket, QueuedSocket, ss, server_payload), daemon=True)
-        client_thread = threading.Thread(target=client_comms, args=(SecureSocket, QueuedSocket, Socket, ss.port, client_payload), daemon=True)
-        server_thread.start()
+        client_thread = threading.Thread(target=client_comms, args=(SecureServer, found_port, client_payload), daemon=True)
         client_thread.start()
         extra = 30 if TRAVIS else 0
         server_thread.join(60+extra)
@@ -103,6 +82,7 @@ class test(unittest.TestCase):
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
         server_payload.sock.close()
         client_payload.sock.close()
+        self.assertEqual(client_payload.comms_check, '+')
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)

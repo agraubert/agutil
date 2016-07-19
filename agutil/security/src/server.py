@@ -18,6 +18,8 @@ class SecureServer:
             self.sock = SecureSocket(io.Socket(address, port), password, rsabits, verbose, timeout)
         else:
             self.sock = SecureSocket(address, password, rsabits, verbose, timeout)
+        self.address = address
+        self.port = port
         self.tasks = {} #Queue of taskname : thread pairs for currently running tasks
         self.authqueue = [] #Queue of task commands pending authorization
         self.filemap = {} #mapping of auth_key : filename pairs for files ready to transfer
@@ -101,7 +103,7 @@ class SecureServer:
         self.schedulinglock.notify_all()
         self.schedulinglock.release()
 
-    def read(self, timeout=None):
+    def read(self, decode=True, timeout=None):
         self.intakelock.acquire()
         result = self.intakelock.wait_for(lambda :len(self.queuedmessages))
         if not result:
@@ -109,6 +111,8 @@ class SecureServer:
             raise socketTimeout("No message recieved within the specified timeout")
         msg = self.queuedmessages.pop(0)
         self.intakelock.release()
+        if decode:
+            msg = msg.decode()
         return msg
 
     def sendfile(self, filename):
