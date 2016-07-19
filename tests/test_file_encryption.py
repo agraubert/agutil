@@ -61,4 +61,9 @@ class test(unittest.TestCase):
             aes_iv = rsa.randnum.read_random_bits(128)
             encryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
             decryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
-            self.assertEqual(hash(source), hash(_decrypt_chunk(_encrypt_chunk(source, encryptionCipher), decryptionCipher)))
+            decrypted = _decrypt_chunk(_encrypt_chunk(source, encryptionCipher), decryptionCipher)
+            self.assertEqual(len(source), len(decrypted))
+            if len(source) <= 2048:
+                self.assertEqual(source, decrypted)
+            else:
+                self.assertEqual(hash(source), hash(decrypted))
