@@ -65,23 +65,17 @@ def _assign_task(cmd):
 
 
 def _text_in(sock,cmd,name):
-    print("Text in task started", name)
     sock.sock.sendRAW('+', name)
-    print("Receiving retry count")
     retries = int(sock.sock.recvAES(name, True), 16)
     for attempt in range(retries):
-        print("Receving message")
         msg = sock.sock.recvRSA(name)
-        print("Receiving signature")
         signature = sock.sock.recvRAW(name)
         try:
-            print("Checking signature")
             rsa.verify(
                 msg,
                 signature,
                 sock.sock.rpub
             )
-            print("Sending confirmation")
             sock.sock.sendRAW('+', name)
             sock.intakelock.acquire()
             sock.queuedmessages.append(msg)
@@ -93,25 +87,19 @@ def _text_in(sock,cmd,name):
     raise IOError("Background worker %s was unable to receive and decrypt the message in %d retries" % (name, retries))
 
 def _text_out(sock,cmd,name):
-    print("Text out task started", name)
     sock.sock.sendAES(packcmd(
         'ti',
         {'name':name}
     ), '__cmd__')
-    print("Waiting to receive task confirmation")
     sock.sock.recvRAW(name, timeout=None)
-    print("Sending retry count")
     sock.sock.sendAES(format(cmd['retries'], 'x'), name)
     for attempt in range(int(cmd['retries'])):
-        print("Sending message")
         sock.sock.sendRSA(cmd['msg'], name)
-        print("Sending signature")
         sock.sock.sendRAW(rsa.sign(
             cmd['msg'],
             sock.sock.priv,
             'SHA-256'
         ), name)
-        print("Waiting for signature confirmation")
         if sock.sock.recvRAW(name, True) == '+':
             return
     raise IOError("Background worker %s was unable to encrypt and send the message in %d retries" % (name, int(cmd['retries'])))
