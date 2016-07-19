@@ -1,7 +1,7 @@
 import argparse
-from .src.connection import SecureConnection
-from .console_task import run_task
-from . import _PROTOCOL_VERSION_
+from agutil.security.src.connection import SecureConnection
+from agutil.security.console_task import run_task
+from agutil.security import _PROTOCOL_VERSION_
 import sys
 
 def main():
@@ -49,6 +49,13 @@ def main():
         print("agutil-secure version", _PROTOCOL_VERSION_)
         sys.exit(0)
     socket = SecureConnection(args.address, args.port, args.password, args.rsabits, args.v, args.timeout)
+    print()
+    intake = input("Agutil-Secure> ")
+    status = run_task(socket, intake)
+    while status:
+        print()
+        intake = input("Agutil-Secure> ")
+        status = run_task(socket, intake)
 
 
 if __name__ == '__main__':
