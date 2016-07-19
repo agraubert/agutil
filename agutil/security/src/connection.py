@@ -8,7 +8,7 @@ import os
 
 random.seed()
 
-class SecureServer:
+class SecureConnection:
     def __init__(self, address, port, password=None, rsabits=4096, verbose=False, timeout=3):
         if address == '' or address == 'listen':
             ss = io.SocketServer(port, queue=0)
@@ -36,11 +36,11 @@ class SecureServer:
         #Pops new commands out of the scheduling queue, and spawns a new thread to deal with each task
         #Commands which require pre-authorization to start (ie: file transfer) are put in a holding queue instead of being scheduled
         #Once the user authorizes the command (ie: .savefile()) the task is scheduled properly
-        self._scheduler = threading.Thread(target=SecureServer._scheduler_worker, args=(self,), name="SecureSocket Task Scheduling", daemon=True)
+        self._scheduler = threading.Thread(target=SecureConnection._scheduler_worker, args=(self,), name="SecureConnection Task Scheduling", daemon=True)
         self._scheduler.start()
 
         #Constantly receives from __cmd__ and adds new tasks to the scheduling queue
-        self._listener = threading.Thread(target=SecureServer._listener_worker, args=(self,), name="SecureSocket Remote Task Listener", daemon=True)
+        self._listener = threading.Thread(target=SecureConnection._listener_worker, args=(self,), name="SecureConnection Remote Task Listener", daemon=True)
         self._listener.start()
 
     def _reserve_task(self, prefix):
@@ -86,7 +86,7 @@ class SecureServer:
 
     def send(self, msg, retries=1):
         if self._init_shutdown:
-            raise IOError("This SecureServer has already initiated shutdown")
+            raise IOError("This SecureConnection has already initiated shutdown")
         if type(msg)==str:
             msg=msg.encode()
         elif type(msg)!=bytes:
@@ -102,7 +102,7 @@ class SecureServer:
 
     def read(self, decode=True, timeout=None):
         if self._init_shutdown:
-            raise IOError("This SecureServer has already initiated shutdown")
+            raise IOError("This SecureConnection has already initiated shutdown")
         self.intakelock.acquire()
         result = self.intakelock.wait_for(lambda :len(self.queuedmessages))
         if not result:
@@ -116,7 +116,7 @@ class SecureServer:
 
     def sendfile(self, filename):
         if self._init_shutdown:
-            raise IOError("This SecureServer has already initiated shutdown")
+            raise IOError("This SecureConnection has already initiated shutdown")
         self.schedulinglock.acquire()
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('fro'),
@@ -127,7 +127,7 @@ class SecureServer:
 
     def savefile(self, destination, timeout=None, force=False):
         if self._init_shutdown:
-            raise IOError("This SecureServer has already initiated shutdown")
+            raise IOError("This SecureConnection has already initiated shutdown")
         self.authlock.acquire()
         result = self.authlock.wait_for(lambda :len(self.authqueue), timeout)
         if not result:

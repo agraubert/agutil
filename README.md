@@ -22,7 +22,7 @@ The __io__ package:
 
 The __security__ package:
 * SecureSocket (A mid-level network IO class built to manage encrypted network communications)
-* SecureServer (A high-level, multithreaded class for sending and receiving encrypted files and messages)
+* SecureConnection (A high-level, multithreaded class for sending and receiving encrypted files and messages)
 * encryptFile and decryptFile (Simple methods for encrypting and decrypting local files)
 
 ##Documentation:
@@ -69,7 +69,7 @@ The following change has been made to the `agutil.io.Socket` API:
 ##security.SECURESOCKET
 The following change has been made to the `agutil.security.SecureSocket` API:
 
-The previous `agutl.security.SecureSocket` class has been removed and replaced with a completely overhauled class.  For a class similar to the old `SecureSocket` see: `SecureServer`.
+The previous `agutl.security.SecureSocket` class has been removed and replaced with a completely overhauled class.  For a class similar to the old `SecureSocket` see: `SecureConnection`.
 
 The `agutil.security` module includes the `SecureSocket` class, which wraps over an `agutil.io.Socket` instance.
 A `SecureSocket` class allows for encrypted communications using RSA or AES encryption.
@@ -113,32 +113,32 @@ A `SecureSocket` class allows for encrypted communications using RSA or AES encr
 
 
 ##security.SECURESERVER
-The `agutil.security` module includes the `SecureServer` class which provides a high-level interface for sending and receiving secure messages and files.  All tasks are run in background threads, each exchanging data over a different channel on the underlying SecureSocket, allowing for many simultaneous tasks to be run.
+The `agutil.security` module includes the `SecureConnection` class which provides a high-level interface for sending and receiving secure messages and files.  All tasks are run in background threads, each exchanging data over a different channel on the underlying SecureSocket, allowing for many simultaneous tasks to be run.
 
 #####API
 * SecureSocket(address, port, password=None, rsabits=4096, verbose=False, timeout=3) _(constructor)_
   Opens a new secure connection to the address specified by opening a new `SecureSocket` to use internally.
-  If _address_ is set to '' or 'listen', the `SecureServer` will listen for an incoming connection on _port_.
-  Otherwise, it attempts to connect to another `SecureServer` on the specified _port_ at _address_.
+  If _address_ is set to '' or 'listen', the `SecureConnection` will listen for an incoming connection on _port_.
+  Otherwise, it attempts to connect to another `SecureConnection` on the specified _port_ at _address_.
   _password_ and _rsabits_ configure the internal `SecureSocket`, and are used for its constructor.
-  _verbose_ sets the `SecureServer` and its internal components to print verbose messages.
+  _verbose_ sets the `SecureConnection` and its internal components to print verbose messages.
   _timeout_ sets the default timeout on the internal `SecureSocket`
 
-* SecureServer.send(msg, retries=1)
+* SecureConnection.send(msg, retries=1)
   Starts a background task to send _msg_ to the remote socket using RSA encryption.  _retries_ sets the number of attempts that will be made to send _msg_ if the remote socket fails to reconstruct and decrypt the message
 
-* SecureServer.read(decode=True, timeout=None)
+* SecureConnection.read(decode=True, timeout=None)
   Returns the oldest unread message received, or waits until a message is received.  If _decode_ is True, the received bytes object is decoded into a str object before returning.  If _timeout_ is not None, this is the maximum amount of time, in seconds, to wait for an incoming message (raises a socket.timeout exception if no message is received in time).  If _timeout_ is None, `read()` will block indefinitely until a message is received
 
-* SecureServer.sendfile(filename)
+* SecureConnection.sendfile(filename)
   Starts a background task to send the file specified by the path _filename_.  The file is not immediately sent, however.  The remote socket is sent a request for a file transfer.  The transfer is initiated when the remote socket approves the transfer with `savefile()`.  Because of this, the file should not be deleted until after the transfer is known to be completed. Files are sent and encrypted using an AES CBC cipher with a new randomized 32-byte key for each transfer (the key is exchanged using RSA).
 
-* SecureServer.savefile(destination, timeout=None, force=False)
+* SecureConnection.savefile(destination, timeout=None, force=False)
   Processes the oldest pending file transfer request or waits up to _timeout_ seconds to receive a request.  If _force_ is True, the request is automatically accepted, otherwise the user is prompted to accept or deny the request.  If the request is accepted (either by _force_ or manual acceptance) it is decrypted and saved to _destination_
 
-* SecureServer.shutdown(timeout=3)
-* SecureServer.close(timeout=3)
-  Closes the connection.  The `SecureServer` immediately stops accepting new commands from both the user and the remote socket (but currently queued or running tasks are allowed to queue new tasks).  Waits up to _timeout_ seconds for all currently runnning tasks to complete.  Then (regardless of if all tasks completed or not) it prevents any new tasks from being queued.  Lastly, the internal `SecureSocket` connection is closed.
+* SecureConnection.shutdown(timeout=3)
+* SecureConnection.close(timeout=3)
+  Closes the connection.  The `SecureConnection` immediately stops accepting new commands from both the user and the remote socket (but currently queued or running tasks are allowed to queue new tasks).  Waits up to _timeout_ seconds for all currently runnning tasks to complete.  Then (regardless of if all tasks completed or not) it prevents any new tasks from being queued.  Lastly, the internal `SecureSocket` connection is closed.
 
 
 ##security.ENCRYPTFILE security.DECRYPTFILE

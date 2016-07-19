@@ -88,7 +88,7 @@ class test(unittest.TestCase):
             "agutil",
             "security",
             "src",
-            "server.py"
+            "connection.py"
         )
         sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.script_path))))
         random.seed()
@@ -98,13 +98,13 @@ class test(unittest.TestCase):
         self.assertTrue(compiled_path)
 
     def test_text_io(self):
-        from agutil.security import SecureServer
+        from agutil.security import SecureConnection
         server_payload = lambda x:None
         warnings.simplefilter('ignore', ResourceWarning)
         server_thread = None
         found_port = -1
         for port in range(4000, 10000):
-            server_thread = threading.Thread(target=server_comms, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
+            server_thread = threading.Thread(target=server_comms, args=(SecureConnection, port, server_payload), name='Server thread', daemon=True)
             server_thread.start()
             server_thread.join(1)
             if server_thread.is_alive():
@@ -113,7 +113,7 @@ class test(unittest.TestCase):
         warnings.resetwarnings()
         self.assertGreater(found_port, 3999, "Failed to bind to any ports on [4000, 10000]")
         client_payload = lambda x:None
-        client_thread = threading.Thread(target=client_comms, args=(SecureServer, found_port, client_payload), daemon=True)
+        client_thread = threading.Thread(target=client_comms, args=(SecureConnection, found_port, client_payload), daemon=True)
         client_thread.start()
         extra = 30 if TRAVIS else 0
         server_thread.join(60+extra)
@@ -129,13 +129,13 @@ class test(unittest.TestCase):
         self.assertListEqual(server_payload.output, client_payload.intake)
 
     def test_files_io(self):
-        from agutil.security import SecureServer
+        from agutil.security import SecureConnection
         server_payload = lambda x:None
         warnings.simplefilter('ignore', ResourceWarning)
         server_thread = None
         found_port = -1
         for port in range(10000, 4000, -1):
-            server_thread = threading.Thread(target=server_comms_files, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
+            server_thread = threading.Thread(target=server_comms_files, args=(SecureConnection, port, server_payload), name='Server thread', daemon=True)
             server_thread.start()
             server_thread.join(1)
             if server_thread.is_alive():
@@ -144,7 +144,7 @@ class test(unittest.TestCase):
         warnings.resetwarnings()
         self.assertGreater(found_port, 3999, "Failed to bind to any ports on [4000, 10000]")
         client_payload = lambda x:None
-        client_thread = threading.Thread(target=client_comms_files, args=(SecureServer, found_port, client_payload), daemon=True)
+        client_thread = threading.Thread(target=client_comms_files, args=(SecureConnection, found_port, client_payload), daemon=True)
         client_thread.start()
         extra = 30 if TRAVIS else 0
         server_thread.join(60+extra)
