@@ -38,7 +38,12 @@ class test(unittest.TestCase):
         from agutil.security.src.protocols import padstring, unpadstring
         for trial in range(25):
             text = make_random_string(random.randint(16, 4096))
-            self.assertEqual(text, unpadstring(padstring(text)).decode())
+            unpadded = unpadstring(padstring(text)).decode()
+            self.assertEqual(len(text), len(unpadded))
+            if len(text) <= 2048:
+                self.assertEqual(text, unpadded)
+            else:
+                self.assertEqual(hash(text), hash(unpadded))
 
     def test_cmd_packing_and_unpacking(self):
         from agutil.security.src.protocols import packcmd, parsecmd, _COMMANDS
@@ -52,11 +57,15 @@ class test(unittest.TestCase):
                 if not i%10:
                     data[key] = True
                 else:
-                    data[key] = make_random_string(random.randint(1,25))
+                    data[key] = make_random_string(random.randint(1,4096))
             parsed = parsecmd(packcmd(cmd, data))
             _cmd = _COMMANDS[parsed['cmd']]
             del parsed['cmd']
             self.assertEqual(cmd, _cmd)
             self.assertFalse({k for k in data} ^ {k for k in parsed})
             for key in data:
-                self.assertEqual(data[key], parsed[key])
+                self.assertEqual(len(data[key]), len(parsed[key]))
+                if len(data[key]) <= 2048:
+                    self.assertEqual(data[key], parsed[key])
+                else:
+                    self.assertEqual(hash(data[key]), hash(parsed[key]))
