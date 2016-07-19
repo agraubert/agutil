@@ -23,6 +23,7 @@ The __io__ package:
 The __security__ package:
 * SecureSocket (A mid-level network IO class built to manage encrypted network communications)
 * SecureConnection (A high-level, multithreaded class for sending and receiving encrypted files and messages)
+* SecureServer (A low-level listen server to accept connections and return SecureConnection instances)
 * encryptFile and decryptFile (Simple methods for encrypting and decrypting local files)
 
 ##Documentation:
@@ -112,11 +113,11 @@ A `SecureSocket` class allows for encrypted communications using RSA or AES encr
   Closes the underlying `Socket` and terminates the connection
 
 
-##security.SECURESERVER
+##security.SECURECONNECTION
 The `agutil.security` module includes the `SecureConnection` class which provides a high-level interface for sending and receiving secure messages and files.  All tasks are run in background threads, each exchanging data over a different channel on the underlying SecureSocket, allowing for many simultaneous tasks to be run.
 
 #####API
-* SecureSocket(address, port, password=None, rsabits=4096, verbose=False, timeout=3) _(constructor)_
+* SecureConnection(address, port, password=None, rsabits=4096, verbose=False, timeout=3) _(constructor)_
   Opens a new secure connection to the address specified by opening a new `SecureSocket` to use internally.
   If _address_ is set to '' or 'listen', the `SecureConnection` will listen for an incoming connection on _port_.
   Otherwise, it attempts to connect to another `SecureConnection` on the specified _port_ at _address_.
@@ -140,6 +141,20 @@ The `agutil.security` module includes the `SecureConnection` class which provide
 * SecureConnection.close(timeout=3)
   Closes the connection.  The `SecureConnection` immediately stops accepting new commands from both the user and the remote socket (but currently queued or running tasks are allowed to queue new tasks).  Waits up to _timeout_ seconds for all currently runnning tasks to complete.  Then (regardless of if all tasks completed or not) it prevents any new tasks from being queued.  Lastly, the internal `SecureSocket` connection is closed.
 
+
+##security.SECURESERVER
+The `agutil.security` module includes the `SecureServer` class, which is similar to the `agutil.io.SocketServer` class, but it returns `SecureConnection` instances instead of `Socket` instances.
+
+#####API
+* SecureServer(port, address='', queue=3, password=None, rsabits=4096, childverbose=False, childtimeout=3) _(constructor)_
+  Binds to _port_ and accepts new connections. _port_, _address_, and _queue_ work identically to `agutil.io.SocketServer` (as the `SecureServer` uses a `SocketServer` internally).  _password_, _rsabits_, _childverbose_, and _childtimeout_ set the _password_, _rsabits_, _verbose_, and _timeout_ arguments (respectively) to the `SecureConnection` constructor for each accepted connection.
+
+* SecureServer.accept()
+  Waits for a connection and returns a new `SecureConnection`
+
+* SecureServer.close()
+  Closes the underlying `SocketServer`
+  
 
 ##security.ENCRYPTFILE security.DECRYPTFILE
 The `agutil.security` module includes two methods for file encryption and decryption: `encryptFile()` and `decryptFile()`.
