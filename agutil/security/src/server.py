@@ -31,6 +31,7 @@ class SecureServer:
         self.queuedmessages = [] #Queue of decrypted received text messages
         self.schedulingqueue = [] #Queue of task commands to be scheduled
         self._shutdown = False
+        self._init_shutdown = False
 
         #Pops new commands out of the scheduling queue, and spawns a new thread to deal with each task
         #Commands which require pre-authorization to start (ie: file transfer) are put in a holding queue instead of being scheduled
@@ -57,6 +58,10 @@ class SecureServer:
                 if protocols._COMMANDS[command['cmd']]=='kill':
                     self.tasks[command['name']].join(.05)
                     del self.tasks[command['name']]
+                    if self._init_shutdown:
+                        self.killlock.acquire()
+                        self.killlock.notify_all()
+                        self.killlock.release()
                 elif command['cmd'] < len(protocols._COMMANDS):
                     if command['cmd'] % 2:
                         name = command['name']
@@ -68,7 +73,7 @@ class SecureServer:
             self.schedulinglock.release()
 
     def _listener_worker(self):
-        while not self._shutdown:
+        while not self._init_shutdown:
             try:
                 # self.sock.recvRAW('__cmd__', timeout=.1)
                 cmd = self.sock.recvAES('__cmd__', timeout=.1)
@@ -79,17 +84,9 @@ class SecureServer:
             except socketTimeout:
                 pass
 
-    def shutdown(self, timeout=3):
-        if self._shutdown:
-            return
-        self.schedulinglock.acquire()
-        self._shutdown = True
-        self.schedulinglock.release()
-        self._listener.join(timeout)
-        self._scheduler.join(timeout)
-        self.sock.close(timeout)
-
     def send(self, msg, retries=1):
+        if self._init_shutdown:
+            raise IOError("This SecureServer has already initiated shutdown")
         if type(msg)==str:
             msg=msg.encode()
         elif type(msg)!=bytes:
@@ -104,6 +101,8 @@ class SecureServer:
         self.schedulinglock.release()
 
     def read(self, decode=True, timeout=None):
+        if self._init_shutdown:
+            raise IOError("This SecureServer has already initiated shutdown")
         self.intakelock.acquire()
         result = self.intakelock.wait_for(lambda :len(self.queuedmessages))
         if not result:
@@ -116,6 +115,8 @@ class SecureServer:
         return msg
 
     def sendfile(self, filename):
+        if self._init_shutdown:
+            raise IOError("This SecureServer has already initiated shutdown")
         self.schedulinglock.acquire()
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('fro'),
@@ -125,6 +126,8 @@ class SecureServer:
         self.schedulinglock.release()
 
     def savefile(self, destination, timeout=None, force=False):
+        if self._init_shutdown:
+            raise IOError("This SecureServer has already initiated shutdown")
         self.authlock.acquire()
         result = self.authlock.wait_for(lambda :len(self.authqueue), timeout)
         if not result:
@@ -167,14 +170,20 @@ class SecureServer:
         self.transferlock.release()
         return destination
 
-    def close(self):
+    def shutdown(self, timeout=3):
+        self.close(timeout)
+
+    def close(self, timeout=3):
         if self._shutdown:
             return
-        self.schedulinglock.acquire()
+        self.killlock = threading.Condition()
+        self.killlock.acquire()
+        self._init_shutdown = True
+        self._listener.join(.2)
+        self.killlock.wait_for(lambda :len(self.tasks)==0, timeout)
+        self.killlock.release()
         self._shutdown = True
-        self.schedulinglock.release()
-        self._listener.join(1)
-        self._scheduler.join(1)
+        self._scheduler.join(.1)
         self.sock.close()
         self.authlock.acquire()
         for key in self.filemap:
