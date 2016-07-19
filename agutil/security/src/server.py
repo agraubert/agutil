@@ -4,6 +4,7 @@ from . import protocols
 from socket import timeout as socketTimeout
 import threading
 import random
+import os
 
 random.seed()
 
@@ -55,7 +56,7 @@ class SecureServer:
                     self.tasks[command['name']].join(.05)
                     del self.tasks[command['name']]
                 elif command['cmd'] < len(protocols._COMMANDS):
-                    if not command['cmd'] % 2:
+                    if command['cmd'] % 2:
                         name = command['name']
                     else:
                         name = self._reserve_task(protocols._COMMANDS[command['cmd']])
@@ -68,7 +69,7 @@ class SecureServer:
         while not self._shutdown:
             try:
                 # self.sock.recvRAW('__cmd__', timeout=.1)
-                cmd = self.sock.recvAES('__cmd__', True, timeout=.1)
+                cmd = self.sock.recvAES('__cmd__', timeout=.1)
                 self.schedulinglock.acquire()
                 self.schedulingqueue.append(protocols.parsecmd(cmd))
                 self.schedulinglock.notify_all()
@@ -153,3 +154,13 @@ class SecureServer:
         self.completed_transfers.remove(destination)
         self.transferlock.release()
         return destination
+
+    def close(self):
+        self.schedulinglock.acquire()
+        self._shutdown = True
+        self.schedulinglock.release()
+        self.sock.close()
+        self.authlock.acquire()
+        for key in self.filemap:
+            os.remove(self.filemap[key])
+        self.authlock.release()

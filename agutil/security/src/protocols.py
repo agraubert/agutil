@@ -2,6 +2,7 @@ import rsa
 import os
 import tempfile
 import random
+import shutil
 
 _COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fto', 'fti']
 _CMD_LOOKUP = {}
@@ -10,29 +11,38 @@ _CONSOLE = False
 
 def lookupcmd(cmd):
     if cmd not in _CMD_LOOKUP:
-        index = _COMMANDS.find(cmd)
-        if index == -1:
+        try:
+            index = _COMMANDS.index(cmd)
+            _CMD_LOOKUP[cmd] = index
+        except ValueError:
             raise ValueError("Command \'%s\' not supported" %cmd)
-        _CMD_LOOKUP[cmd] = index
     return _CMD_LOOKUP[cmd]
 
 def parsecmd(cmd):
-    data['cmd'] = cmd[0]
+    print("Unpacking:", cmd)
+    data = {
+        'cmd' : cmd[0]
+    }
     cmd = cmd[1:]
+    print(cmd)
     index = cmd.find(b':')
     while index != -1:
         item_size = int(cmd[index+1:cmd.find(b'|')], 16)
-        data[cmd[:index].decode()] = cmd[index+2:index+item_size+2]
+        data[cmd[:index].decode()] = cmd[index+3:index+item_size+3].decode()
         cmd = cmd[index+item_size+2:]
+        index = cmd.find(b':')
+    print(data)
     return data
 
 def packcmd(cmd, data):
+    print("Packing:", cmd, data)
     cmd_index = lookupcmd(cmd)
     if cmd_index == -1:
         raise ValueError("Command \'%s\' not supported" % cmd)
-    cmd_string = format(cmd_index, 'x')
+    cmd_string = bytes.fromhex('%02x'%cmd_index)
     for key in data:
-        cmd_string += key+":"+format(len(data[key]), 'x')+"|"+data[key]
+        cmd_string += key.encode()+b":"+format(len(data[key]), 'x').encode()+b"|"+data[key].encode()
+    print(cmd_string)
     return cmd_string
 
 def padstring(msg):
@@ -45,6 +55,7 @@ def padstring(msg):
     return msg + bytes((16-len(msg))%16)
 
 def unpadstring(msg):
+    print("Unpad:", msg)
     tmp = ""
     while True:
         current = msg[len(tmp):len(tmp)+1]
@@ -60,17 +71,23 @@ def _assign_task(cmd):
 
 
 def _text_in(sock,cmd,name):
+    print("Text in task started", name)
     sock.sock.sendRAW('+', name)
+    print("Receiving retry count")
     retries = int(sock.sock.recvAES(name, True), 16)
-    for attempt in retries:
+    for attempt in range(retries):
+        print("Receving message")
         msg = sock.sock.recvRSA(name)
+        print("Receiving signature")
         signature = sock.sock.recvAES(name, True)
         try:
+            print("Checking signature")
             rsa.verify(
                 msg,
                 signature,
                 sock.sock.rpub
             )
+            print("Sending confirmation")
             sock.sock.sendRAW('+')
             return
         except rsa.pkcs1.VerificationError:
@@ -78,19 +95,25 @@ def _text_in(sock,cmd,name):
     raise IOError("Background worker %s was unable to receive and decrypt the message in %d retries" % (name, retries))
 
 def _text_out(sock,cmd,name):
+    print("Text out task started", name)
     sock.sock.sendAES(packcmd(
         'ti',
         {'name':name}
     ), '__cmd__')
+    print("Waiting to receive task confirmation")
     sock.sock.recvRAW(name, timeout=None)
+    print("Sending retry count")
     sock.sock.sendAES(format(cmd['retries'], 'x'))
-    for attempt in int(cmd['retries']):
+    for attempt in range(int(cmd['retries'])):
+        print("Sending message")
         sock.sock.sendRSA(cmd['msg'], name)
+        print("Sending signature")
         sock.sock.sendAES(rsa.sign(
-            msg,
+            cmd['msg'],
             sock.sock.priv,
             'SHA-256'
         ))
+        print("Waiting for signature confirmation")
         if sock.sock.recvRAW(name, True) == '+':
             return
     raise IOError("Background worker %s was unable to encrypt and send the message in %d retries" % (name, int(cmd['retries'])))

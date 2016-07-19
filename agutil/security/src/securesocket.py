@@ -142,15 +142,16 @@ class SecureSocket(io.QueuedSocket):
             return msg
 
     def sendAES(self, msg, channel='__aes__', key=False, iv=False):
+        print(channel, key, iv)
         if type(msg)==str:
             msg=msg.encode()
         if key == True:
             key = rsa.randnum.read_random_bits(256)
-        if type(key)!=bytes:
+        if type(key)!=bytes and key!=False:
             raise TypeError("key must be either True or a bytes object")
         if iv == True:
             iv = rsa.randnum.read_random_bits(128)
-        if type(iv)!=bytes:
+        if type(iv)!=bytes and iv!=False:
             raise TypeError("iv must be either True or a bytes object")
         #if key and iv are false, then encrypt using the base cipher
         if not (key or iv):
@@ -164,6 +165,7 @@ class SecureSocket(io.QueuedSocket):
         else:
             mode = 'CBC'
             cipher = AES.new(key, AES.MODE_CBC, iv)
+        print(mode)
         self._sendq(self._baseEncrypt(mode), channel)
         if key:
             self.sendRSA(key, channel)
@@ -187,7 +189,8 @@ class SecureSocket(io.QueuedSocket):
     def recvAES(self, channel='__aes__', decode=False, timeout=-1, output_file=None):
         if timeout == -1:
             timeout = self.timeout
-        mode = self._baseDecrypt(self._recvq(channel, timeout=timeout))
+        mode = self._baseDecrypt(self._recvq(channel, timeout=timeout)).decode()
+        print(mode)
         if mode == 'BASE':
             cipher = self.baseCipher
         elif mode == 'ECB':
