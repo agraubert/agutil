@@ -23,6 +23,7 @@ The __io__ package:
 The __security__ package:
 * SecureSocket (A mid-level network IO class built to manage encrypted network communications)
 * SecureServer (A high-level, multithreaded class for sending and receiving encrypted files and messages)
+* encryptFile and decryptFile (Simple methods for encrypting and decrypting local files)
 
 ##Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)
@@ -138,3 +139,16 @@ The `agutil.security` module includes the `SecureServer` class which provides a 
 * SecureServer.shutdown(timeout=3)
 * SecureServer.close(timeout=3)
   Closes the connection.  The `SecureServer` immediately stops accepting new commands from both the user and the remote socket (but currently queued or running tasks are allowed to queue new tasks).  Waits up to _timeout_ seconds for all currently runnning tasks to complete.  Then (regardless of if all tasks completed or not) it prevents any new tasks from being queued.  Lastly, the internal `SecureSocket` connection is closed.
+
+
+##security.ENCRYPTFILE security.DECRYPTFILE
+The `agutil.security` module includes two methods for file encryption and decryption: `encryptFile()` and `decryptFile()`.
+
+#####API
+* encryptFile(input\_filename, output\_filename, cipher)
+  Encrypts the file specified by _input\_filename_ and saves it to _output\_filename_ using _cipher_.
+  The cipher is not required to be any class, but it must support an `encrypt()` method, which takes a chunk of text, and returns a ciphered chunk.  Padding is handled internally (chunks are padded to 16-byte intervals).
+
+* decryptFile(input_filename, output_filename, cipher)
+  Decrypts the file specified by _input\_filename_ and saves it to _output\_filename_ using _cipher_.
+  The cipher is not required to be any class, but it must support an `decrypt()` method, which takes a chunk of ciphertext, and returns a deciphered chunk.  Unpadding is handled internally (chunks are padded to 16-byte intervals).
