@@ -28,7 +28,6 @@ def server_comms(secureClass, port, payload):
     for trial in range(5):
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
-    for trial in range(5):
         payload.intake.append(sock.read())
     payload.sock = sock
 
@@ -40,7 +39,6 @@ def client_comms(secureclass, port, payload):
     for trial in range(5):
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
-    for trial in range(5):
         payload.intake.append(sock.read())
     payload.sock = sock
 
