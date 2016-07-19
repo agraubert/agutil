@@ -12,7 +12,7 @@ class SecureServer:
 
     def accept(self):
         socket = self.server.accept()
-        return SecureConnection(socket, self.port, self.password, self.rssabits, self.childverbose, self.childtimeout)
+        return SecureConnection(socket, self.port, self.password, self.rsabits, self.childverbose, self.childtimeout)
 
     def close(self):
         self.server.close()

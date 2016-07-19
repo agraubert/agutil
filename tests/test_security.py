@@ -21,9 +21,11 @@ def make_random_file(filename):
     return contents
 
 def server_comms(secureClass, port, payload):
-    sock = secureClass('listen', port, password='password', rsabits=1024)
+    ss = secureClass(port, password='password', rsabits=1024)
+    sock = ss.accept()
     payload.intake=[]
     payload.output=[]
+    ss.close()
     sock.sock.sendRAW("+")
     for trial in range(5):
         payload.output.append(make_random_string())
@@ -43,9 +45,11 @@ def client_comms(secureclass, port, payload):
     payload.sock = sock
 
 def server_comms_files(secureClass, port, payload):
-    sock = secureClass('listen', port, password='password', rsabits=1024)
+    ss = secureClass(port, password='password', rsabits=1024)
+    sock = ss.accept()
     payload.intake=[]
     payload.output=[]
+    ss.close()
     sock.sock.sendRAW("+")
     for trial in range(5):
         outfile = tempfile.NamedTemporaryFile()
@@ -79,7 +83,7 @@ def client_comms_files(secureclass, port, payload):
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.script_path = os.path.join(
+        cls.connection_script_path = os.path.join(
             os.path.dirname(
                 os.path.dirname(
                     os.path.abspath(__file__)
@@ -90,21 +94,34 @@ class test(unittest.TestCase):
             "src",
             "connection.py"
         )
-        sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.script_path))))
+        cls.server_script_path = os.path.join(
+            os.path.dirname(
+                os.path.dirname(
+                    os.path.abspath(__file__)
+                )
+            ),
+            "agutil",
+            "security",
+            "src",
+            "server.py"
+        )
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.connection_script_path))))
         random.seed()
 
     def test_compilation(self):
-        compiled_path = compile(self.script_path)
+        compiled_path = compile(self.connection_script_path)
+        self.assertTrue(compiled_path)
+        compiled_path = compile(self.server_script_path)
         self.assertTrue(compiled_path)
 
     def test_text_io(self):
-        from agutil.security import SecureConnection
+        from agutil.security import SecureConnection, SecureServer
         server_payload = lambda x:None
         warnings.simplefilter('ignore', ResourceWarning)
         server_thread = None
         found_port = -1
         for port in range(4000, 10000):
-            server_thread = threading.Thread(target=server_comms, args=(SecureConnection, port, server_payload), name='Server thread', daemon=True)
+            server_thread = threading.Thread(target=server_comms, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
             server_thread.start()
             server_thread.join(1)
             if server_thread.is_alive():
@@ -129,13 +146,13 @@ class test(unittest.TestCase):
         self.assertListEqual(server_payload.output, client_payload.intake)
 
     def test_files_io(self):
-        from agutil.security import SecureConnection
+        from agutil.security import SecureConnection, SecureServer
         server_payload = lambda x:None
         warnings.simplefilter('ignore', ResourceWarning)
         server_thread = None
         found_port = -1
         for port in range(10000, 4000, -1):
-            server_thread = threading.Thread(target=server_comms_files, args=(SecureConnection, port, server_payload), name='Server thread', daemon=True)
+            server_thread = threading.Thread(target=server_comms_files, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
             server_thread.start()
             server_thread.join(1)
             if server_thread.is_alive():
