@@ -43,8 +43,10 @@ def intTobytes(num):
 
 def bytesToint(num):
     result = 0
+    exp = 256 ** (len(num)-1)
     for i in range(len(num)):
-        result += num[0]*(256**(len(num)-i))
+        result += int(num[i]*exp)
+        exp /= 256
     return result
 
 def _SocketWorker(_socket):
