@@ -160,9 +160,13 @@ class SecureServer:
         return destination
 
     def close(self):
+        if self._shutdown:
+            return
         self.schedulinglock.acquire()
         self._shutdown = True
         self.schedulinglock.release()
+        self._listener.join(1)
+        self._scheduler.join(1)
         self.sock.close()
         self.authlock.acquire()
         for key in self.filemap:
