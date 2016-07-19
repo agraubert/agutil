@@ -52,3 +52,13 @@ class test(unittest.TestCase):
             self.assertFalse(cmp(source.name, encrypted.name))
             decryptFile(encrypted.name, decrypted.name, decryptionCipher)
             self.assertTrue(cmp(source.name, decrypted.name))
+
+    def test_chunk_encryption_decryption(self):
+        from agutil.security.src.files import _encrypt_chunk, _decrypt_chunk
+        for trial in range(5):
+            source = "".join(make_random_string() for _ in range(1, 200))
+            aes_key = rsa.randnum.read_random_bits(256)
+            aes_iv = rsa.randnum.read_random_bits(128)
+            encryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
+            decryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
+            self.assertEqual(hash(source), hash(_decrypt_chunk(_encrypt_chunk(source, encryptionCipher), decryptionCipher)))
