@@ -54,7 +54,7 @@ class test(unittest.TestCase):
 
     def test_add_remove_random(self):
         from agutil import search_range
-        for trial in range(100):
+        for trial in range(25):
             a = search_range()
             control = [0]*1000
             c_start = 0
@@ -97,7 +97,7 @@ class test(unittest.TestCase):
 
     def test_operators_random(self):
         from agutil import search_range
-        for trial in range(100):
+        for trial in range(25):
             a = search_range()
             b = search_range()
             control_a = [0]*1000
@@ -161,7 +161,7 @@ class test(unittest.TestCase):
 
     def test_ranges_random(self):
         from agutil import search_range
-        for trial in range(100):
+        for trial in range(25):
             a = search_range()
             control = [0]*1000
             c_start = 0
