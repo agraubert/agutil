@@ -4,10 +4,9 @@ import hashlib
 import rsa
 import os
 import Crypto.Cipher.AES as AES
-import pickle
 import threading
 from io import BytesIO, BufferedReader, BufferedWriter
-from . import protocols
+from . import protocols, files
 
 RSA_CPU = None
 try:
@@ -75,8 +74,11 @@ class SecureSocket(io.QueuedSocket):
         if self.v:
             print("Generating keypair...")
         (self.pub, self.priv) = rsa.newkeys(rsabits, True, RSA_CPU)
-        self._sendq(self._baseEncrypt(pickle.dumps(self.pub)), '__control__')
-        self.rpub = pickle.loads(self._baseDecrypt(self._recvq('__control__')))
+        self._sendq(self._baseEncrypt(protocols.intToBytes(self.pub.n)), '__control__')
+        self._sendq(self._baseEncrypt(protocols.intToBytes(self.pub.e)), '__control__')
+        _n = protocols.bytesToInt(self._baseDecrypt(self._recvq('__control__')))
+        _e = protocols.bytesToInt(self._baseDecrypt(self._recvq('__control__')))
+        self.rpub = rsa.PublicKey(_n, _e)
         self._sendq(rsa.encrypt(
             b'OK',
             self.rpub
@@ -171,18 +173,18 @@ class SecureSocket(io.QueuedSocket):
             # self._sendq(self._baseEncrypt('+'))
             self._sendq(cipher.encrypt(rsa.randnum.read_random_bits(128)), channel)
         if isinstance(msg, (BytesIO, BufferedReader)):
-            intake = msg.read(4092) #because padstring adds 4 bytes to a string of this size
+            intake = msg.read(4095)
             while len(intake):
                 self._sendq(self._baseEncrypt('+'), channel)
-                self._sendq(cipher.encrypt(protocols.padstring(intake)), channel)
-                intake = msg.read(4092)
+                self._sendq(files._encrypt_chunk(intake, cipher), channel)
+                intake = msg.read(4095)
             self._sendq(self._baseEncrypt('-'), channel)
         else:
             if type(msg)!=bytes:
                 print(type(msg))
                 raise TypeError("msg argument must be str or bytes")
             self._sendq(self._baseEncrypt('+'), channel)
-            self._sendq(cipher.encrypt(protocols.padstring(msg)), channel)
+            self._sendq(files._encrypt_chunk(msg, cipher), channel)
             self._sendq(self._baseEncrypt('-'), channel)
 
     def recvAES(self, channel='__aes__', decode=False, timeout=-1, output_file=None):
@@ -204,7 +206,7 @@ class SecureSocket(io.QueuedSocket):
         command = self._baseDecrypt(self._recvq(channel, timeout=timeout))
         msg = b""
         while command == b'+':
-            intake = protocols.unpadstring(cipher.decrypt(self._recvq(channel, timeout=timeout)))
+            intake = files._decrypt_chunk(self._recvq(channel, timeout=timeout), cipher)
             if writer != None:
                 writer.write(intake)
             else:

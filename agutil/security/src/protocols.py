@@ -55,20 +55,25 @@ def padstring(msg):
         msg = msg.encode()
     if type(msg)!=bytes:
         raise TypeError("msg must be type str or bytes")
-    payload_size = len(msg)
-    msg = format(payload_size, 'x').encode() + b'|' + msg
-    return msg + bytes((16-len(msg))%16)
+    padding_length = 16 - (len(msg)%16)
+    return msg + bytes.fromhex('%02x'%padding_length)*padding_length
 
 def unpadstring(msg):
-    tmp = ""
-    while True:
-        current = msg[len(tmp):len(tmp)+1]
-        if current == b'|':
-            break
-        else:
-             tmp+=current.decode()
-    size = int(tmp, 16)
-    return msg[len(tmp)+1:len(tmp)+1+size]
+    return msg[:-1*msg[-1]]
+
+def intToBytes(num):
+    s = format(num, 'x')
+    if len(s)%2:
+        s = '0' + s
+    return bytes.fromhex(s)
+
+def bytesToInt(num):
+    result = 0
+    exp = 256 ** (len(num)-1)
+    for i in range(len(num)):
+        result += int(num[i]*exp)
+        exp /= 256
+    return result
 
 def _assign_task(cmd):
     return _WORKERS[cmd]
