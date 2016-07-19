@@ -1,7 +1,7 @@
 from . import protocols
 
 def encryptFile(input_filename, output_filename, cipher):
-    reader = open(intput_filename, mode='rb')
+    reader = open(input_filename, mode='rb')
     writer = open(output_filename, mode='wb')
     intake = reader.read(4095)
     while len(intake):
@@ -12,7 +12,7 @@ def encryptFile(input_filename, output_filename, cipher):
     writer.close()
 
 def decryptFile(input_filename, output_filename, cipher):
-    reader = open(intput_filename, mode='rb')
+    reader = open(input_filename, mode='rb')
     writer = open(output_filename, mode='wb')
     intake = reader.read(4095)
     while len(intake):
