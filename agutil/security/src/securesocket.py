@@ -137,12 +137,11 @@ class SecureSocket(io.QueuedSocket):
                 self._recvq(channel, timeout=timeout),
                 self.priv
             )
-            if decode:
-                msg = msg.decode()
-            return msg
+        if decode:
+            msg = msg.decode()
+        return msg
 
     def sendAES(self, msg, channel='__aes__', key=False, iv=False):
-        print(channel, key, iv)
         if type(msg)==str:
             msg=msg.encode()
         if key == True:
@@ -165,7 +164,6 @@ class SecureSocket(io.QueuedSocket):
         else:
             mode = 'CBC'
             cipher = AES.new(key, AES.MODE_CBC, iv)
-        print(mode)
         self._sendq(self._baseEncrypt(mode), channel)
         if key:
             self.sendRSA(key, channel)
@@ -190,7 +188,6 @@ class SecureSocket(io.QueuedSocket):
         if timeout == -1:
             timeout = self.timeout
         mode = self._baseDecrypt(self._recvq(channel, timeout=timeout)).decode()
-        print(mode)
         if mode == 'BASE':
             cipher = self.baseCipher
         elif mode == 'ECB':
@@ -229,7 +226,7 @@ class SecureSocket(io.QueuedSocket):
     def recvRAW(self, channel='__raw__', decode=False, timeout=-1):
         if timeout == -1:
             timeout = self.timeout
-        msg = self._recvq(channel, decode, timeout)
+        return self._recvq(channel, decode, timeout)
 
     def settimeout(self, timeout):
         self.timeout = timeout

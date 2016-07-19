@@ -19,30 +19,25 @@ def lookupcmd(cmd):
     return _CMD_LOOKUP[cmd]
 
 def parsecmd(cmd):
-    print("Unpacking:", cmd)
     data = {
         'cmd' : cmd[0]
     }
     cmd = cmd[1:]
-    print(cmd)
     index = cmd.find(b':')
     while index != -1:
         item_size = int(cmd[index+1:cmd.find(b'|')], 16)
         data[cmd[:index].decode()] = cmd[index+3:index+item_size+3].decode()
         cmd = cmd[index+item_size+2:]
         index = cmd.find(b':')
-    print(data)
     return data
 
 def packcmd(cmd, data):
-    print("Packing:", cmd, data)
     cmd_index = lookupcmd(cmd)
     if cmd_index == -1:
         raise ValueError("Command \'%s\' not supported" % cmd)
     cmd_string = bytes.fromhex('%02x'%cmd_index)
     for key in data:
         cmd_string += key.encode()+b":"+format(len(data[key]), 'x').encode()+b"|"+data[key].encode()
-    print(cmd_string)
     return cmd_string
 
 def padstring(msg):
@@ -55,7 +50,6 @@ def padstring(msg):
     return msg + bytes((16-len(msg))%16)
 
 def unpadstring(msg):
-    print("Unpad:", msg)
     tmp = ""
     while True:
         current = msg[len(tmp):len(tmp)+1]
@@ -79,7 +73,7 @@ def _text_in(sock,cmd,name):
         print("Receving message")
         msg = sock.sock.recvRSA(name)
         print("Receiving signature")
-        signature = sock.sock.recvAES(name, True)
+        signature = sock.sock.recvRAW(name)
         try:
             print("Checking signature")
             rsa.verify(
@@ -88,10 +82,14 @@ def _text_in(sock,cmd,name):
                 sock.sock.rpub
             )
             print("Sending confirmation")
-            sock.sock.sendRAW('+')
+            sock.sock.sendRAW('+', name)
+            sock.intakelock.acquire()
+            sock.queuedmessages.append(msg)
+            sock.intakelock.notify_all()
+            sock.intakelock.release()
             return
         except rsa.pkcs1.VerificationError:
-            sock.sock.sendRAW('-')
+            sock.sock.sendRAW('-', name)
     raise IOError("Background worker %s was unable to receive and decrypt the message in %d retries" % (name, retries))
 
 def _text_out(sock,cmd,name):
@@ -103,16 +101,16 @@ def _text_out(sock,cmd,name):
     print("Waiting to receive task confirmation")
     sock.sock.recvRAW(name, timeout=None)
     print("Sending retry count")
-    sock.sock.sendAES(format(cmd['retries'], 'x'))
+    sock.sock.sendAES(format(cmd['retries'], 'x'), name)
     for attempt in range(int(cmd['retries'])):
         print("Sending message")
         sock.sock.sendRSA(cmd['msg'], name)
         print("Sending signature")
-        sock.sock.sendAES(rsa.sign(
+        sock.sock.sendRAW(rsa.sign(
             cmd['msg'],
             sock.sock.priv,
             'SHA-256'
-        ))
+        ), name)
         print("Waiting for signature confirmation")
         if sock.sock.recvRAW(name, True) == '+':
             return
