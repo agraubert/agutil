@@ -75,10 +75,10 @@ class SecureSocket(io.QueuedSocket):
         if self.v:
             print("Generating keypair...")
         (self.pub, self.priv) = rsa.newkeys(rsabits, True, RSA_CPU)
-        self._sendq(self._baseEncrypt(protocols.intTobytes(self.pub.n)), '__control__')
-        self._sendq(self._baseEncrypt(protocols.intTobytes(self.pub.e)), '__control__')
-        _n = protocols.bytesToint(self._baseDecrypt(self._recvq('__control__')))
-        _e = protocols.bytesToint(self._baseDecrypt(self._recvq('__control__')))
+        self._sendq(self._baseEncrypt(protocols.intToBytes(self.pub.n)), '__control__')
+        self._sendq(self._baseEncrypt(protocols.intToBytes(self.pub.e)), '__control__')
+        _n = protocols.bytesToInt(self._baseDecrypt(self._recvq('__control__')))
+        _e = protocols.bytesToInt(self._baseDecrypt(self._recvq('__control__')))
         self.rpub = rsa.PublicKey(_n, _e)
         self._sendq(rsa.encrypt(
             b'OK',
