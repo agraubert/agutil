@@ -144,7 +144,15 @@ class SecureServer:
                 else:
                     accepted = True
             if choice[0] != 'y':
-                return #should queue a reject-transfer command
+                self.schedulinglock.acquire()
+                self.schedulingqueue.append({
+                    'cmd': protocols.lookupcmd('fti'),
+                    'auth': auth,
+                    'reject': True
+                })
+                self.schedulinglock.notify_all()
+                self.schedulinglock.release()
+                return
         self.schedulinglock.acquire()
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('fti'),

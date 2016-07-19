@@ -27,7 +27,10 @@ def parsecmd(cmd):
     index = cmd.find(b':')
     while index != -1:
         item_size = int(cmd[index+1:cmd.find(b'|')], 16)
-        data[cmd[:index].decode()] = cmd[index+3:index+item_size+3].decode()
+        key = cmd[:index].decode()
+        data[key] = cmd[index+3:index+item_size+3].decode()
+        if data[key] == '':
+            data[key] = True
         cmd = cmd[index+item_size+3:]
         index = cmd.find(b':')
     # print("UNPACK:", _cmd_raw,'-->', data)
@@ -39,6 +42,10 @@ def packcmd(cmd, data):
         raise ValueError("Command \'%s\' not supported" % cmd)
     cmd_string = bytes.fromhex('%02x'%cmd_index)
     for key in data:
+        if data[key] == True:
+            data[key] = b''
+        elif data[key] == False:
+            continue
         cmd_string += key.encode()+b":"+format(len(data[key]), 'x').encode()+b"|"+data[key].encode()
     # print("PACK:", cmd,":",data,'-->', cmd_string)
     return cmd_string
@@ -174,10 +181,11 @@ def _file_transfer_out(sock,cmd,name):
     filepath = sock.filemap[cmd['auth']]
     del sock.filemap[cmd['auth']]
     sock.authlock.release()
-    reader = open(filepath, mode='rb')
-    sock.sock.sendRAW('+', name)
-    sock.sock.sendAES(reader, name, True, True)
-    reader.close()
+    if 'reject' not in cmd:
+        reader = open(filepath, mode='rb')
+        sock.sock.sendRAW('+', name)
+        sock.sock.sendAES(reader, name, True, True)
+        reader.close()
     os.remove(filepath)
     sock.schedulinglock.acquire()
     sock.schedulingqueue.append({
@@ -191,14 +199,15 @@ def _file_transfer_out(sock,cmd,name):
 def _file_transfer_in(sock,cmd,name):
     sock.sock.sendAES(packcmd(
         'fto',
-        {'name':name, 'auth':cmd['auth']}
+        {'name':name, 'auth':cmd['auth'], 'reject':'reject' in cmd}
     ), '__cmd__')
-    sock.sock.recvRAW(name, timeout=None)
-    sock.sock.recvAES(name, output_file=cmd['filepath'])
-    sock.transferlock.acquire()
-    sock.completed_transfers.add(cmd['filepath'])
-    sock.transferlock.notify_all()
-    sock.transferlock.release()
+    if 'reject' not in cmd:
+        sock.sock.recvRAW(name, timeout=None)
+        sock.sock.recvAES(name, output_file=cmd['filepath'])
+        sock.transferlock.acquire()
+        sock.completed_transfers.add(cmd['filepath'])
+        sock.transferlock.notify_all()
+        sock.transferlock.release()
     sock.schedulinglock.acquire()
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
