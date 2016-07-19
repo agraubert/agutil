@@ -121,7 +121,7 @@ class SecureServer:
             'cmd': protocols.lookupcmd('fro'),
             'filepath': os.path.abspath(filename)
         })
-        self.schedulingqueue.notify_all()
+        self.schedulinglock.notify_all()
         self.schedulinglock.release()
 
     def savefile(self, destination, timeout=None, force=False):

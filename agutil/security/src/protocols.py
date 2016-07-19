@@ -19,6 +19,7 @@ def lookupcmd(cmd):
     return _CMD_LOOKUP[cmd]
 
 def parsecmd(cmd):
+    _cmd_raw = b''+cmd
     data = {
         'cmd' : cmd[0]
     }
@@ -27,8 +28,9 @@ def parsecmd(cmd):
     while index != -1:
         item_size = int(cmd[index+1:cmd.find(b'|')], 16)
         data[cmd[:index].decode()] = cmd[index+3:index+item_size+3].decode()
-        cmd = cmd[index+item_size+2:]
+        cmd = cmd[index+item_size+3:]
         index = cmd.find(b':')
+    # print("UNPACK:", _cmd_raw,'-->', data)
     return data
 
 def packcmd(cmd, data):
@@ -38,6 +40,7 @@ def packcmd(cmd, data):
     cmd_string = bytes.fromhex('%02x'%cmd_index)
     for key in data:
         cmd_string += key.encode()+b":"+format(len(data[key]), 'x').encode()+b"|"+data[key].encode()
+    # print("PACK:", cmd,":",data,'-->', cmd_string)
     return cmd_string
 
 def padstring(msg):
@@ -106,9 +109,9 @@ def _text_out(sock,cmd,name):
 
 def _file_request_out(sock,cmd,name):
     sock.authlock.acquire()
-    auth_key = "".join(chr(random.randint(32, 255)) for _ in range(5))
+    auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
     while auth_key in sock.filemap:
-        auth_key = "".join(chr(random.randint(32, 255)) for _ in range(5))
+        auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
     staging_location = tempfile.NamedTemporaryFile().name
     shutil.copyfile(cmd['filepath'], staging_location)
     sock.filemap[auth_key] = staging_location
@@ -132,6 +135,7 @@ def _file_transfer_out(sock,cmd,name):
     reader = open(filepath, mode='rb')
     sock.sock.sendRAW('+', name)
     sock.sock.sendAES(reader, name, True, True)
+    reader.close()
     os.remove(filepath)
 
 
@@ -139,7 +143,7 @@ def _file_transfer_in(sock,cmd,name):
     sock.sock.sendAES(packcmd(
         'fto',
         {'name':name, 'auth':cmd['auth']}
-    ))
+    ), '__cmd__')
     sock.sock.recvRAW(name, timeout=None)
     sock.sock.recvAES(name, output_file=cmd['filepath'])
     sock.transferlock.acquire()

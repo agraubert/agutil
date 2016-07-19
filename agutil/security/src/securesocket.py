@@ -6,7 +6,7 @@ import os
 import Crypto.Cipher.AES as AES
 import pickle
 import threading
-from io import BytesIO
+from io import BytesIO, BufferedReader, BufferedWriter
 from . import protocols
 
 RSA_CPU = None
@@ -170,7 +170,7 @@ class SecureSocket(io.QueuedSocket):
         if iv:
             # self._sendq(self._baseEncrypt('+'))
             self._sendq(cipher.encrypt(rsa.randnum.read_random_bits(128)), channel)
-        if isinstance(msg, BytesIO):
+        if isinstance(msg, (BytesIO, BufferedReader)):
             intake = msg.read(4092) #because padstring adds 4 bytes to a string of this size
             while len(intake):
                 self._sendq(self._baseEncrypt('+'), channel)
@@ -179,6 +179,7 @@ class SecureSocket(io.QueuedSocket):
             self._sendq(self._baseEncrypt('-'), channel)
         else:
             if type(msg)!=bytes:
+                print(type(msg))
                 raise TypeError("msg argument must be str or bytes")
             self._sendq(self._baseEncrypt('+'), channel)
             self._sendq(cipher.encrypt(protocols.padstring(msg)), channel)
@@ -198,7 +199,7 @@ class SecureSocket(io.QueuedSocket):
         writer = None
         if type(output_file) == str:
             writer = open(output_file, mode='wb')
-        elif isinstance(output_file, BytesIO):
+        elif isinstance(output_file, (BytesIO, BufferedWriter)):
             writer = output_file
         command = self._baseDecrypt(self._recvq(channel, timeout=timeout))
         msg = b""
