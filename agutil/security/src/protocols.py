@@ -24,12 +24,16 @@ def parsecmd(cmd):
     cmd = cmd[1:]
     index = cmd.find(b':')
     while index != -1:
-        item_size = int(cmd[index+1:cmd.find(b'|')], 16)
+        raw_size = cmd[index+1:cmd.find(b'|', index)]
         key = cmd[:index].decode()
-        data[key] = cmd[index+3:index+item_size+3].decode()
-        if data[key] == '':
+        offset = len(raw_size)+2
+        if raw_size == 0:
             data[key] = True
-        cmd = cmd[index+item_size+3:]
+            item_size = 0
+        else:
+            item_size = int(raw_size, 16)
+            data[key] = cmd[index+offset:index+item_size+offset].decode()
+        cmd = cmd[index+item_size+offset:]
         index = cmd.find(b':')
     # print("UNPACK:", _cmd_raw,'-->', data)
     return data
@@ -41,7 +45,7 @@ def packcmd(cmd, data):
     cmd_string = bytes.fromhex('%02x'%cmd_index)
     for key in data:
         if data[key] == True:
-            data[key] = b''
+            data[key] = ''
         elif data[key] == False:
             continue
         cmd_string += key.encode()+b":"+format(len(data[key]), 'x').encode()+b"|"+data[key].encode()
