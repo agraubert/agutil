@@ -47,6 +47,7 @@ class test(unittest.TestCase):
 
     def test_cmd_packing_and_unpacking(self):
         from agutil.security.src.protocols import packcmd, unpackcmd, _COMMANDS
+        self.assertRaises(ValueError, packcmd, 'kill', {'co:lon': 'value'})
         for cmd in _COMMANDS:
             data = {}
             num_keys = random.randint(0,15)

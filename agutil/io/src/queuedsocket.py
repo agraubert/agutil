@@ -32,6 +32,8 @@ class QueuedSocket(Socket):
     def send(self, msg, channel='__orphan__'):
         if self._shutdown:
             raise IOError("This QueuedSocket has already been closed")
+        if '|' in channel:
+            raise ValueError("Channel names cannot contain '|' characters (ascii 124)")
         self.datalock.acquire()
         if channel not in self.outgoing:
             self.outgoing[channel] = [msg]

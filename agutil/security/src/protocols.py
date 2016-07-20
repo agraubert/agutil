@@ -48,6 +48,8 @@ def packcmd(cmd, data):
             data[key] = ''
         elif data[key] == False:
             continue
+        if ':' in key:
+            raise ValueError("Command keys cannot contain ':' characters (ascii 58)")
         cmd_string += key.encode()+b":"+format(len(data[key].encode()), 'x').encode()+b"|"+data[key].encode()
     # print("PACK:", cmd,":",data,'-->', cmd_string)
     return cmd_string
