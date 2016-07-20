@@ -173,7 +173,7 @@ class SecureConnection:
     def shutdown(self, timeout=3):
         self.close(timeout)
 
-    def close(self, timeout=3):
+    def close(self, timeout=3, _remote=False):
         if self._shutdown:
             return
         self.killlock = threading.Condition()
@@ -184,4 +184,6 @@ class SecureConnection:
         self.killlock.release()
         self._shutdown = True
         self._scheduler.join(.1)
+        if not _remote:
+            self.sock.sendAES(protocols.packcmd('dci'), '__cmd__')
         self.sock.close()

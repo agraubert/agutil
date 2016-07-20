@@ -2,7 +2,7 @@ import rsa
 import os
 import random
 
-_COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fto', 'fti']
+_COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fto', 'fti', '_NULL', 'dci',]
 _CMD_LOOKUP = {}
 #commands: {command code byte}{item name}{colon ':'}{item size (hex bytes)}{bar '|'}{item bytes}...
 _CONSOLE = False
@@ -38,7 +38,7 @@ def unpackcmd(cmd):
     # print("UNPACK:", _cmd_raw,'-->', data)
     return data
 
-def packcmd(cmd, data):
+def packcmd(cmd, data={}):
     cmd_index = lookupcmd(cmd)
     if cmd_index == -1:
         raise ValueError("Command \'%s\' not supported" % cmd)
@@ -222,11 +222,22 @@ def _file_transfer_in(sock,cmd,name):
     sock.schedulinglock.notify_all()
     sock.schedulinglock.release()
 
+def _disconnect_in(sock, cmd, name):
+    sock.sock.close(_remote=True)
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
+
 _WORKERS = {
     'ti' : _text_in,
     'to' : _text_out,
     'fri' : _file_request_in,
     'fro' : _file_request_out,
     'fti' : _file_transfer_in,
-    'fto' : _file_transfer_out
+    'fto' : _file_transfer_out,
+    'dci' : _disconnect_in
 }
