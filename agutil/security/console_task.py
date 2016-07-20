@@ -38,9 +38,10 @@ def run_task(socket, args_input):
         help="Close the connection and quit"
     )
     disconnect.set_defaults(func=lambda args:socket.close(), kill=True)
-
+    print([i for i in args_input])
     args = parser.parse_args(args_input)
     args.func(args)
     if args.kill:
         return -1
-    else return 0
+    else:
+        return 0
