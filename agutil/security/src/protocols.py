@@ -48,7 +48,7 @@ def packcmd(cmd, data):
             data[key] = ''
         elif data[key] == False:
             continue
-        cmd_string += key.encode()+b":"+format(len(data[key]), 'x').encode()+b"|"+data[key].encode()
+        cmd_string += key.encode()+b":"+format(len(data[key].encode()), 'x').encode()+b"|"+data[key].encode()
     # print("PACK:", cmd,":",data,'-->', cmd_string)
     return cmd_string
 

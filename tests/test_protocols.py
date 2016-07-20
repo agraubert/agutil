@@ -51,13 +51,13 @@ class test(unittest.TestCase):
             data = {}
             num_keys = random.randint(0,15)
             for i in range(num_keys):
-                key = make_random_string(random.randint(3,25), lower=59, upper=125)
+                key = make_random_string(random.randint(3,25), lower=59, upper=255)
                 while key in data:
-                    key = make_random_string(random.randint(3,25), lower=59, upper=125)
+                    key = make_random_string(random.randint(3,25), lower=59, upper=255)
                 if not i%10:
                     data[key] = True
                 else:
-                    data[key] = make_random_string(random.randint(1,4096))
+                    data[key] = make_random_string(random.randint(1,4096), lower=0, upper=255)
             parsed = unpackcmd(packcmd(cmd, data))
             _cmd = _COMMANDS[parsed['cmd']]
             del parsed['cmd']

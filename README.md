@@ -44,7 +44,7 @@ The `.send()` and `.recv()` methods now take an (optional) additional _channel_ 
   Takes an `agutil.io.Socket` class to extend.
 
 * QueuedSocket.send(msg, channel='\_\_orphan\_\_')
-  Sends a message over the specified _channel_.  If the _channel_ argument is omitted, it is sent over a default channel.
+  Sends a message over the specified _channel_.  If the _channel_ argument is omitted, it is sent over a default channel.  Channel names **cannot** contain the pipe character ('|', ascii 124), which is used as a delimiter for encoding the channel name into transmissions
 
 * QueuedSocket.recv(channel='\_\_orphan\_\_', decode=False, timeout=None)
   Receives a message from the specified _channel_, or blocks until a message is available.  If _decode_ is True, the bytes object is decoded into a str object. If a timeout is specified and not None, the method will block for at most _timeout_ seconds, then raise a `socket.timeout` exception.
@@ -154,7 +154,7 @@ The `agutil.security` module includes the `SecureServer` class, which is similar
 
 * SecureServer.close()
   Closes the underlying `SocketServer`
-  
+
 
 ##security.ENCRYPTFILE security.DECRYPTFILE
 The `agutil.security` module includes two methods for file encryption and decryption: `encryptFile()` and `decryptFile()`.

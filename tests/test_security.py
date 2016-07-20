@@ -11,7 +11,7 @@ import os
 TRAVIS = 'CI' in os.environ
 
 def make_random_string():
-    return "".join(chr(random.randint(48,122)) for i in range(25))
+    return "".join(chr(random.randint(0,255)) for i in range(25))
 
 def make_random_file(filename):
     writer = open(filename, mode='w')
@@ -55,8 +55,8 @@ def server_comms_files(secureClass, port, payload):
         outfile = tempfile.NamedTemporaryFile()
         infile = tempfile.NamedTemporaryFile()
         sock.savefile(infile.name, force=True)
-        reader = open(infile.name, mode='r')
-        payload.intake.append(reader.read())
+        reader = open(infile.name, mode='rb')
+        payload.intake.append(reader.read().decode())
         reader.close()
         payload.output.append(make_random_file(outfile.name))
         sock.sendfile(outfile.name)
@@ -75,8 +75,8 @@ def client_comms_files(secureclass, port, payload):
         sock.sendfile(outfile.name)
         sock.savefile(infile.name, force=True)
         sock.sock.sendRAW('+')
-        reader = open(infile.name, mode='r')
-        payload.intake.append(reader.read())
+        reader = open(infile.name, mode='rb')
+        payload.intake.append(reader.read().decode())
         reader.close()
     payload.sock = sock
 
@@ -145,6 +145,7 @@ class test(unittest.TestCase):
         self.assertListEqual(server_payload.intake, client_payload.output)
         self.assertListEqual(server_payload.output, client_payload.intake)
 
+    @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on windows")
     def test_files_io(self):
         from agutil.security import SecureConnection, SecureServer
         server_payload = lambda x:None
@@ -173,5 +174,17 @@ class test(unittest.TestCase):
         self.assertEqual(client_payload.comms_check, '+')
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
-        self.assertListEqual(server_payload.intake, client_payload.output)
-        self.assertListEqual(server_payload.output, client_payload.intake)
+        for i in range(len(server_payload.intake)):
+            self.assertEqual(len(server_payload.intake[i]), len(client_payload.output[i]))
+            if len(server_payload.intake[i])>2048:
+                self.assertEqual(hash(server_payload.intake[i]), hash(client_payload.output[i]))
+            else:
+                self.assertEqual(server_payload.intake[i], client_payload.output[i])
+        for i in range(len(client_payload.intake)):
+            self.assertEqual(len(client_payload.intake[i]), len(server_payload.output[i]))
+            if len(client_payload.intake[i])>2048:
+                self.assertEqual(hash(client_payload.intake[i]), hash(server_payload.output[i]))
+            else:
+                self.assertEqual(client_payload.intake[i], server_payload.output[i])
+        # self.assertListEqual(server_payload.intake, client_payload.output)
+        # self.assertListEqual(server_payload.output, client_payload.intake)

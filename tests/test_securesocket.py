@@ -11,7 +11,7 @@ startup_lock = threading.Lock()
 TRAVIS = 'CI' in os.environ
 
 def make_random_string():
-    return "".join(chr(random.randint(48,122)) for i in range(25))
+    return "".join(chr(random.randint(0,255)) for i in range(25))
 
 def server_comms(secureclass, queueclass, ss, payload):
     global startup_lock

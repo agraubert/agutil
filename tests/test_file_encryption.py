@@ -9,7 +9,7 @@ import rsa.randnum
 import Crypto.Cipher.AES as AES
 
 def make_random_string():
-    return "".join(chr(random.randint(48,122)) for i in range(25))
+    return "".join(chr(random.randint(0,255)) for i in range(25))
 
 class test(unittest.TestCase):
     @classmethod
@@ -61,7 +61,7 @@ class test(unittest.TestCase):
             aes_iv = rsa.randnum.read_random_bits(128)
             encryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
             decryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
-            decrypted = _decrypt_chunk(_encrypt_chunk(source, encryptionCipher), decryptionCipher)
+            decrypted = _decrypt_chunk(_encrypt_chunk(source, encryptionCipher), decryptionCipher).decode()
             self.assertEqual(len(source), len(decrypted))
             if len(source) <= 2048:
                 self.assertEqual(source, decrypted)

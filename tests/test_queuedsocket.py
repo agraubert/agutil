@@ -12,7 +12,7 @@ TRAVIS = 'CI' in os.environ
 CHANNELS = ['test', 'test', 'fish', 'cat', 'test']
 
 def make_random_string():
-    return "".join(chr(random.randint(48,122)) for i in range(25))
+    return "".join(chr(random.randint(0,255)) for i in range(25))
 
 def server_comms(queueclass, ss, payload):
     global startup_lock
