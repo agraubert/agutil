@@ -38,7 +38,7 @@ class SecureSocket(io.QueuedSocket):
         if password!=None:
             protocolstring = _protocol+" <password-%s>"%(
                 hashlib.sha512(
-                    hashlib.sha512(password.encode()+b"lol").hexdigest().encode()
+                    hashlib.sha512(password.encode()+b"lol").digest()
                 ).hexdigest()
             )
             self.baseCipher = AES.new(hashlib.sha256(password.encode()).digest())

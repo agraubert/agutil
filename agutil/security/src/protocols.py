@@ -71,10 +71,10 @@ def intToBytes(num):
 
 def bytesToInt(num):
     result = 0
-    exp = 256 ** (len(num)-1)
+    exp = int(256 ** (len(num)-1))
     for i in range(len(num)):
         result += int(num[i]*exp)
-        exp /= 256
+        exp //= 256
     return result
 
 def _assign_task(cmd):
