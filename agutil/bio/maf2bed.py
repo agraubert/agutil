@@ -64,10 +64,13 @@ def maf2bed(args):
             keyWriter.writerow({key:row[key] for key in keyWriter.fieldnames})
         writer.writerow({key:row[key] for key in writer.fieldnames})
     args.output.close()
+    args.input.close()
+    if not args.skip_keyfile:
+        key_file.close()
     if args.v:
         bar.clear(True)
 
-def main():
+def main(args_input=sys.argv[1:]):
     parser = argparse.ArgumentParser("maf2bed")
     subparsers = parser.add_subparsers()
 
@@ -111,7 +114,7 @@ def main():
         nargs="+",
         help="Keys to lookup"
     )
-    args = parser.parse_args()
+    args = parser.parse_args(args_input)
 
     try:
         args.func(args)

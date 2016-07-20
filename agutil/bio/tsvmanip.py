@@ -1,8 +1,9 @@
 import argparse
 import csv
 import re
+from sys import argv
 
-def main():
+def main(args_input = argv[1:]):
     parser = argparse.ArgumentParser("tsvManip")
     parser.add_argument(
         'input',
@@ -88,7 +89,7 @@ def main():
         action='store_true',
         help="Provide verbose output"
     )
-    args = parser.parse_args()
+    args = parser.parse_args(args_input)
 
     if len(args.cols) == 0:
         tmp_reader = open(args.input.name, mode='r')
