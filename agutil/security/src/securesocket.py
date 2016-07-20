@@ -4,7 +4,6 @@ import hashlib
 import rsa
 import os
 import Crypto.Cipher.AES as AES
-import threading
 from io import BytesIO, BufferedReader, BufferedWriter
 from . import protocols, files
 
@@ -112,6 +111,7 @@ class SecureSocket(io.QueuedSocket):
         self.sendRSA(msg, channel)
 
     def sendRSA(self, msg, channel='__rsa__'):
+        print("RSA Send")
         if type(msg)==str:
             msg=msg.encode()
         elif type(msg)!=bytes:
@@ -130,6 +130,7 @@ class SecureSocket(io.QueuedSocket):
         return self.recvRSA(channel, decode, timeout)
 
     def recvRSA(self, channel='__rsa__', decode=False, timeout=-1):
+        print("RSA Read")
         if timeout == -1:
             timeout = self.timeout
         chunks = int(self._baseDecrypt(self._recvq(channel, timeout=timeout)).decode(), 16)

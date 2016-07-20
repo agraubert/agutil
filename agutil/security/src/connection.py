@@ -85,6 +85,7 @@ class SecureConnection:
                 pass
 
     def send(self, msg, retries=1):
+        print("SECURE SEND")
         if self._init_shutdown:
             raise IOError("This SecureConnection has already initiated shutdown")
         if type(msg)==str:
@@ -101,6 +102,7 @@ class SecureConnection:
         self.schedulinglock.release()
 
     def read(self, decode=True, timeout=None):
+        print("SECURE READ")
         if self._init_shutdown:
             raise IOError("This SecureConnection has already initiated shutdown")
         self.intakelock.acquire()

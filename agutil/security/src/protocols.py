@@ -118,10 +118,12 @@ def _text_in(sock,cmd,name):
     raise IOError("Background worker %s was unable to receive and decrypt the message in %d retries" % (name, retries))
 
 def _text_out(sock,cmd,name):
+    print("TO started")
     sock.sock.sendAES(packcmd(
         'ti',
         {'name':name}
     ), '__cmd__')
+    print("Waiting for confirmation")
     sock.sock.recvRAW(name, timeout=None)
     sock.sock.sendAES(format(cmd['retries'], 'x'), name)
     for attempt in range(int(cmd['retries'])):

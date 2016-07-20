@@ -21,7 +21,7 @@ def run_task(socket, args_input):
     send_msg.set_defaults(func=lambda args:socket.send(
         " ".join(args.message),
         _CONFIG['retries']
-    ), kill=False)
+    ), kill=False, _as_name='send')
 
     read_msg = subparsers.add_parser(
         'read',
@@ -30,16 +30,17 @@ def run_task(socket, args_input):
     read_msg.set_defaults(func=lambda args:socket.read(
         True,
         _CONFIG['timeout']
-    ), kill=False)
+    ), kill=False, _as_name='read')
 
     disconnect = subparsers.add_parser(
         'disconnect',
         aliases=['close', 'exit', 'quit'],
         help="Close the connection and quit"
     )
-    disconnect.set_defaults(func=lambda args:socket.close(), kill=True)
+    disconnect.set_defaults(func=lambda args:socket.close(), kill=True, _as_name='dc')
     print([i for i in args_input])
     args = parser.parse_args(args_input)
+    print("Running:", args._as_name)
     args.func(args)
     if args.kill:
         return -1
