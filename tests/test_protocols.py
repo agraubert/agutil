@@ -46,7 +46,7 @@ class test(unittest.TestCase):
                 self.assertEqual(hash(text), hash(unpadded))
 
     def test_cmd_packing_and_unpacking(self):
-        from agutil.security.src.protocols import packcmd, parsecmd, _COMMANDS
+        from agutil.security.src.protocols import packcmd, unpackcmd, _COMMANDS
         for cmd in _COMMANDS:
             data = {}
             num_keys = random.randint(0,15)
@@ -58,7 +58,7 @@ class test(unittest.TestCase):
                     data[key] = True
                 else:
                     data[key] = make_random_string(random.randint(1,4096))
-            parsed = parsecmd(packcmd(cmd, data))
+            parsed = unpackcmd(packcmd(cmd, data))
             _cmd = _COMMANDS[parsed['cmd']]
             del parsed['cmd']
             self.assertEqual(cmd, _cmd)

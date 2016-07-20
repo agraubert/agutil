@@ -78,7 +78,7 @@ class SecureConnection:
                 # self.sock.recvRAW('__cmd__', timeout=.1)
                 cmd = self.sock.recvAES('__cmd__', timeout=.1)
                 self.schedulinglock.acquire()
-                self.schedulingqueue.append(protocols.parsecmd(cmd))
+                self.schedulingqueue.append(protocols.unpackcmd(cmd))
                 self.schedulinglock.notify_all()
                 self.schedulinglock.release()
             except socketTimeout:

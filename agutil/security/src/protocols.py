@@ -16,7 +16,7 @@ def lookupcmd(cmd):
             raise ValueError("Command \'%s\' not supported" %cmd)
     return _CMD_LOOKUP[cmd]
 
-def parsecmd(cmd):
+def unpackcmd(cmd):
     _cmd_raw = b''+cmd
     data = {
         'cmd' : cmd[0]
