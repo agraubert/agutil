@@ -79,12 +79,12 @@ class QueuedSocket(Socket):
         self.iolock.release()
         # print("Recvs:", msg)
         if msg[:4] == b':ch#':
-            channel = ""
+            channel = b""
             i = 4
             while msg[i:i+1] != b'|':
-                channel += msg[i:i+1].decode()
+                channel += msg[i:i+1]
                 i+=1
-            return (channel, msg[i+1:])
+            return (channel.decode(), msg[i+1:])
         return ("__orphan__", msg)
 
     def _check_channel(self, channel):

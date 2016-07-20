@@ -9,43 +9,48 @@ import os
 startup_lock = threading.Lock()
 
 TRAVIS = 'CI' in os.environ
-CHANNELS = ['test', 'test', 'fish', 'cat', 'test']
 
 def make_random_string():
     return "".join(chr(random.randint(0,255)) for i in range(25))
 
-def server_comms(queueclass, ss, payload):
+def server_comms(queueclass, ss, payload, CHANNELS):
     global startup_lock
     startup_lock.release()
     sock = queueclass(ss.accept())
     ss.close()
     payload.intake=[]
     payload.output=[]
-    raw_output = {'test':[], 'fish':[], 'cat':[]}
+    raw_output = {}
     local_channels = sorted(CHANNELS, key=lambda x:random.random())
     for trial in range(5):
+        if local_channels[trial] not in raw_output:
+            raw_output[local_channels[trial]] = []
         raw_output[local_channels[trial]].append(make_random_string())
         sock.send(raw_output[local_channels[trial]][-1], local_channels[trial])
     for trial in range(5):
         payload.intake.append(sock.recv(CHANNELS[trial], True))
-    payload.output= raw_output['test'][:2]+raw_output['fish']+raw_output['cat']+[raw_output['test'][-1]]
+    for trial in range(5):
+        payload.output.append(raw_output[CHANNELS[trial]].pop(0))
     payload.sock = sock
 
-def client_comms(queueclass, _sockClass, port, payload):
+def client_comms(queueclass, _sockClass, port, payload, CHANNELS):
     global startup_lock
     startup_lock.acquire()
     startup_lock.release()
     sock = queueclass(_sockClass('localhost', port))
     payload.intake=[]
     payload.output=[]
-    raw_output = {'test':[], 'fish':[], 'cat':[]}
+    raw_output = {}
     local_channels = sorted(CHANNELS, key=lambda x:random.random())
     for trial in range(5):
+        if local_channels[trial] not in raw_output:
+            raw_output[local_channels[trial]] = []
         raw_output[local_channels[trial]].append(make_random_string())
         sock.send(raw_output[local_channels[trial]][-1], local_channels[trial])
     for trial in range(5):
         payload.intake.append(sock.recv(CHANNELS[trial], True))
-    payload.output= raw_output['test'][:2]+raw_output['fish']+raw_output['cat']+[raw_output['test'][-1]]
+    for trial in range(5):
+        payload.output.append(raw_output[CHANNELS[trial]].pop(0))
     payload.sock = sock
 
 class test(unittest.TestCase):
@@ -64,6 +69,8 @@ class test(unittest.TestCase):
         )
         sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.script_path))))
         random.seed()
+        cls.CHANNELS = [make_random_string().replace('|', '<PIPE>') for _ in range(3)]
+        cls.CHANNELS = [cls.CHANNELS[0]] *2 + [cls.CHANNELS[1]] + [cls.CHANNELS[2]] + [cls.CHANNELS[0]]
 
     def test_compilation(self):
         compiled_path = compile(self.script_path)
@@ -89,8 +96,8 @@ class test(unittest.TestCase):
         startup_lock.acquire()
         server_payload = lambda x:None
         client_payload = lambda x:None
-        server_thread = threading.Thread(target=server_comms, args=(QueuedSocket, ss, server_payload), daemon=True)
-        client_thread = threading.Thread(target=client_comms, args=(QueuedSocket, Socket, ss.port, client_payload), daemon=True)
+        server_thread = threading.Thread(target=server_comms, args=(QueuedSocket, ss, server_payload, self.CHANNELS), daemon=True)
+        client_thread = threading.Thread(target=client_comms, args=(QueuedSocket, Socket, ss.port, client_payload, self.CHANNELS), daemon=True)
         server_thread.start()
         client_thread.start()
         extra = 30 if TRAVIS else 0
