@@ -49,6 +49,7 @@ setup(
 
         'Intended Audience :: Developers',
         'Topic :: Software Development',
+        'Topic :: Security :: Cryptography',
         'Topic :: Utilities',
 
         'License :: OSI Approved :: MIT License',
@@ -63,6 +64,6 @@ setup(
     description = "A collection of python utilities",
     long_description = long_desc,
     license = "MIT",
-    keywords = "range progress bar loading utilities",
+    keywords = "range progress bar loading encryption decryption RSA AES io sockets utilities",
     url = "https://github.com/agraubert/agutil",   #
 )
