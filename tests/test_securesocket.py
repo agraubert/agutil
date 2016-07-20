@@ -78,7 +78,7 @@ class test(unittest.TestCase):
         from agutil.security import SecureSocket
         ss = None
         warnings.simplefilter('ignore', ResourceWarning)
-        for port in range(4000, 10000):
+        for port in range(5000, 6000):
             try:
                 ss = SocketServer(port)
             except OSError:
@@ -87,7 +87,7 @@ class test(unittest.TestCase):
             if ss!=None:
                 break
         warnings.resetwarnings()
-        self.assertIsInstance(ss, SocketServer, "Failed to bind to any ports on [4000, 10000]")
+        self.assertIsInstance(ss, SocketServer, "Failed to bind to any ports on [5000, 6000]")
         startup_lock.acquire()
         server_payload = lambda x:None
         client_payload = lambda x:None

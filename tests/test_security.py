@@ -120,7 +120,7 @@ class test(unittest.TestCase):
         warnings.simplefilter('ignore', ResourceWarning)
         server_thread = None
         found_port = -1
-        for port in range(4000, 10000):
+        for port in range(6000, 7000):
             server_thread = threading.Thread(target=server_comms, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
             server_thread.start()
             server_thread.join(1)
@@ -128,7 +128,7 @@ class test(unittest.TestCase):
                 found_port = port
                 break
         warnings.resetwarnings()
-        self.assertGreater(found_port, 3999, "Failed to bind to any ports on [4000, 10000]")
+        self.assertGreater(found_port, 5999, "Failed to bind to any ports on [6000, 7000]")
         client_payload = lambda x:None
         client_thread = threading.Thread(target=client_comms, args=(SecureConnection, found_port, client_payload), daemon=True)
         client_thread.start()
@@ -151,7 +151,7 @@ class test(unittest.TestCase):
         warnings.simplefilter('ignore', ResourceWarning)
         server_thread = None
         found_port = -1
-        for port in range(10000, 4000, -1):
+        for port in range(7000, 8000):
             server_thread = threading.Thread(target=server_comms_files, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
             server_thread.start()
             server_thread.join(1)
@@ -159,7 +159,7 @@ class test(unittest.TestCase):
                 found_port = port
                 break
         warnings.resetwarnings()
-        self.assertGreater(found_port, 3999, "Failed to bind to any ports on [4000, 10000]")
+        self.assertGreater(found_port, 6999, "Failed to bind to any ports on [7000, 8000]")
         client_payload = lambda x:None
         client_thread = threading.Thread(target=client_comms_files, args=(SecureConnection, found_port, client_payload), daemon=True)
         client_thread.start()
