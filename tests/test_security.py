@@ -6,70 +6,84 @@ import random
 import threading
 import warnings
 import tempfile
-from filecmp import cmp
-import time
-import rsa
+import os
 
 TRAVIS = 'CI' in os.environ
 
 def make_random_string():
-    return "".join(chr(random.randint(1,255)) for i in range(25))
+    return "".join(chr(random.randint(0,255)) for i in range(25))
 
-def server_comms(fn, port, payload, pubkey, privkey):
-    sock = fn('listen', port, 'password', defaultbits=1024, _debug_keys=(pubkey, privkey))
+def make_random_file(filename):
+    writer = open(filename, mode='w')
+    contents = '\n'.join(make_random_string() for _ in range(25))
+    writer.write(contents)
+    writer.close()
+    return contents
+
+def server_comms(secureClass, port, payload):
+    ss = secureClass(port, password='password', rsabits=1024)
+    sock = ss.accept()
     payload.intake=[]
     payload.output=[]
+    ss.close()
+    sock.sock.sendRAW("+")
     for trial in range(5):
-        payload.intake.append(sock.read())
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
+        payload.intake.append(sock.read())
+    payload.sock = sock
 
-def client_comms(_sockClass, port, payload, pubkey, privkey):
-    sock = _sockClass('localhost', port, 'password', defaultbits=1024, _debug_keys=(pubkey, privkey))
+def client_comms(secureclass, port, payload):
+    sock = secureclass('localhost', port, password='password', rsabits=1024, verbose=False)
     payload.intake=[]
     payload.output=[]
-    time.sleep(1)
+    payload.comms_check = sock.sock.recvRAW(decode=True)
     for trial in range(5):
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
         payload.intake.append(sock.read())
-    sock.close()
+    payload.sock = sock
 
-def server_comms_files(fn, port, payload, directory, pubkey, privkey):
-    sock = fn('listen', port, 'password', defaultbits=1024, _debug_keys=(pubkey, privkey))
+def server_comms_files(secureClass, port, payload):
+    ss = secureClass(port, password='password', rsabits=1024)
+    sock = ss.accept()
     payload.intake=[]
     payload.output=[]
+    ss.close()
+    sock.sock.sendRAW("+")
     for trial in range(5):
-        payload.intake.append(sock.savefile(
-            tempfile.NamedTemporaryFile(dir=directory).name+".intake"
-        ))
-        writer = open(tempfile.NamedTemporaryFile(dir=directory).name+".output", mode='w')
-        for line in range(5):
-            writer.write(make_random_string()+"\n")
-        writer.close()
-        payload.output.append(writer.name)
-        sock.sendfile(payload.output[-1])
+        outfile = tempfile.NamedTemporaryFile()
+        infile = tempfile.NamedTemporaryFile()
+        sock.savefile(infile.name, force=True)
+        reader = open(infile.name, mode='rb')
+        payload.intake.append(reader.read().decode())
+        reader.close()
+        payload.output.append(make_random_file(outfile.name))
+        sock.sendfile(outfile.name)
+        sock.sock.recvRAW()
+    payload.sock = sock
 
-def client_comms_files(_sockClass, port, payload, directory, pubkey, privkey):
-    sock = _sockClass('localhost', port, 'password', defaultbits=1024, _debug_keys=(pubkey, privkey))
+def client_comms_files(secureclass, port, payload):
+    sock = secureclass('localhost', port, password='password', rsabits=1024, verbose=False)
     payload.intake=[]
     payload.output=[]
-    time.sleep(1)
+    payload.comms_check = sock.sock.recvRAW(decode=True)
     for trial in range(5):
-        writer = open(tempfile.NamedTemporaryFile(dir=directory).name+".output", mode='w')
-        for line in range(5):
-            writer.write(make_random_string()+"\n")
-        writer.close()
-        payload.output.append(writer.name)
-        sock.sendfile(payload.output[-1])
-        payload.intake.append(sock.savefile(tempfile.NamedTemporaryFile(dir=directory).name+".intake"))
-    sock.close()
+        outfile = tempfile.NamedTemporaryFile()
+        infile = tempfile.NamedTemporaryFile()
+        payload.output.append(make_random_file(outfile.name))
+        sock.sendfile(outfile.name)
+        sock.savefile(infile.name, force=True)
+        sock.sock.sendRAW('+')
+        reader = open(infile.name, mode='rb')
+        payload.intake.append(reader.read().decode())
+        reader.close()
+    payload.sock = sock
 
-@unittest.skipIf(sys.platform.startswith("win"), "Pycrypto cannot compile on windows")
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.source_dir = os.path.join(
+        cls.connection_script_path = os.path.join(
             os.path.dirname(
                 os.path.dirname(
                     os.path.abspath(__file__)
@@ -77,90 +91,100 @@ class test(unittest.TestCase):
             ),
             "agutil",
             "security",
-            "src"
+            "src",
+            "connection.py"
         )
-        sys.path.append(os.path.dirname(os.path.dirname(cls.source_dir)))
+        cls.server_script_path = os.path.join(
+            os.path.dirname(
+                os.path.dirname(
+                    os.path.abspath(__file__)
+                )
+            ),
+            "agutil",
+            "security",
+            "src",
+            "server.py"
+        )
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.connection_script_path))))
         random.seed()
-        (cls.pub, cls.priv) = rsa.newkeys(1024)
 
     def test_compilation(self):
-        core_path = compile(os.path.join(
-            self.source_dir,
-            "core.py"
-        ))
-        securesocket_path = compile(os.path.join(
-            self.source_dir,
-            "securesocket.py"
-        ))
-        protocols_path = compile(os.path.join(
-            self.source_dir,
-            "protocols.py"
-        ))
-        self.assertTrue(core_path, "core.py compilation error")
-        self.assertTrue(securesocket_path, "securesocket.py compilation error")
-        self.assertTrue(protocols_path, "protocols.py compilation error")
+        compiled_path = compile(self.connection_script_path)
+        self.assertTrue(compiled_path)
+        compiled_path = compile(self.server_script_path)
+        self.assertTrue(compiled_path)
 
     def test_text_io(self):
-        from agutil.security import new
-        from agutil.security import SecureSocket
+        from agutil.security import SecureConnection, SecureServer
         server_payload = lambda x:None
         warnings.simplefilter('ignore', ResourceWarning)
         server_thread = None
         found_port = -1
-        for port in range(4000, 10000):
-            server_thread = threading.Thread(target=server_comms, args=(new, port, server_payload, self.pub, self.priv), name='Server thread', daemon=True)
+        for port in range(6000, 7000):
+            server_thread = threading.Thread(target=server_comms, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
             server_thread.start()
             server_thread.join(1)
             if server_thread.is_alive():
                 found_port = port
                 break
         warnings.resetwarnings()
-        self.assertGreater(found_port, 3999, "Failed to bind to any ports on [4000, 10000]")
-        # self.assertIsInstance(ssWrapper.payload, SecureSocket, "Failed to bind to any ports on [4000, 10000]")
+        self.assertGreater(found_port, 5999, "Failed to bind to any ports on [6000, 7000]")
         client_payload = lambda x:None
-        client_thread = threading.Thread(target=client_comms, args=(new, found_port, client_payload, self.pub, self.priv), name="Client thread", daemon=True)
+        client_thread = threading.Thread(target=client_comms, args=(SecureConnection, found_port, client_payload), daemon=True)
         client_thread.start()
-        runtime = 75 if TRAVIS else 45
-        server_thread.join(runtime)
+        extra = 30 if TRAVIS else 0
+        server_thread.join(60+extra)
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
-        client_thread.join(runtime)
+        client_thread.join(60+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
+        server_payload.sock.close()
+        client_payload.sock.close()
+        self.assertEqual(client_payload.comms_check, '+')
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)
         self.assertListEqual(server_payload.output, client_payload.intake)
 
-    # @unittest.skipIf(TRAVIS, "Do not test File IO on travis")
+    @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on windows")
     def test_files_io(self):
-        from agutil.security import new
-        from agutil.security import SecureSocket
+        from agutil.security import SecureConnection, SecureServer
         server_payload = lambda x:None
         warnings.simplefilter('ignore', ResourceWarning)
         server_thread = None
         found_port = -1
-        directory = tempfile.TemporaryDirectory()
-        # directory = lambda :None
-        # directory.name = os.path.abspath("tests/security_output")
-        for port in range(10000, 4000, -1):
-            server_thread = threading.Thread(target=server_comms_files, args=(new, port, server_payload, directory.name, self.pub, self.priv), name='Server thread', daemon=True)
+        for port in range(7000, 8000):
+            server_thread = threading.Thread(target=server_comms_files, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
             server_thread.start()
             server_thread.join(1)
             if server_thread.is_alive():
                 found_port = port
                 break
         warnings.resetwarnings()
-        self.assertGreater(found_port, 4000, "Failed to bind to any ports on [10000, 4000)")
+        self.assertGreater(found_port, 6999, "Failed to bind to any ports on [7000, 8000]")
         client_payload = lambda x:None
-        client_thread = threading.Thread(target=client_comms_files, args=(new, found_port, client_payload, directory.name, self.pub, self.priv), name="Client thread", daemon=True)
+        client_thread = threading.Thread(target=client_comms_files, args=(SecureConnection, found_port, client_payload), daemon=True)
         client_thread.start()
-        runtime = 75 if TRAVIS else 45
-        server_thread.join(runtime)
+        extra = 30 if TRAVIS else 0
+        server_thread.join(60+extra)
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
-        client_thread.join(runtime)
+        client_thread.join(60+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
+        server_payload.sock.close()
+        client_payload.sock.close()
+        self.assertEqual(client_payload.comms_check, '+')
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         for i in range(len(server_payload.intake)):
-            self.assertTrue(cmp(server_payload.intake[i], client_payload.output[i]))
-            self.assertTrue(cmp(server_payload.output[i], client_payload.intake[i]))
-        directory.cleanup()
+            self.assertEqual(len(server_payload.intake[i]), len(client_payload.output[i]))
+            if len(server_payload.intake[i])>2048:
+                self.assertEqual(hash(server_payload.intake[i]), hash(client_payload.output[i]))
+            else:
+                self.assertEqual(server_payload.intake[i], client_payload.output[i])
+        for i in range(len(client_payload.intake)):
+            self.assertEqual(len(client_payload.intake[i]), len(server_payload.output[i]))
+            if len(client_payload.intake[i])>2048:
+                self.assertEqual(hash(client_payload.intake[i]), hash(server_payload.output[i]))
+            else:
+                self.assertEqual(client_payload.intake[i], server_payload.output[i])
+        # self.assertListEqual(server_payload.intake, client_payload.output)
+        # self.assertListEqual(server_payload.output, client_payload.intake)

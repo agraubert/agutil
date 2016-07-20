@@ -13,30 +13,45 @@ TRAVIS = 'CI' in os.environ
 def make_random_string():
     return "".join(chr(random.randint(0,255)) for i in range(25))
 
-def server_comms(ss, payload):
+def server_comms(queueclass, ss, payload, CHANNELS):
     global startup_lock
     startup_lock.release()
-    sock = ss.accept()
+    sock = queueclass(ss.accept())
+    ss.close()
     payload.intake=[]
     payload.output=[]
+    raw_output = {}
+    local_channels = sorted(CHANNELS, key=lambda x:random.random())
     for trial in range(5):
-        payload.intake.append(sock.recv(True))
-        payload.output.append(make_random_string())
-        sock.send(payload.output[-1])
-    sock.close()
+        if local_channels[trial] not in raw_output:
+            raw_output[local_channels[trial]] = []
+        raw_output[local_channels[trial]].append(make_random_string())
+        sock.send(raw_output[local_channels[trial]][-1], local_channels[trial])
+    for trial in range(5):
+        payload.intake.append(sock.recv(CHANNELS[trial], True))
+    for trial in range(5):
+        payload.output.append(raw_output[CHANNELS[trial]].pop(0))
+    payload.sock = sock
 
-def client_comms(_sockClass, port, payload):
+def client_comms(queueclass, _sockClass, port, payload, CHANNELS):
     global startup_lock
     startup_lock.acquire()
     startup_lock.release()
-    sock = _sockClass('localhost', port)
+    sock = queueclass(_sockClass('localhost', port))
     payload.intake=[]
     payload.output=[]
+    raw_output = {}
+    local_channels = sorted(CHANNELS, key=lambda x:random.random())
     for trial in range(5):
-        payload.output.append(make_random_string())
-        sock.send(payload.output[-1])
-        payload.intake.append(sock.recv(True))
-    sock.close()
+        if local_channels[trial] not in raw_output:
+            raw_output[local_channels[trial]] = []
+        raw_output[local_channels[trial]].append(make_random_string())
+        sock.send(raw_output[local_channels[trial]][-1], local_channels[trial])
+    for trial in range(5):
+        payload.intake.append(sock.recv(CHANNELS[trial], True))
+    for trial in range(5):
+        payload.output.append(raw_output[CHANNELS[trial]].pop(0))
+    payload.sock = sock
 
 class test(unittest.TestCase):
     @classmethod
@@ -50,10 +65,12 @@ class test(unittest.TestCase):
             "agutil",
             "io",
             "src",
-            "socket.py"
+            "queuedsocket.py"
         )
         sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.script_path))))
         random.seed()
+        cls.CHANNELS = [make_random_string().replace('|', '<PIPE>') for _ in range(3)]
+        cls.CHANNELS = [cls.CHANNELS[0]] *2 + [cls.CHANNELS[1]] + [cls.CHANNELS[2]] + [cls.CHANNELS[0]]
 
     def test_compilation(self):
         compiled_path = compile(self.script_path)
@@ -62,10 +79,11 @@ class test(unittest.TestCase):
     def test_server_bind_and_communication(self):
         # warnings.simplefilter('error', ResourceWarning)
         from agutil.io import SocketServer
+        from agutil.io import QueuedSocket
         from agutil.io import Socket
         ss = None
         warnings.simplefilter('ignore', ResourceWarning)
-        for port in range(8000, 9000):
+        for port in range(4000, 5000):
             try:
                 ss = SocketServer(port)
             except OSError:
@@ -74,12 +92,12 @@ class test(unittest.TestCase):
             if ss!=None:
                 break
         warnings.resetwarnings()
-        self.assertIsInstance(ss, SocketServer, "Failed to bind to any ports on [8000, 9000]")
+        self.assertIsInstance(ss, SocketServer, "Failed to bind to any ports on [4000, 5000]")
         startup_lock.acquire()
         server_payload = lambda x:None
         client_payload = lambda x:None
-        server_thread = threading.Thread(target=server_comms, args=(ss, server_payload), daemon=True)
-        client_thread = threading.Thread(target=client_comms, args=(Socket, ss.port, client_payload), daemon=True)
+        server_thread = threading.Thread(target=server_comms, args=(QueuedSocket, ss, server_payload, self.CHANNELS), daemon=True)
+        client_thread = threading.Thread(target=client_comms, args=(QueuedSocket, Socket, ss.port, client_payload, self.CHANNELS), daemon=True)
         server_thread.start()
         client_thread.start()
         extra = 30 if TRAVIS else 0
@@ -87,7 +105,9 @@ class test(unittest.TestCase):
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(10+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
-        ss.close()
+        self.assertRaises(ValueError, client_payload.sock.send, 'fish', 'ta|cos')
+        server_payload.sock.close()
+        client_payload.sock.close()
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)

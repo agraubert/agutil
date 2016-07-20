@@ -1,317 +1,243 @@
-from socket import timeout, error
 import rsa
-import pickle
-import hashlib
-import Crypto.Cipher.AES as AES
 import os
-import tempfile
+import random
 
-_NEW_CHANNEL_CMD = "<new-channel> <name|%s> <rsabits|%d> <mode|%s>"
-_TEXT_PAYLOAD_CMD = "<text-payload> <channel|%s>"
-_FILE_PAYLOAD_CMD = "<file-payload> <channel|%s>"
-_CLOSE_CHANNEL_CMD = "<close-channel> <name|%s>"
+_COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fto', 'fti', '_NULL', 'dci',]
+_CMD_LOOKUP = {}
+#commands: {command code byte}{item name}{colon ':'}{item size (hex bytes)}{bar '|'}{item bytes}...
 _CONSOLE = False
 
-def parsecmd(cmd):
-    parts = [item[1:-1] for item in cmd.strip().split(' ')]
-    output = {
-        '_CMD_' : parts[0],
-        '_RAW_' : ""+cmd
+def lookupcmd(cmd):
+    if cmd not in _CMD_LOOKUP:
+        try:
+            index = _COMMANDS.index(cmd)
+            _CMD_LOOKUP[cmd] = index
+        except ValueError:
+            raise ValueError("Command \'%s\' not supported" %cmd)
+    return _CMD_LOOKUP[cmd]
+
+def unpackcmd(cmd):
+    _cmd_raw = b''+cmd
+    data = {
+        'cmd' : cmd[0]
     }
-    for i in range(1, len(parts)):
-        index = parts[i].find('|')
-        if index != -1:
-            output[parts[i][:index]] = parts[i][index+1:]
-    return output
+    cmd = cmd[1:]
+    index = cmd.find(b':')
+    while index != -1:
+        raw_size = cmd[index+1:cmd.find(b'|', index)]
+        key = cmd[:index].decode()
+        offset = len(raw_size)+2
+        if raw_size == 0:
+            data[key] = True
+            item_size = 0
+        else:
+            item_size = int(raw_size, 16)
+            data[key] = cmd[index+offset:index+item_size+offset].decode()
+        cmd = cmd[index+item_size+offset:]
+        index = cmd.find(b':')
+    # print("UNPACK:", _cmd_raw,'-->', data)
+    return data
+
+def packcmd(cmd, data={}):
+    cmd_index = lookupcmd(cmd)
+    if cmd_index == -1:
+        raise ValueError("Command \'%s\' not supported" % cmd)
+    cmd_string = bytes.fromhex('%02x'%cmd_index)
+    for key in data:
+        if data[key] == True:
+            data[key] = ''
+        elif data[key] == False:
+            continue
+        if ':' in key:
+            raise ValueError("Command keys cannot contain ':' characters (ascii 58)")
+        cmd_string += key.encode()+b":"+format(len(data[key].encode()), 'x').encode()+b"|"+data[key].encode()
+    # print("PACK:", cmd,":",data,'-->', cmd_string)
+    return cmd_string
 
 def padstring(msg):
     if type(msg)==str:
         msg = msg.encode()
     if type(msg)!=bytes:
         raise TypeError("msg must be type str or bytes")
-    payload_size = len(msg)
-    msg = format(payload_size, 'x').encode() + b'|' + msg
-    return msg + bytes((16-len(msg))%16)
+    padding_length = 16 - (len(msg)%16)
+    return msg + bytes.fromhex('%02x'%padding_length)*padding_length
 
 def unpadstring(msg):
-    tmp = ""
-    while True:
-        current = msg[len(tmp):len(tmp)+1]
-        if current == b'|':
-            break
-        else:
-             tmp+=current.decode()
-    size = int(tmp, 16)
-    return msg[len(tmp)+1:len(tmp)+1+size]
+    return msg[:-1*msg[-1]]
 
-def _SocketWorker(_socket):
-    _socket.actionlock.acquire()
-    while not _socket._shutdown:
-        action = None
-        starter = False
-        if len(_socket.actionqueue):
-            action = _socket.actionqueue.pop(0)
-            _socket.actionlock.release()
-            starter = True
-        else:
-            _socket.actionlock.release()
-            _socket.sock.settimeout(.5)
-            try:
-                action = rsa.decrypt(
-                    _socket.sock.recv(),
-                    _socket.priv
-                ).decode()
-            except timeout:
-                pass
-            except OSError:
-                _socket.sock.close()
-                return
-        if action!=None:
-            args = parsecmd(action)
-            if args['_CMD_'] == 'new-channel':
-                if starter:
-                    _newChannel_init(_socket, args)
-                else:
-                    _newChannel(_socket, args)
-            elif args['_CMD_'] == 'text-payload':
-                if starter:
-                    _text_payload_init(_socket, args)
-                else:
-                    _text_payload(_socket, args)
-            elif args['_CMD_'] == 'disconnect':
-                _socket._remote_shutdown()
-                _socket.shutdownlock.release()
-            elif args['_CMD_'] == 'file-payload':
-                if starter:
-                    _file_payload_init(_socket, args)
-                else:
-                    _file_payload(_socket, args)
+def intToBytes(num):
+    s = format(num, 'x')
+    if len(s)%2:
+        s = '0' + s
+    return bytes.fromhex(s)
 
-        #do stuff
-        _socket.actionlock.acquire()
+def bytesToInt(num):
+    result = 0
+    exp = int(256 ** (len(num)-1))
+    for i in range(len(num)):
+        result += int(num[i]*exp)
+        exp //= 256
+    return result
 
-def _newChannel_init(_socket, cmd):
-    _socket.sock.settimeout(None)
-    _socket.sock.send(rsa.encrypt(
-        cmd['_RAW_'].encode(),
-        _socket.remotePub
-    ))
-    response = rsa.decrypt(
-        _socket.sock.recv(),
-        _socket.priv
-    ).decode()
-    if response == 'BAD':
-        raise KeyError("Channel name '%s' already exists on remote socket" % (cmd['name']))
-    _socket.sock.send(
-        _socket.baseCipher.encrypt(
-            padstring(pickle.dumps(_socket.channels[cmd['name']]['pub']))
-        )
-    )
-    _socket.channels[cmd['name']]['rpub'] = pickle.loads(
-        unpadstring(_socket.baseCipher.decrypt(_socket.sock.recv()))
-    )
-    _socket.sock.send(rsa.encrypt(
-        b'OK',
-        _socket.channels[cmd['name']]['rpub']
-    ))
-    response = rsa.decrypt(
-        _socket.sock.recv(),
-        _socket.channels[cmd['name']]['priv']
-    )
-    if response != b'OK':
-        raise ValueError("Failed to confirm encryption on this channel")
-    _socket.channels[cmd['name']]['datalock'].acquire()
-    if _socket.v:
-        print("Channel '%s' opened and secured"%(cmd['name']))
-    _socket.channels[cmd['name']]['_confirmed'] = True
-    _socket.channels[cmd['name']]['datalock'].notify_all()
-    _socket.channels[cmd['name']]['datalock'].release()
-    if cmd['name'] == '_default_' or cmd['name'] == '_default_file_':
-        _socket.defaultlock.acquire()
-        _socket.defaultlock.notify_all()
-        _socket.defaultlock.release()
+def _assign_task(cmd):
+    return _WORKERS[cmd]
 
 
-def _newChannel(_socket, cmd):
-    _socket.sock.settimeout(None)
-    try:
-        if _socket.v:
-            print("The remote socket has requested to open a new channel")
-        _socket.new_channel(
-            cmd['name'],
-            int(cmd['rsabits']),
-            cmd['mode'],
-            False
-        )
-    except KeyError:
-        _socket.sock.send(rsa.encrypt(
-            b'BAD',
-            _socket.remotePub
-        ))
-        return
-    _socket.sock.send(rsa.encrypt(
-        b'OK',
-        _socket.remotePub
-    ))
-    _socket.channels[cmd['name']]['rpub'] = pickle.loads(
-        unpadstring(_socket.baseCipher.decrypt(_socket.sock.recv()))
-    )
-    _socket.sock.send(
-        _socket.baseCipher.encrypt(
-            padstring(pickle.dumps(_socket.channels[cmd['name']]['pub']))
-        )
-    )
-    response = rsa.decrypt(
-        _socket.sock.recv(),
-        _socket.channels[cmd['name']]['priv']
-    )
-    _socket.sock.send(rsa.encrypt(
-        b'OK',
-        _socket.channels[cmd['name']]['rpub']
-    ))
-    if response != b'OK':
-        raise ValueError("Failed to confirm encryption on this channel")
-    if _socket.v:
-        print("Channel '%s' opened and secured"%(cmd['name']))
-    if cmd['name'] == '_default_' or cmd['name']=='_default_file_':
-        _socket.defaultlock.acquire()
-        _socket.defaultlock.notify_all()
-        _socket.defaultlock.release()
-
-def _text_payload_init(_socket, cmd):
-    _socket.sock.settimeout(None)
-    if cmd['channel'] in _socket.channels and _socket.channels[cmd['channel']]['mode']=='text':
-        _socket.sock.send(rsa.encrypt(
-            cmd['_RAW_'].encode(),
-            _socket.remotePub
-        ))
-        response = rsa.decrypt(
-            _socket.sock.recv(),
-            _socket.priv
-        ).decode()
-        if response != 'OK':
-            raise KeyError("Channel name '%s' does not exist on remote socket" % (cmd['name']))
-        _socket.channels[cmd['channel']]['datalock'].acquire()
-        _socket.sock.send(_socket.channels[cmd['channel']]['signatures'].pop(0))
-        _socket.sock.recv()
-        _socket.sock.send(_socket.channels[cmd['channel']]['output'].pop(0))
-        _socket.channels[cmd['channel']]['datalock'].release()
-
-def _text_payload(_socket, cmd):
-    _socket.sock.settimeout(None)
-    if cmd['channel'] in _socket.channels:
-        _socket.sock.send(rsa.encrypt(
-            b"OK",
-            _socket.remotePub
-        ))
-        sig = _socket.sock.recv()
-        _socket.sock.send("continue")
-        msg = _socket.sock.recv()
-        _socket.channels[cmd['channel']]['datalock'].acquire()
-        _socket.channels[cmd['channel']]['input'].append(msg)
-        _socket.channels[cmd['channel']]['hashes'].append(sig)
-        if _socket.channels[cmd['channel']]['notify']:
-            print("New message received on channel", cmd['channel'])
-            if _CONSOLE:
-                print("Type '!!FIX THIS MESSAGE!!' to decrypt and read message")
-            else:
-                print("Use the .read() method of this SecureSocket to decrypt and read this message")
-        _socket.channels[cmd['channel']]['datalock'].notify_all()
-        _socket.channels[cmd['channel']]['datalock'].release()
-
-def _file_payload_init(_socket, cmd):
-    _socket.sock.settimeout(None)
-    if cmd['channel'] in _socket.channels and _socket.channels[cmd['channel']]['mode']=='files':
-        _socket.sock.send(rsa.encrypt(
-            cmd['_RAW_'].encode(),
-            _socket.remotePub
-        ))
-        response = rsa.decrypt(
-            _socket.sock.recv(),
-            _socket.priv
-        ).decode()
-        if response != 'OK':
-            raise KeyError("Channel name '%s' does not exist on remote socket" % (cmd['name']))
-        _socket.channels[cmd['channel']]['datalock'].acquire()
-        signature = _socket.channels[cmd['channel']]['signatures'].pop(0)
-        filepath = _socket.channels[cmd['channel']]['output'].pop(0)
-        _socket.channels[cmd['channel']]['datalock'].release()
-        aes_key = rsa.randnum.read_random_bits(256)
-        aes_iv = rsa.randnum.read_random_bits(128)
-        _socket.sock.send(rsa.encrypt(
-            aes_key,
-            _socket.channels[cmd['channel']]['rpub']
-        ))
-        _socket.sock.recv()
-        _socket.sock.send(rsa.encrypt(
-            aes_iv,
-            _socket.channels[cmd['channel']]['rpub']
-        ))
-        cipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
-        reader = open(filepath, mode='rb')
-        _socket.sock.recv()
-        intake = reader.read(4096)
-        while len(intake)>0:
-            _socket.sock.send(rsa.encrypt(
-                b'payload',
-                _socket.remotePub
-            ))
-            _socket.sock.recv()
-            _socket.sock.send(cipher.encrypt(padstring(intake)))
-            _socket.sock.recv()
-            intake = reader.read(4096)
-        _socket.sock.send(rsa.encrypt(
-            b'end',
-            _socket.remotePub
-        ))
-        reader.close()
-        _socket.sock.recv()
-        _socket.sock.send(signature)
-
-def _file_payload(_socket, cmd):
-    _socket.sock.settimeout(None)
-    if cmd['channel'] in _socket.channels and _socket.channels[cmd['channel']]['mode']=='files':
-        _socket.sock.send(rsa.encrypt(
-            b'OK',
-            _socket.remotePub
-        ))
-        aes_key = rsa.decrypt(
-            _socket.sock.recv(),
-            _socket.channels[cmd['channel']]['priv']
-        )
-        _socket.sock.send(b'continue')
-        aes_iv = rsa.decrypt(
-            _socket.sock.recv(),
-            _socket.channels[cmd['channel']]['priv']
-        )
-        filepath = os.path.abspath(tempfile.NamedTemporaryFile().name)
-        cipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
-        writer = open(filepath, mode='wb')
-        _socket.sock.send(b'continue')
-        signal = rsa.decrypt(
-            _socket.sock.recv(),
-            _socket.priv
-        )
-        while signal == b'payload':
-            _socket.sock.send(b'continue')
-            writer.write(unpadstring(cipher.decrypt(_socket.sock.recv())))
-            _socket.sock.send(b'continue')
-            signal = rsa.decrypt(
-                _socket.sock.recv(),
-                _socket.priv
+def _text_in(sock,cmd,name):
+    sock.sock.sendRAW('+', name)
+    retries = int(sock.sock.recvAES(name, True), 16)
+    for attempt in range(retries):
+        msg = sock.sock.recvRSA(name)
+        signature = sock.sock.recvRAW(name)
+        try:
+            rsa.verify(
+                msg,
+                signature,
+                sock.sock.rpub
             )
-            writer.flush()
-        _socket.sock.send(b'continue')
-        signature = _socket.sock.recv()
-        writer.close()
-        _socket.channels[cmd['channel']]['datalock'].acquire()
-        _socket.channels[cmd['channel']]['input'].append(filepath)
-        _socket.channels[cmd['channel']]['hashes'].append(signature)
-        if _socket.channels[cmd['channel']]['notify']:
-            print("New file received on channel", cmd['channel'])
-            if _CONSOLE:
-                print("Type '!!FIX THIS MESSAGE!!' to decrypt and read message")
-            else:
-                print("Use the .savefile() method of this SecureSocket to save this file")
-        _socket.channels[cmd['channel']]['datalock'].notify_all()
-        _socket.channels[cmd['channel']]['datalock'].release()
+            sock.sock.sendRAW('+', name)
+            sock.intakelock.acquire()
+            sock.queuedmessages.append(msg)
+            sock.intakelock.notify_all()
+            sock.intakelock.release()
+            sock.schedulinglock.acquire()
+            sock.schedulingqueue.append({
+                'cmd': lookupcmd('kill'),
+                'name': name
+            })
+            sock.schedulinglock.notify_all()
+            sock.schedulinglock.release()
+            return
+        except rsa.pkcs1.VerificationError:
+            sock.sock.sendRAW('-', name)
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
+    raise IOError("Background worker %s was unable to receive and decrypt the message in %d retries" % (name, retries))
+
+def _text_out(sock,cmd,name):
+    sock.sock.sendAES(packcmd(
+        'ti',
+        {'name':name}
+    ), '__cmd__')
+    sock.sock.recvRAW(name, timeout=None)
+    sock.sock.sendAES(format(cmd['retries'], 'x'), name)
+    for attempt in range(int(cmd['retries'])):
+        sock.sock.sendRSA(cmd['msg'], name)
+        sock.sock.sendRAW(rsa.sign(
+            cmd['msg'],
+            sock.sock.priv,
+            'SHA-256'
+        ), name)
+        if sock.sock.recvRAW(name, True) == '+':
+            sock.schedulinglock.acquire()
+            sock.schedulingqueue.append({
+                'cmd': lookupcmd('kill'),
+                'name': name
+            })
+            sock.schedulinglock.notify_all()
+            sock.schedulinglock.release()
+            return
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
+    raise IOError("Background worker %s was unable to encrypt and send the message in %d retries" % (name, int(cmd['retries'])))
+
+def _file_request_out(sock,cmd,name):
+    sock.authlock.acquire()
+    auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
+    while auth_key in sock.filemap:
+        auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
+    sock.filemap[auth_key] = cmd['filepath']
+    sock.authlock.release()
+    sock.sock.sendAES(packcmd(
+        'fri',
+        {'auth':auth_key, 'filename':os.path.basename(cmd['filepath']), 'name':name}
+    ), '__cmd__')
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
+
+def _file_request_in(sock,cmd,name):
+    sock.authlock.acquire()
+    sock.authqueue.append((cmd['filename'], cmd['auth']))
+    sock.authlock.notify_all()
+    sock.authlock.release()
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
+
+def _file_transfer_out(sock,cmd,name):
+    sock.authlock.acquire()
+    filepath = sock.filemap[cmd['auth']]
+    del sock.filemap[cmd['auth']]
+    sock.authlock.release()
+    if 'reject' not in cmd:
+        reader = open(filepath, mode='rb')
+        sock.sock.sendRAW('+', name)
+        sock.sock.sendAES(reader, name, True, True)
+        reader.close()
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
+
+
+def _file_transfer_in(sock,cmd,name):
+    sock.sock.sendAES(packcmd(
+        'fto',
+        {'name':name, 'auth':cmd['auth'], 'reject':'reject' in cmd}
+    ), '__cmd__')
+    if 'reject' not in cmd:
+        sock.sock.recvRAW(name, timeout=None)
+        sock.sock.recvAES(name, output_file=cmd['filepath'])
+        sock.transferlock.acquire()
+        sock.completed_transfers.add(cmd['filepath'])
+        sock.transferlock.notify_all()
+        sock.transferlock.release()
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
+
+def _disconnect_in(sock, cmd, name):
+    sock.sock.close(_remote=True)
+    sock.schedulinglock.acquire()
+    sock.schedulingqueue.append({
+        'cmd': lookupcmd('kill'),
+        'name': name
+    })
+    sock.schedulinglock.notify_all()
+    sock.schedulinglock.release()
+
+_WORKERS = {
+    'ti' : _text_in,
+    'to' : _text_out,
+    'fri' : _file_request_in,
+    'fro' : _file_request_out,
+    'fti' : _file_transfer_in,
+    'fto' : _file_transfer_out,
+    'dci' : _disconnect_in
+}

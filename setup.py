@@ -4,7 +4,7 @@ import sys
 if sys.version_info<(3,3):
     print("This python version is not supported:")
     print(sys.version)
-    print("agutil requires python 3.0 or greater")
+    print("agutil requires python 3.3 or greater")
     sys.exit(1)
 
 long_desc = "A collection of python utilities"
@@ -49,6 +49,7 @@ setup(
 
         'Intended Audience :: Developers',
         'Topic :: Software Development',
+        'Topic :: Security :: Cryptography',
         'Topic :: Utilities',
 
         'License :: OSI Approved :: MIT License',
@@ -63,6 +64,6 @@ setup(
     description = "A collection of python utilities",
     long_description = long_desc,
     license = "MIT",
-    keywords = "range progress bar loading utilities",
+    keywords = "range progress bar loading encryption decryption RSA AES io sockets utilities",
     url = "https://github.com/agraubert/agutil",   #
 )

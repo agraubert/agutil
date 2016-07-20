@@ -4,7 +4,7 @@
 
 A collection of python utilities
 
-__Version:__ 0.4.1b
+__Version:__ 0.5.0b
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
@@ -18,9 +18,16 @@ The __bio__ package:
 The __io__ package:
 * Socket (A low-level network IO class built on top of the standard socket class)
 * SocketServer (A low-level listen server to accept connections and return Socket classes)
+* QueuedSocket (A low-level network IO class built to manage input across multiple channels)
 
 The __security__ package:
-* SecureSocket (A basic network IO system for exchanging files and text securely)
+* SecureSocket (A mid-level network IO class built to manage encrypted network communications)
+* SecureConnection (A high-level, multithreaded class for sending and receiving encrypted files and messages)
+* SecureServer (A low-level listen server to accept connections and return SecureConnection instances)
+* encryptFile and decryptFile (Simple methods for encrypting and decrypting local files)
 
 ##Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)
+
+##Installation note:
+This package requires PyCrypto, which typically has issues compiling on windows.  If you are on windows and `pip install agutil` fails during the installation of PyCrypto, then follow the instructions [here](https://github.com/sfbahr/PyCrypto-Wheels) for installing PyCrypto from a precompiled wheel, and then run `pip install agutil` again.
