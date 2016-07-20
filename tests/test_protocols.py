@@ -4,7 +4,7 @@ from py_compile import compile
 import sys
 import random
 
-def make_random_string(length=25, lower=32, upper=127):
+def make_random_string(length=25, lower=0, upper=255):
     return "".join(chr(random.randint(lower,upper)) for i in range(length))
 
 class test(unittest.TestCase):
@@ -51,9 +51,9 @@ class test(unittest.TestCase):
             data = {}
             num_keys = random.randint(0,15)
             for i in range(num_keys):
-                key = make_random_string(random.randint(3,25), lower=59, upper=255)
+                key = make_random_string(random.randint(3,25)).replace(':', '<colon>')
                 while key in data:
-                    key = make_random_string(random.randint(3,25), lower=59, upper=255)
+                    key = make_random_string(random.randint(3,25)).replace(':', '<colon>')
                 if not i%10:
                     data[key] = True
                 else:
