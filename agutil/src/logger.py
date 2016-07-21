@@ -11,7 +11,6 @@ class Logger:
     LOGLEVEL_ALL = 5
     def __init__(self, filename, header="Agutil Logger", log_level=LOGLEVEL_INFO, stdout_level=LOGLEVEL_NONE):
         self.logfile = filename
-        self.unknown_channel = False
         self.channels = {
             'ERROR' : [
                 Logger.LOGLEVEL_ERRORS <= log_level,
@@ -64,8 +63,11 @@ class Logger:
             else:
                 self.mutes[sender].append((message, channel))
 
-    def setUnknownChannelBehavior(self, allow):
-        self.unknown_channel = allow
+    def close(self):
+        if self._shutdown:
+            return
+        self._shutdown = True
+        self._logger.join(1)
 
     def setChannelFilters(self, channel, log, display):
         collect = False if channel not in self.channels else self.channels[channel][2]
@@ -97,7 +99,7 @@ class Logger:
         while not self._shutdown:
             if len(self.logqueue):
                 msg_data = self.logqueue.pop(0)
-                if msg_data[0] in self.channels or self.unknown_channel:
+                if msg_data[0] in self.channels:
                     formatted = False
                     if self.channels[msg_data[0]][0] and self.logfile:
                         formatted = "[%s] [%s] [%s] : %s" %(
@@ -153,3 +155,4 @@ class Logger:
                 self.logwriter.write("--------------------\n\n")
                 self.logwriter.flush()
             self.logwriter.write('---[LOG STOPPED]---')
+            self.logwriter.close()
