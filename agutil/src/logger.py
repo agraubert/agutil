@@ -4,17 +4,17 @@ import time
 
 class Logger:
     LOGLEVEL_NONE = 0
-    LOGLEVEL_ERRORS = 1
+    LOGLEVEL_ERROR = 1
     LOGLEVEL_WARN = 2
     LOGLEVEL_INFO = 3
     LOGLEVEL_DEBUG = 4
-    LOGLEVEL_ALL = 5
+    LOGLEVEL_DETAIL = 5
     def __init__(self, filename, header="Agutil Logger", log_level=LOGLEVEL_INFO, stdout_level=LOGLEVEL_NONE):
         self.logfile = filename
         self.channels = {
             'ERROR' : [
-                Logger.LOGLEVEL_ERRORS <= log_level,
-                Logger.LOGLEVEL_ERRORS <= stdout_level,
+                Logger.LOGLEVEL_ERROR <= log_level,
+                Logger.LOGLEVEL_ERROR <= stdout_level,
                 True
             ],
             'WARN' : [
@@ -33,8 +33,8 @@ class Logger:
                 False
             ],
             'DETAIL' : [
-                Logger.LOGLEVEL_ALL <= log_level,
-                Logger.LOGLEVEL_ALL <= stdout_level,
+                Logger.LOGLEVEL_DETAIL <= log_level,
+                Logger.LOGLEVEL_DETAIL <= stdout_level,
                 False
             ]
         }
