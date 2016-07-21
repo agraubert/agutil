@@ -73,6 +73,9 @@ class Logger:
         self._logger.join(1)
         return self._logger.is_alive()
 
+    def bindToSender(self, sender):
+        return lambda message, channel="INFO":self.log(message, sender, channel) 
+
     def setChannelFilters(self, channel, log, display):
         collect = False if channel not in self.channels else self.channels[channel][2]
         self.channels[channel] = [bool(log), bool(display), collect]
