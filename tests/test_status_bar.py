@@ -56,3 +56,5 @@ class test(unittest.TestCase):
             self.assertEqual(q.display[q.cols+5], ']')
             self.assertEqual(q.display[-5:], ' POST')
             self.assertLessEqual(abs(float(q.display.split()[-2].strip('% '))- (100*i/10000)), q.update_threshold)
+        q.clear(True)
+        self.assertEqual(q.display, ' '*len(q.display))
