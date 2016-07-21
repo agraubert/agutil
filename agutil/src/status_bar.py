@@ -117,12 +117,12 @@ class status_bar:
         self.pre = text
         if self.initialized and updateText:
             self._initialize()
-            self.update(self.value)
+            self.update(self.last_value)
         self.pending_text_update |= not updateText
 
     def append(self, text, updateText=True):
         self.post = text
         if self.initialized and updateText:
             self._initialize()
-            self.update(self.value)
+            self.update(self.last_value)
         self.pending_text_update |= not updateText
