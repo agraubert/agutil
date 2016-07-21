@@ -40,18 +40,21 @@ class Logger:
         }
         self._shutdown = False
         self.mutes = {}
-        self.collection = {}
+        self.collection = {
+            "ERROR": [],
+            "WARN": []
+        }
         self.logqueue = []
         self.idlelock = threading.Condition()
         self._idle = False
         if self.logfile != None:
             self.logwriter = open(filename, mode='w')
             self.logwriter.write('---[LOG STARTED]---\n')
-            self.logwriter.write(header+time.strftime("%a %m/%d/%Y %I:%M:%S %p\n"))
-        self._logger = threading.Thread() # a Thread!
+            self.logwriter.write(header+time.strftime("  <%a %m/%d/%Y %I:%M:%S %p>\n"))
+        self._logger = threading.Thread(target=Logger._logger_worker, args=(self,), name="Agutil Logger background thread", daemon=True)
         self._logger.start()
 
-    def log(self, message, channel="INFO", sender="ANONYMOUS"):
+    def log(self, message, sender="ANONYMOUS", channel="INFO"):
         if not self._shutdown:
             if sender not in self.mutes:
                 self.logqueue.append((channel, sender, message))
@@ -65,9 +68,10 @@ class Logger:
 
     def close(self):
         if self._shutdown:
-            return
+            return self._logger.is_alive()
         self._shutdown = True
         self._logger.join(1)
+        return self._logger.is_alive()
 
     def setChannelFilters(self, channel, log, display):
         collect = False if channel not in self.channels else self.channels[channel][2]
@@ -81,7 +85,7 @@ class Logger:
             elif channel in self.collection and not collect:
                 del self.collection[channel]
 
-    def mute(self, muter, mutee):
+    def mute(self, mutee, muter="ANONYMOUS"):
         if mutee not in self.mutes:
             self.mutes[mutee] = []
             self.log("Sender [%s] has been muted by [%s]" %(mutee, muter), sender="LOGGER")
@@ -92,7 +96,7 @@ class Logger:
                 (message, channel) = self.mutes[mutee][0]
                 suppressed = len(self.mutes[mutee])-1
                 del self.mutes[mutee]
-                self.log(message+" <An additional %d messages were suppressed>" % suppressed, channel, mutee)
+                self.log(message+" <An additional %d messages were suppressed>" % suppressed, mutee, channel)
             self.log("Sender [%s] has been unmuted" %mutee, sender="LOGGER")
 
     def _logger_worker(self):
@@ -103,7 +107,7 @@ class Logger:
                     formatted = False
                     if self.channels[msg_data[0]][0] and self.logfile:
                         formatted = "[%s] [%s] [%s] : %s" %(
-                            time.strftime("[%a %m/%d/%Y %I:%M:%S %p]"),
+                            time.strftime("%a %m/%d/%Y %I:%M:%S %p"),
                             *msg_data
                         )
                         self.logwriter.write(formatted+"\n")
@@ -111,7 +115,7 @@ class Logger:
                     if self.channels[msg_data[0]][1]:
                         if not formatted:
                             formatted = "[%s] [%s] [%s] : %s" %(
-                                time.strftime("[%a %m/%d/%Y %I:%M:%S %p]"),
+                                time.strftime("%a %m/%d/%Y %I:%M:%S %p"),
                                 *msg_data
                             )
                         print(formatted)
@@ -128,31 +132,31 @@ class Logger:
                 self.idlelock.release()
         self.logwriter.write(time.strftime(">>>>>Logging queue closed: %a %m/%d/%Y %I:%M:%S %p\n"))
         while len(self.logqueue):
+            print(self.logqueue)
             msg_data = self.logqueue.pop(0)
             if msg_data[0] in self.channels:
                 formatted = False
                 if self.channels[msg_data[0]][0] and self.logfile:
                     formatted = "[%s] [%s] [%s] : %s" %(
-                        time.strftime("[%a %m/%d/%Y %I:%M:%S %p]"),
+                        time.strftime("%a %m/%d/%Y %I:%M:%S %p"),
                         *msg_data
                     )
                     self.logwriter.write(formatted+"\n")
                 if self.channels[msg_data[0]][1]:
                     if not formatted:
                         formatted = "[%s] [%s] [%s] : %s" %(
-                            time.strftime("[%a %m/%d/%Y %I:%M:%S %p]"),
+                            time.strftime("%a %m/%d/%Y %I:%M:%S %p"),
                             *msg_data
                         )
                     print(formatted)
                 if self.channels[msg_data[0]][2]:
                     self.collection[msg_data[0]].append(formatted)
         if self.logfile:
-            self.logwriter.write("\n\n")
-            for channel in self.collection:
-                self.logwriter.write(">>>>>Dump of channel %s\n"%channel)
+            for channel in sorted(self.collection):
+                self.logwriter.write("\n>>>>>Dump of channel %s\n"%channel)
                 for line in self.collection[channel]:
                     self.logwriter.write(line+'\n')
-                self.logwriter.write("--------------------\n\n")
+                self.logwriter.write("--------------------\n")
                 self.logwriter.flush()
-            self.logwriter.write('---[LOG STOPPED]---')
+            self.logwriter.write('---[LOG STOPPED]---\n')
             self.logwriter.close()

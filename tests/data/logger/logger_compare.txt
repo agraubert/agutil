@@ -1,0 +1,26 @@
+---[LOG STARTED]---
+Agutil Logger  <%a %m/%d/%Y %I:%M:%S %p>
+[%a %m/%d/%Y %I:%M:%S %p] [INFO] [ANONYMOUS] : Test message
+[%a %m/%d/%Y %I:%M:%S %p] [INFO] [me] : More messages!
+[%a %m/%d/%Y %I:%M:%S %p] [ERROR] [Foo] : OH NO! This one's an error!
+[%a %m/%d/%Y %I:%M:%S %p] [INFO] [LOGGER] : Sender [Foo] has been muted by [Bar]
+[%a %m/%d/%Y %I:%M:%S %p] [WARN] [Bar] : This should appear in the log, but not the dump
+[%a %m/%d/%Y %I:%M:%S %p] [INFO] [Foo] : Message 1 <An additional 2 messages were suppressed>
+[%a %m/%d/%Y %I:%M:%S %p] [INFO] [LOGGER] : Sender [Foo] has been unmuted
+[%a %m/%d/%Y %I:%M:%S %p] [INFO] [Foo] : I've been unmuted!
+[%a %m/%d/%Y %I:%M:%S %p] [BLORG] [Anyone] : This should be seen
+[%a %m/%d/%Y %I:%M:%S %p] [WARN] [Bar] : This should appear in the dump
+>>>>>Logging queue closed: %a %m/%d/%Y %I:%M:%S %p
+
+>>>>>Dump of channel BLORG
+[%a %m/%d/%Y %I:%M:%S %p] [BLORG] [Anyone] : This should be seen
+--------------------
+
+>>>>>Dump of channel ERROR
+[%a %m/%d/%Y %I:%M:%S %p] [ERROR] [Foo] : OH NO! This one's an error!
+--------------------
+
+>>>>>Dump of channel WARN
+[%a %m/%d/%Y %I:%M:%S %p] [WARN] [Bar] : This should appear in the dump
+--------------------
+---[LOG STOPPED]---
