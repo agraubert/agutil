@@ -74,7 +74,7 @@ class Logger:
         return self._logger.is_alive()
 
     def bindToSender(self, sender):
-        return lambda message, channel="INFO":self.log(message, sender, channel) 
+        return lambda message, channel="INFO":self.log(message, sender, channel)
 
     def setChannelFilters(self, channel, log, display):
         collect = False if channel not in self.channels else self.channels[channel][2]
@@ -111,7 +111,9 @@ class Logger:
                     if self.channels[msg_data[0]][0] and self.logfile:
                         formatted = "[%s] [%s] [%s] : %s" %(
                             time.strftime("%a %m/%d/%Y %I:%M:%S %p"),
-                            *msg_data
+                            msg_data[0],
+                            msg_data[1],
+                            msg_data[2]
                         )
                         self.logwriter.write(formatted+"\n")
                         self.logwriter.flush()
@@ -119,7 +121,9 @@ class Logger:
                         if not formatted:
                             formatted = "[%s] [%s] [%s] : %s" %(
                                 time.strftime("%a %m/%d/%Y %I:%M:%S %p"),
-                                *msg_data
+                                msg_data[0],
+                                msg_data[1],
+                                msg_data[2]
                             )
                         print(formatted)
                     if self.channels[msg_data[0]][2]:
@@ -142,14 +146,18 @@ class Logger:
                 if self.channels[msg_data[0]][0] and self.logfile:
                     formatted = "[%s] [%s] [%s] : %s" %(
                         time.strftime("%a %m/%d/%Y %I:%M:%S %p"),
-                        *msg_data
+                        msg_data[0],
+                        msg_data[1],
+                        msg_data[2]
                     )
                     self.logwriter.write(formatted+"\n")
                 if self.channels[msg_data[0]][1]:
                     if not formatted:
                         formatted = "[%s] [%s] [%s] : %s" %(
                             time.strftime("%a %m/%d/%Y %I:%M:%S %p"),
-                            *msg_data
+                            msg_data[0],
+                            msg_data[1],
+                            msg_data[2]
                         )
                     print(formatted)
                 if self.channels[msg_data[0]][2]:
