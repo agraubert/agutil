@@ -5,20 +5,24 @@ import csv
 
 def bedkey(args):
     args.keys = set(args.keys)
+    output = []
     reader = csv.DictReader(args.input, delimiter='\t')
 
     for row in reader:
         if row['Key'] in args.keys:
-            print(row)
+            if not args.suppress:
+                print(row)
+            output.append(row)
 
     args.input.close()
+    return output
 
 def maf2bed(args):
     if args.v and sys.platform=="win32":
         reader = open(args.input.name, mode='r')
         args.v = len([False for row in reader])
         reader.close()
-    if args.v:
+    elif args.v:
         from subprocess import run, PIPE
         args.v = int(run(['wc -l %s'%args.input.name], shell=True, stdout=PIPE).stdout.decode().split()[0])
     key_file = None
@@ -114,10 +118,15 @@ def main(args_input=sys.argv[1:]):
         nargs="+",
         help="Keys to lookup"
     )
+    bedkey_parser.add_argument(
+        '--suppress',
+        action='store_true',
+        help="Suppress printing to stdout.  Return the keys instead (for using lookup within other python scripts)"
+    )
     args = parser.parse_args(args_input)
 
     try:
-        args.func(args)
+        return args.func(args)
     except AttributeError:
         print("usage: maf2bed [-h] {convert,lookup} ...")
         print("maf2bed: error: must provide a command (choose from 'convert', 'lookup')")

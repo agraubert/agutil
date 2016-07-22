@@ -5,6 +5,7 @@ import random
 import sys
 import tempfile
 from filecmp import cmp
+import csv
 
 class test(unittest.TestCase):
     @classmethod
@@ -66,6 +67,27 @@ class test(unittest.TestCase):
                 'output_wSilents.bed.key'
             )
         ))
+        raw_reader = open(os.path.join(
+            self.data_path,
+            'output_wSilents.bed.key'
+        ), mode='r')
+        reader = csv.DictReader(raw_reader, delimiter='\t')
+        intake = [entry for entry in reader if random.random() <= .1]
+        raw_reader.close()
+        cmd = ['lookup', os.path.join(
+            output_dir.name,
+            'output.bed.key'
+        ), '--suppress']
+        for line in intake:
+            cmd.append(line['Key'])
+        result = agutil.bio.maf2bed.main(cmd)
+        self.assertEqual(len(result), len(intake))
+        intake.sort(key=lambda entry:entry['Key'])
+        result.sort(key=lambda entry:entry['Key'])
+        for i in range(len(intake)):
+            for key in intake[i]:
+                self.assertTrue(key in result[i])
+                self.assertEqual(intake[i][key], result[i][key])
         output_dir.cleanup()
 
     @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
@@ -104,6 +126,27 @@ class test(unittest.TestCase):
                 'output_noSilents.bed.key'
             )
         ))
+        raw_reader = open(os.path.join(
+            self.data_path,
+            'output_noSilents.bed.key'
+        ), mode='r')
+        reader = csv.DictReader(raw_reader, delimiter='\t')
+        intake = [entry for entry in reader if random.random() <= .1]
+        raw_reader.close()
+        cmd = ['lookup', os.path.join(
+            output_dir.name,
+            'output.bed.key'
+        ), '--suppress']
+        for line in intake:
+            cmd.append(line['Key'])
+        result = agutil.bio.maf2bed.main(cmd)
+        self.assertEqual(len(result), len(intake))
+        intake.sort(key=lambda entry:entry['Key'])
+        result.sort(key=lambda entry:entry['Key'])
+        for i in range(len(intake)):
+            for key in intake[i]:
+                self.assertTrue(key in result[i])
+                self.assertEqual(intake[i][key], result[i][key])
         output_dir.cleanup()
 
     @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
