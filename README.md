@@ -35,7 +35,7 @@ This package requires PyCrypto, which typically has issues compiling on windows.
 
 ##Features in Development:
 
-##agutil.LOGGER
+##LOGGER
 The `agutil` module includes the `Logger` class, which provides a simple interface for quick logging.  Messages can be logged over specific channels, and each channel can be set to log to a file, stdout, neither, or both.  The actual `Logger` instance is meant to be the point of control for the log.  All `agutil` classes which support logging will log messages through the lambda returned by `Logger.bindToSender()`.
 
 Note: `agutil` also includes `DummyLog`, a default log used in other `agutil` classes which does no actual logging or printing
