@@ -109,6 +109,7 @@ The _transcript_ parameter has been removed from the constructor.  The status_ba
 
 ##io.QUEUEDSOCKET
 The following change has been made to the `agutil.io.QueuedSocket` API:
+A _logmethod_ parameter has been added to the constructor
 
 #####API
 * QueuedSocket(socket, logmethod=DummyLog) _(constructor)_
@@ -116,6 +117,7 @@ The following change has been made to the `agutil.io.QueuedSocket` API:
 
 ##security.SECURECONNECTION
 The following change has been made to the `agutil.security.SecureConnection` API:
+A _logmethod_ parameter has been added to the constructor, and the _verbose_ parameter has been removed
 
 #####API
 * SecureConnection(address, port, password=None, rsabits=4096, timeout=3, logmethod=DummyLog) _(constructor)_
@@ -123,28 +125,28 @@ The following change has been made to the `agutil.security.SecureConnection` API
   If _address_ is set to '' or 'listen', the `SecureConnection` will listen for an incoming connection on _port_.
   Otherwise, it attempts to connect to another `SecureConnection` on the specified _port_ at _address_.
   _password_ and _rsabits_ configure the internal `SecureSocket`, and are used for its constructor.
-  _verbose_ sets the `SecureConnection` and its internal components to print verbose messages.
   _timeout_ sets the default timeout on the internal `SecureSocket`.
   _logmethod_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _logmethod_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
 
 
 ##security.SECURESOCKET
 The following change has been made to the `agutil.security.SecureSocket` API:
+A _logmethod_ parameter has been added to the constructor, and the _verbose_ parameter has been removed
 
 #####API
 * SecureSocket(socket, password=None, rsabits=4096, timeout=3, logmethod=DummyLog) _(constructor)_
   Initializes an `agutil.security.SecureSocket` object around an `agutil.io.Socket` instance.
   Generates a new RSA keypair of _rsabits_ size, and exchanges public keys with the remote socket (which must also be a `SecureSocket`).
   If _password_ is set, and not None, it is used to generate an AES ECB cipher which is used to encrypt all basic communications between the sockets (the remote socket must use the same password).
-  If _verbose_ is True, the `SecureSocket` will print verbose messages regarding the activity through the socket
   _timeout_ sets the default timeout for receiving incoming messages.
   _logmethod_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _logmethod_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
 
 
 ##security.SECURESERVER
 The following change has been made to the `agutil.security.SecureServer` API:
+A _logmethod_ parameter has been added to the constructor, and the _childverbose_ parameter has been removed
 
 #####API:
 * SecureServer(port, address='', queue=3, password=None, rsabits=4096, childtimeout=3, childlogger=DummyLog) _(constructor)_
-  Binds to _port_ and accepts new connections. _port_, _address_, and _queue_ work identically to `agutil.io.SocketServer` (as the `SecureServer` uses a `SocketServer` internally).  _password_, _rsabits_, _childverbose_, and _childtimeout_ set the _password_, _rsabits_, _verbose_, and _timeout_ arguments (respectively) to the `SecureConnection` constructor for each accepted connection.
-  _childlogger_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _childlogger_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
+  Binds to _port_ and accepts new connections. _port_, _address_, and _queue_ work identically to `agutil.io.SocketServer` (as the `SecureServer` uses a `SocketServer` internally).  _password_, _rsabits_, _childtimeout_, and _childlogger_  set the _password_, _rsabits_, _timeout_, and _logmethod_ arguments (respectively) to the `SecureConnection` constructor for each accepted connection.
+  _childlogger_ defaults to `agutil.DummyLog` (which does not log anything).  _childlogger_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
