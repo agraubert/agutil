@@ -174,7 +174,7 @@ class Logger:
                     self.collection[msg_data[0]].append(formatted)
         if self.logfile:
             for channel in sorted(self.collection):
-                if len(self.connection[channel]):
+                if len(self.collection[channel]):
                     self.logwriter.write("\n>>>>>Dump of channel %s\n"%channel)
                     for line in self.collection[channel]:
                         self.logwriter.write(line+'\n')
