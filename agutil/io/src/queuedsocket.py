@@ -1,9 +1,10 @@
 from .socket import Socket
 from socket import timeout as sockTimeout
+from ... import Logger, DummyLog
 import threading
 
 class QueuedSocket(Socket):
-    def __init__(self, socket, _debug=False):
+    def __init__(self, socket, logmethod=DummyLog):
         if not isinstance(socket, Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
         super().__init__(socket.addr, socket.port, socket.sock)
@@ -13,7 +14,10 @@ class QueuedSocket(Socket):
         self._shutdown = False
         self.datalock = threading.Condition()
         self.iolock = threading.Condition()
-        self._debug = _debug
+        self.log = logmethod
+        if isinstance(self.log, Logger):
+            self.log = self.log.bindToSender("QueuedSocket")
+        self.log("The underlying Socket has been initialized.  Starting background thread...")
         self._thread = threading.Thread(
             target=QueuedSocket._worker,
             args=(self,),
@@ -23,42 +27,46 @@ class QueuedSocket(Socket):
         self._thread.start()
 
     def close(self, timeout=1):
+        if self._shutdown:
+            return
+        self.log("Shutdown initiated")
         self.datalock.acquire()
         self._shutdown = True
         self.datalock.release()
         self._thread.join(timeout)
         super().close()
+        self.log.close()
 
     def send(self, msg, channel='__orphan__'):
         if self._shutdown:
+            self.log("Attempt to use the QueuedSocket after shutdown", "WARN")
             raise IOError("This QueuedSocket has already been closed")
         if '|' in channel:
+            self.log("Attempt to send message over illegal channel name", "WARN")
             raise ValueError("Channel names cannot contain '|' characters (ascii 124)")
         self.datalock.acquire()
         if channel not in self.outgoing:
             self.outgoing[channel] = [msg]
         else:
             self.outgoing[channel].append(msg)
-        if self._debug:
-            print("Queued output on channel", channel)
+        self.log("Message Queued on channel '%s'"%channel, "DEBUG")
         self.outgoing_channels.append(""+channel)
         self.datalock.release()
 
     def recv(self, channel='__orphan__', decode=False, timeout=None):
         if self._shutdown:
+            self.log("Attempt to use the QueuedSocket after shutdown", "WARN")
             raise IOError("This QueuedSocket has already been closed")
         self.datalock.acquire()
         if channel not in self.incoming:
             self.incoming[channel] = []
         if not self._check_channel(channel):
-            if self._debug:
-                print("Waiting for input on channel", channel)
+            self.log("Waiting for input on channel '%s'" %channel, "DEBUG")
             result = self.datalock.wait_for(lambda :self._check_channel(channel), timeout)
             if not result:
                 self.datalock.release()
                 raise sockTimeout()
-            if self._debug:
-                print("Input dequeued")
+            self.log("Input dequeued from channel '%s'"%channel, "DETAIL")
         msg = self.incoming[channel].pop(0)
         self.datalock.release()
         if decode:
@@ -93,52 +101,47 @@ class QueuedSocket(Socket):
         return len(self.incoming[channel])
 
     def _worker(self):
-        if self._debug:
-            print("Worker started")
+        self.log("QueuedSocket background thread initialized")
         while True:
             self.datalock.acquire()
             status = self._shutdown
             outqueue = len(self.outgoing_channels)
             self.datalock.release()
             if status:
-                if self._debug:
-                    print("QueuedSocket worker stopped")
+                self.log("QueuedSocket background thread halted")
                 return
             if outqueue:
                 self.datalock.acquire()
                 target = self.outgoing_channels.pop(0)
                 payload = self.outgoing[target].pop(0)
                 self.datalock.release()
-                if self._debug:
-                    print("Outgoing payload on channel", target)
+                self.log("Outgoing payload on channel '%s'" %target, "DEBUG")
                 try:
                     self._sends(payload, target)
                 except OSError as e:
                     if self._shutdown:
-                        if self._debug:
-                            print("QueuedSocket worker stopped")
+                        self.log("QueuedSocket background thread halted")
                         return
                     else:
+                        self.log("QueuedSocket encountered an error: "+str(e), "ERROR")
                         raise e
             super().settimeout(.05)
             try:
                 (channel, payload) = self._recvs()
-                if self._debug:
-                    print("Incoming payload on channel", channel)
+                self.log("Incoming payload on channel '%s'" %channel, "DEBUG")
                 self.datalock.acquire()
                 if channel not in self.incoming:
                     self.incoming[channel] = []
                 self.incoming[channel].append(payload)
                 self.datalock.notify_all()
-                if self._debug:
-                    print("Threads waiting on", channel, "have been notified")
+                self.log("Threads waiting on '%s' have been notified" %channel, "DETAIL")
                 self.datalock.release()
             except sockTimeout:
                 pass
             except OSError as e:
                 if self._shutdown:
-                    if self._debug:
-                        print("QueuedSocket worker stopped")
+                    self.log("QueuedSocket background thread halted")
                     return
                 else:
+                    self.log("QueuedSocket encountered an error: "+str(e), "ERROR")
                     raise e

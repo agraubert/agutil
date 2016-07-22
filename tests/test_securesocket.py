@@ -16,7 +16,7 @@ def make_random_string():
 def server_comms(secureclass, queueclass, ss, payload):
     global startup_lock
     startup_lock.release()
-    sock = secureclass(ss.accept(), rsabits=1024, verbose=False)
+    sock = secureclass(ss.accept(), rsabits=1024)
     ss.close()
     payload.intake=[]
     payload.output=[]
@@ -35,7 +35,7 @@ def client_comms(secureclass, queueclass, _sockClass, port, payload):
     global startup_lock
     startup_lock.acquire()
     startup_lock.release()
-    sock = secureclass(_sockClass('localhost', port), rsabits=1024, verbose=False)
+    sock = secureclass(_sockClass('localhost', port), rsabits=1024)
     payload.intake=[]
     payload.output=[]
     for trial in range(5):

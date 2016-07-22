@@ -1,6 +1,12 @@
 import threading
 import time
+import weakref
 #Timestamp format: "[%a %m/%d/%Y %I:%M:%S %p]"
+
+DummyLog = lambda msg, channel="":None
+DummyLog.bindToSender = lambda x:DummyLog
+DummyLog.name = ""
+DummyLog.close = lambda :None
 
 class Logger:
     LOGLEVEL_NONE = 0
@@ -73,8 +79,12 @@ class Logger:
         self._logger.join(1)
         return self._logger.is_alive()
 
-    def bindToSender(self, sender):
-        return lambda message, channel="INFO":self.log(message, sender, channel)
+    def bindToSender(self, sender, can_close=True):
+        output =  lambda message, channel="INFO":self.log(message, sender, channel)
+        output.bindToSender = lambda sender:self.bindToSender(sender, False)
+        output.name = sender
+        output.close = self.close if can_close else lambda :None
+        return output
 
     def setChannelFilters(self, channel, log, display):
         collect = False if channel not in self.channels else self.channels[channel][2]

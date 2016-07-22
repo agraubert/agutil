@@ -1,5 +1,5 @@
 from .securesocket import SecureSocket
-from ... import io
+from ... import io, Logger, DummyLog
 from . import protocols
 from socket import timeout as socketTimeout
 import threading
@@ -9,15 +9,20 @@ import os
 random.seed()
 
 class SecureConnection:
-    def __init__(self, address, port, password=None, rsabits=4096, verbose=False, timeout=3):
+    def __init__(self, address, port, password=None, rsabits=4096, timeout=3, logmethod=DummyLog):
+        if isinstance(logmethod, Logger):
+            self.log = logmethod.bindToSender("SecureConnection")
+        else:
+            self.log=logmethod
         if address == '' or address == 'listen':
             ss = io.SocketServer(port, queue=0)
-            self.sock = SecureSocket(ss.accept(), password, rsabits, verbose, timeout)
+            self.sock = SecureSocket(ss.accept(), password, rsabits, timeout, self.log.bindToSender(self.log.name+"->SecureSocket"))
             ss.close()
         elif not isinstance(address, io.Socket):
-            self.sock = SecureSocket(io.Socket(address, port), password, rsabits, verbose, timeout)
+            self.sock = SecureSocket(io.Socket(address, port), password, rsabits, timeout, self.log.bindToSender(self.log.name+"->SecureSocket"))
         else:
-            self.sock = SecureSocket(address, password, rsabits, verbose, timeout)
+            self.sock = SecureSocket(address, password, rsabits, timeout, self.log.bindToSender(self.log.name+"->SecureSocket"))
+        self.log("SecureConnection now initialized.  Starting background threads...")
         self.address = address
         self.port = port
         self.tasks = {} #Queue of taskname : thread pairs for currently running tasks
@@ -50,11 +55,13 @@ class SecureConnection:
         return taskname
 
     def _scheduler_worker(self):
+        self.log("SecureConnection Task Scheduling thread active")
         while not self._shutdown:
             self.schedulinglock.acquire()
             size = self.schedulinglock.wait_for(lambda :len(self.schedulingqueue), .05)
             if size:
                 command = self.schedulingqueue.pop(0)
+                self.log("Preparing to schedule new command", "DETAIL")
                 if protocols._COMMANDS[command['cmd']]=='kill':
                     self.tasks[command['name']].join(.05)
                     del self.tasks[command['name']]
@@ -70,28 +77,36 @@ class SecureConnection:
                     worker = protocols._assign_task(protocols._COMMANDS[command['cmd']])
                     self.tasks[name] = threading.Thread(target=worker, args=(self,command,name), name=name, daemon=True)
                     self.tasks[name].start()
+                    self.log("Started new task '%s'"%name, "DEBUG")
             self.schedulinglock.release()
+        self.log("SecureConnection Task Scheduling thread inactive")
 
     def _listener_worker(self):
+        self.log("SecureConnection Remote Command thread active")
         while not self._init_shutdown:
             try:
                 # self.sock.recvRAW('__cmd__', timeout=.1)
                 cmd = self.sock.recvAES('__cmd__', timeout=.1)
+                self.log("Remote command received", "DETAIL")
                 self.schedulinglock.acquire()
                 self.schedulingqueue.append(protocols.unpackcmd(cmd))
                 self.schedulinglock.notify_all()
                 self.schedulinglock.release()
             except socketTimeout:
                 pass
+        self.log("SecureConnection Remote Command thread inactive")
 
     def send(self, msg, retries=1):
         if self._init_shutdown:
+            self.log("Attempt to use the SecureConnection after shutdown", "WARN")
             raise IOError("This SecureConnection has already initiated shutdown")
         if type(msg)==str:
             msg=msg.encode()
         elif type(msg)!=bytes:
+            self.log("Attempt to send message which was not str or bytes", "WARN")
             raise TypeError("msg argument must be str or bytes")
         self.schedulinglock.acquire()
+        self.log("Outgoing text message scheduled", "DEBUG")
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('to'),
             'msg': msg,
@@ -102,8 +117,10 @@ class SecureConnection:
 
     def read(self, decode=True, timeout=None):
         if self._init_shutdown:
+            self.log("Attempt to use the SecureConnection after shutdown", "WARN")
             raise IOError("This SecureConnection has already initiated shutdown")
         self.intakelock.acquire()
+        self.log("Waiting to receive incoming text message", "DEBUG")
         result = self.intakelock.wait_for(lambda :len(self.queuedmessages))
         if not result:
             self.intakelock.release()
@@ -116,8 +133,10 @@ class SecureConnection:
 
     def sendfile(self, filename):
         if self._init_shutdown:
+            self.log("Attempt to use the SecureConnection after shutdown", "WARN")
             raise IOError("This SecureConnection has already initiated shutdown")
         self.schedulinglock.acquire()
+        self.log("Outgoing file request scheduled", "DEBUG")
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('fro'),
             'filepath': os.path.abspath(filename)
@@ -127,8 +146,10 @@ class SecureConnection:
 
     def savefile(self, destination, timeout=None, force=False):
         if self._init_shutdown:
+            self.log("Attempt to use the SecureConnection after shutdown", "WARN")
             raise IOError("This SecureConnection has already initiated shutdown")
         self.authlock.acquire()
+        self.log("Waiting to receive incoming file request", "DEBUG")
         result = self.authlock.wait_for(lambda :len(self.authqueue), timeout)
         if not result:
             self.authlock.release()
@@ -148,6 +169,7 @@ class SecureConnection:
                     accepted = True
             if choice[0] != 'y':
                 self.schedulinglock.acquire()
+                self.log("User rejected transfer of file '%s'"%filename)
                 self.schedulingqueue.append({
                     'cmd': protocols.lookupcmd('fti'),
                     'auth': auth,
@@ -157,6 +179,7 @@ class SecureConnection:
                 self.schedulinglock.release()
                 return
         self.schedulinglock.acquire()
+        self.log("Accepted transfer of file '%s'"%filename)
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('fti'),
             'auth': auth,
@@ -165,9 +188,11 @@ class SecureConnection:
         self.schedulinglock.notify_all()
         self.schedulinglock.release()
         self.transferlock.acquire()
+        self.log("Waiting for transfer to complete...", "DEBUG")
         self.transferlock.wait_for(lambda :destination in self.completed_transfers)
         self.completed_transfers.remove(destination)
         self.transferlock.release()
+        self.log("File transfer complete", "DEBUG")
         return destination
 
     def shutdown(self, timeout=3):
@@ -176,6 +201,7 @@ class SecureConnection:
     def close(self, timeout=3, _remote=False):
         if self._shutdown:
             return
+        self.log("Initiating shutdown of SecureConnection")
         self.killlock = threading.Condition()
         self.killlock.acquire()
         self._init_shutdown = True
@@ -187,3 +213,4 @@ class SecureConnection:
         if not _remote:
             self.sock.sendAES(protocols.packcmd('dci'), '__cmd__')
         self.sock.close()
+        self.log.close()
