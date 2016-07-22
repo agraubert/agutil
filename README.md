@@ -81,3 +81,25 @@ Each channel also has a constant set at the class level to use as input for the 
 
 And the additional level:
 * LOGLEVEL_NONE: Do not log or print any messages to the 5 standard channels
+
+##agutil.STATUS_BAR
+The following change has been made to the `agutil.status_bar` api:
+The _transcript_ parameter has been removed from the constructor.  The status_bar no longer supports logging a transcript of activity.
+
+#####API
+* status_bar(maximum, show_percent = False, init=True, prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False _(constructor)_
+  Creates a new status_bar instance ranging from 0 to _maximum_
+
+  _show\_percent_ toggles whether or not a percentage meter should be displayed to the right of the bar
+
+  _init_ sets whether or not the status_bar should immediately display.  If set to false, the bar is displayed at the first update
+
+  _prepend_ is text to be prepended to the left of the bar.  It will always remain to the left of the bar as the display updates.  **WARNING** Prepended text offsets the bar.  If any part of the bar (including prepended or appended text) extends beyond a single line on the console, the status bar will not display properly.  Prepended text should be kept short
+
+  _append_ is text to be appended to the right of the bar.  It will always remain to the right of the bar as the display updates.  **WARNING** Appended text extends the display.  If any part of the bar (including prepended or appended text) extends beyond a single line of the console, the status bar will not display properly.  Appended text should be kept short
+
+  _cols_ sets how long the bar should be.  It defaults to half the terminal size
+
+  _update\_threshold_ sets the minimum change in percentage to trigger an update to the percentage meter
+
+  _debugging_ triggers the status_bar to never print to stdout.  If set true, no output will be produced, but exact string of what *would* be displayed is maintained at all times in the _display_ attribute

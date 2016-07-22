@@ -3,13 +3,12 @@ from shutil import get_terminal_size
 
 
 class status_bar:
-    def __init__(self, maximum, show_percent = False, init=True,  prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False, transcript=None):
+    def __init__(self, maximum, show_percent = False, init=True,  prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False):
         if maximum <=0:
             raise ValueError("status_bar maximum must be >0 (maximum was {val})".format(
                 val=repr(maximum)
             ))
         self.current = 0
-        self.logger = None if not transcript else open(transcript, mode='w')
         self.last_value = 0
         self.maximum = maximum
         self.show_percent = show_percent
@@ -51,31 +50,12 @@ class status_bar:
             sys.stdout.flush()
         self.display=self.display[:self.cursor]+text+self.display[self.cursor+len(text):]
         self.cursor+=len(text)
-        if self.logger:
-            self._log("\n"+("-"*8)+"\nWRITE TEXT: \""+text+"\"\n")
-            self._log("Cursor: "+str(self.cursor)+" VALUE: "+str(self.current)+" PROGRESS: "+str(self.progress)+"\n")
-            if len(self.pre):
-                self._log("PREPENDED TEXT:"+self.pre+"\n")
-            if len(self.post):
-                self._log("APPENDED TEXT:"+self.post+"\n")
-            self._log((" "*(self.cursor-1)+"V\n"))
-            self._log(self.display)
-            self.logger.flush()
 
     def _backtrack_to(self, index):
         if index < self.cursor:
             if not self.debugging:
                 sys.stdout.write('\b'*(self.cursor-index))
             self.cursor=index
-            if self.logger:
-                self._log("\n"+("-"*8)+"\nCURSOR BACKTRACK TO: "+str(index)+"\n")
-                self._log((" "*(self.cursor-1)+"V\n"))
-                self._log(self.display)
-                self.logger.flush()
-
-    def _log(self, text):
-        if self.logger:
-            self.logger.write(text)
 
     def update(self, value):
         if self.pending_text_update or not self.initialized:
@@ -110,8 +90,6 @@ class status_bar:
                 self._write(' '*9)
             self._write(' '*(len(self.post)))
             self._backtrack_to(0)
-        if self.logger:
-            self.logger.close()
 
     def prepend(self, text, updateText=True):
         self.pre = text
