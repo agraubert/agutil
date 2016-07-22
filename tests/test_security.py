@@ -34,7 +34,7 @@ def server_comms(secureClass, port, payload):
     payload.sock = sock
 
 def client_comms(secureclass, port, payload):
-    sock = secureclass('localhost', port, password='password', rsabits=1024, verbose=False)
+    sock = secureclass('localhost', port, password='password', rsabits=1024)
     payload.intake=[]
     payload.output=[]
     payload.comms_check = sock.sock.recvRAW(decode=True)
@@ -64,7 +64,7 @@ def server_comms_files(secureClass, port, payload):
     payload.sock = sock
 
 def client_comms_files(secureclass, port, payload):
-    sock = secureclass('localhost', port, password='password', rsabits=1024, verbose=False)
+    sock = secureclass('localhost', port, password='password', rsabits=1024)
     payload.intake=[]
     payload.output=[]
     payload.comms_check = sock.sock.recvRAW(decode=True)

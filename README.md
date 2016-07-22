@@ -36,7 +36,9 @@ This package requires PyCrypto, which typically has issues compiling on windows.
 ##Features in Development:
 
 ##agutil.LOGGER
-The `agutil` module includes the `Logger` class, which provides a simple interface for quick logging.  Messages can be logged over specific channels, and each channel can be set to log to a file, stdout, neither, or both.
+The `agutil` module includes the `Logger` class, which provides a simple interface for quick logging.  Messages can be logged over specific channels, and each channel can be set to log to a file, stdout, neither, or both.  The actual `Logger` instance is meant to be the point of control for the log.  All `agutil` classes which support logging will log messages through the lambda returned by `Logger.bindToSender()`.
+
+Note: `agutil` also includes `DummyLog`, a default log used in other `agutil` classes which does no actual logging or printing
 
 #####API
 * Logger(filename, header="Agutil Logger", log_level=LOGLEVEL_INFO, stdout_level=LOGLEVEL_NONE) _(constructor)_
@@ -49,8 +51,9 @@ The `agutil` module includes the `Logger` class, which provides a simple interfa
 * Logger.close()
   Immediately stops accepting new messages to log, and waits up to 1 second for the logger background thread to finish processing its backlog of messages and perform other shutdown tasks
 
-* Logger.bindToSender(sender)
-  Returns a binds _sender_ to the _sender_ argument of `Logger.log()` and returns the bound function.  `Logger.bindToSender('foo')('message', 'channel')` is equivalent to `Logger.log('message', 'foo', 'channel')`
+* Logger.bindToSender(sender, can_close=True)
+  Returns a binds _sender_ to the _sender_ argument of `Logger.log()` and returns the bound function, with some additional connections to the `Logger` (such as the ability to generate new bound methods for subordinates, or to close the log).
+  _can\_close_ controls whether or not the returned lambda has the capacity to close the log.  By default, `Logger.bindToSender()` returns bound methods which can close the log, but subordinate bound methods returned by the original cannot.  The intent is that many different classes (some embedded or extended) can share the same `Logger` object, but only the top level objects will actually close the log.
 
 * Logger.setChannelFilters(channel, log, display)
   Sets the filters for the specified _channel_.  If _channel_ is not registered (only the 5 default channels are registered by the constructor) it becomes registered and capable of logging.  Iff _log_ is True, then messages in _channel_ will be logged to the log file.  Iff _display_ is True, messages in _channel_ will be printed to stdout.
@@ -82,7 +85,7 @@ Each channel also has a constant set at the class level to use as input for the 
 And the additional level:
 * LOGLEVEL_NONE: Do not log or print any messages to the 5 standard channels
 
-##agutil.STATUS_BAR
+##STATUS_BAR
 The following change has been made to the `agutil.status_bar` api:
 The _transcript_ parameter has been removed from the constructor.  The status_bar no longer supports logging a transcript of activity.
 
@@ -103,3 +106,45 @@ The _transcript_ parameter has been removed from the constructor.  The status_ba
   _update\_threshold_ sets the minimum change in percentage to trigger an update to the percentage meter
 
   _debugging_ triggers the status_bar to never print to stdout.  If set true, no output will be produced, but exact string of what *would* be displayed is maintained at all times in the _display_ attribute
+
+##io.QUEUEDSOCKET
+The following change has been made to the `agutil.io.QueuedSocket` API:
+
+#####API
+* QueuedSocket(socket, logmethod=DummyLog) _(constructor)_
+  Takes an `agutil.io.Socket` class to extend.  _logmethod_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _logmethod_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
+
+##security.SECURECONNECTION
+The following change has been made to the `agutil.security.SecureConnection` API:
+
+#####API
+* SecureConnection(address, port, password=None, rsabits=4096, timeout=3, logmethod=DummyLog) _(constructor)_
+  Opens a new secure connection to the address specified by opening a new `SecureSocket` to use internally.
+  If _address_ is set to '' or 'listen', the `SecureConnection` will listen for an incoming connection on _port_.
+  Otherwise, it attempts to connect to another `SecureConnection` on the specified _port_ at _address_.
+  _password_ and _rsabits_ configure the internal `SecureSocket`, and are used for its constructor.
+  _verbose_ sets the `SecureConnection` and its internal components to print verbose messages.
+  _timeout_ sets the default timeout on the internal `SecureSocket`.
+  _logmethod_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _logmethod_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
+
+
+##security.SECURESOCKET
+The following change has been made to the `agutil.security.SecureSocket` API:
+
+#####API
+* SecureSocket(socket, password=None, rsabits=4096, timeout=3, logmethod=DummyLog) _(constructor)_
+  Initializes an `agutil.security.SecureSocket` object around an `agutil.io.Socket` instance.
+  Generates a new RSA keypair of _rsabits_ size, and exchanges public keys with the remote socket (which must also be a `SecureSocket`).
+  If _password_ is set, and not None, it is used to generate an AES ECB cipher which is used to encrypt all basic communications between the sockets (the remote socket must use the same password).
+  If _verbose_ is True, the `SecureSocket` will print verbose messages regarding the activity through the socket
+  _timeout_ sets the default timeout for receiving incoming messages.
+  _logmethod_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _logmethod_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
+
+
+##security.SECURESERVER
+The following change has been made to the `agutil.security.SecureServer` API:
+
+#####API:
+* SecureServer(port, address='', queue=3, password=None, rsabits=4096, childtimeout=3, childlogger=DummyLog) _(constructor)_
+  Binds to _port_ and accepts new connections. _port_, _address_, and _queue_ work identically to `agutil.io.SocketServer` (as the `SecureServer` uses a `SocketServer` internally).  _password_, _rsabits_, _childverbose_, and _childtimeout_ set the _password_, _rsabits_, _verbose_, and _timeout_ arguments (respectively) to the `SecureConnection` constructor for each accepted connection.
+  _childlogger_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _childlogger_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
