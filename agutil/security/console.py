@@ -3,7 +3,11 @@ import hashlib
 import sys
 import os
 import Crypto.Cipher.AES as AES
-from src.files import encryptFile, decryptFile
+try:
+    from src.files import encryptFile, decryptFile
+except ImportError:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    from agutil.security import encryptFile, decryptFile
 
 def simple_pbkdf2_hmac(_, password, salt, iterations):
     current = hashlib.sha512(password+salt).digest()
