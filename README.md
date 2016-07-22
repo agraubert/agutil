@@ -157,10 +157,10 @@ The `agutil.security` module provides a command line interface for encrypting an
 
 #####COMMAND USAGE
 * `$ agutil-secure {encrypt, decrypt} input output password [--py33] [-h]`
-  Reads from _input_ and either encrypts or decrypts data before writing to _output_.
+  Reads from _input_ and either encrypts or decrypts data before writing to _output_.  Note that files encrypted on python 3.3, or using the _--py33_ flag, can only be decrypted on 3.3 (or with the flag) and visa-versa.
 
   positional arguments:
-  
+
   _{encrypt,decrypt}_  Sets the mode to either encryption or decryption
 
   _input_              Input file to encrypt or decrypt
