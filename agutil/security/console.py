@@ -47,7 +47,7 @@ def main(args_input = sys.argv[1:]):
         action='store_true',
         help="Forces encryption or decryption to use the simplified, 3.3 compatable pbkdf2_hmac "
     )
-    args = parser.parse_args()
+    args = parser.parse_args(args_input)
     if args.py33 or sys.version_info<(3,4):
         key_algo = simple_pbkdf2_hmac
     else:
