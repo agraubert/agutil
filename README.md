@@ -26,6 +26,7 @@ The __security__ package:
 * SecureConnection (A high-level, multithreaded class for sending and receiving encrypted files and messages)
 * SecureServer (A low-level listen server to accept connections and return SecureConnection instances)
 * encryptFile and decryptFile (Simple methods for encrypting and decrypting local files)
+* agutil-secure (A command line utility for encrypting and decrypting files)
 
 ##Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)
@@ -150,3 +151,26 @@ A _logmethod_ parameter has been added to the constructor, and the _childverbose
 * SecureServer(port, address='', queue=3, password=None, rsabits=4096, childtimeout=3, childlogger=DummyLog) _(constructor)_
   Binds to _port_ and accepts new connections. _port_, _address_, and _queue_ work identically to `agutil.io.SocketServer` (as the `SecureServer` uses a `SocketServer` internally).  _password_, _rsabits_, _childtimeout_, and _childlogger_  set the _password_, _rsabits_, _timeout_, and _logmethod_ arguments (respectively) to the `SecureConnection` constructor for each accepted connection.
   _childlogger_ defaults to `agutil.DummyLog` (which does not log anything).  _childlogger_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
+
+##security.AGUTIL-SECURE
+The `agutil.security` module provides a command line interface for encrypting and decrypting files.
+
+#####COMMAND USAGE
+* `$ agutil-secure {encrypt, decrypt} input output password [--py33] [-h]`
+  Reads from _input_ and either encrypts or decrypts data before writing to _output_.
+
+  positional arguments:
+  
+  _{encrypt,decrypt}_  Sets the mode to either encryption or decryption
+
+  _input_              Input file to encrypt or decrypt
+
+  _output_             Where to save the encrypted or decrypted file
+
+  _password_           The password to encrypt or decrypt with. Note: passwords containing (spaces) must be encapsulated with quotations ("")
+
+  optional arguments:
+
+    _-h, --help_         show this help message and exit
+
+    _--py33_             Forces encryption or decryption to use the simplified, 3.3 compatable pbkdf2_hmac

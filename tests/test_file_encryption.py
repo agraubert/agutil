@@ -53,6 +53,34 @@ class test(unittest.TestCase):
             decryptFile(encrypted.name, decrypted.name, decryptionCipher)
             self.assertTrue(cmp(source.name, decrypted.name))
 
+    @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
+    def test_commands(self):
+        import agutil.security.console
+        for trial in range(5):
+            source = tempfile.NamedTemporaryFile()
+            encrypted = tempfile.NamedTemporaryFile()
+            decrypted = tempfile.NamedTemporaryFile()
+            password = make_random_string()
+            writer = open(source.name, mode='w')
+            for line in range(15):
+                writer.write(make_random_string())
+                writer.write('\n')
+            writer.close()
+            agutil.security.console.main([
+                'encrypt',
+                source.name,
+                encrypted.name,
+                "\"%s\""%password
+            ])
+            self.assertFalse(cmp(source.name, encrypted.name))
+            agutil.security.console.main([
+                'decrypt',
+                encrypted.name,
+                decrypted.name
+                "\"%s\""%password
+            ])
+            self.assertTrue(cmp(source.name, decrypted.name))
+
     def test_chunk_encryption_decryption(self):
         from agutil.security.src.files import _encrypt_chunk, _decrypt_chunk
         for trial in range(5):
