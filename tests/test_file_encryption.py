@@ -76,7 +76,7 @@ class test(unittest.TestCase):
             agutil.security.console.main([
                 'decrypt',
                 encrypted.name,
-                decrypted.name
+                decrypted.name,
                 "\"%s\""%password
             ])
             self.assertTrue(cmp(source.name, decrypted.name))
