@@ -174,10 +174,11 @@ class Logger:
                     self.collection[msg_data[0]].append(formatted)
         if self.logfile:
             for channel in sorted(self.collection):
-                self.logwriter.write("\n>>>>>Dump of channel %s\n"%channel)
-                for line in self.collection[channel]:
-                    self.logwriter.write(line+'\n')
-                self.logwriter.write("--------------------\n")
-                self.logwriter.flush()
+                if len(self.connection[channel]):
+                    self.logwriter.write("\n>>>>>Dump of channel %s\n"%channel)
+                    for line in self.collection[channel]:
+                        self.logwriter.write(line+'\n')
+                    self.logwriter.write("--------------------\n")
+                    self.logwriter.flush()
             self.logwriter.write('---[LOG STOPPED]---\n')
             self.logwriter.close()
