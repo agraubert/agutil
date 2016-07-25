@@ -19,11 +19,11 @@ def decryptFile(input_filename, output_filename, cipher, _prechunk=False):
     writer = open(output_filename, mode='wb')
     if _prechunk:
         cipher.decrypt(reader.read(16))
-    intake = reader.read(4095)
+    intake = reader.read(4096)
     while len(intake):
         writer.write(_decrypt_chunk(intake, cipher))
         writer.flush()
-        intake = reader.read(4095)
+        intake = reader.read(4096)
     reader.close()
     writer.close()
 
