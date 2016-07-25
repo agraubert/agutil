@@ -33,6 +33,9 @@ class test(unittest.TestCase):
         for trial in range(25):
             num = random.randint(0, sys.maxsize)
             self.assertEqual(num, bytesToInt(intToBytes(num)))
+        for trial in range(25):
+            bytestring = os.urandom(random.randint(16,5000))
+            self.assertEqual(bytestring, intToBytes(bytesToInt(bytestring)))
 
     def test_padding_and_unpadding(self):
         from agutil.security.src.protocols import padstring, unpadstring
