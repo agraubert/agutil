@@ -66,6 +66,8 @@ def main(args_input = sys.argv[1:]):
         # args.input.close()
         # args.output.close()
         decryptFile(args.input.name, args.output.name, cipher, True)
+    args.input.close()
+    args.output.close()
 
 
 if __name__ == '__main__':
