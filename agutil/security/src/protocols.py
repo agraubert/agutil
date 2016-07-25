@@ -65,20 +65,6 @@ def padstring(msg):
 def unpadstring(msg):
     return msg[:-1*msg[-1]]
 
-def intToBytes(num):
-    s = format(num, 'x')
-    if len(s)%2:
-        s = '0' + s
-    return bytes.fromhex(s)
-
-def bytesToInt(num):
-    result = 0
-    exp = int(256 ** (len(num)-1))
-    for i in range(len(num)):
-        result += int(num[i]*exp)
-        exp //= 256
-    return result
-
 def _assign_task(cmd):
     return _WORKERS[cmd]
 

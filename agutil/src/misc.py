@@ -1,4 +1,19 @@
 from itertools import chain, islice, zip_longest
+
+def intToBytes(num):
+    s = format(num, 'x')
+    if len(s)%2:
+        s = '0' + s
+    return bytes.fromhex(s)
+
+def bytesToInt(num):
+    result = 0
+    exp = int(256 ** (len(num)-1))
+    for i in range(len(num)):
+        result += int(num[i]*exp)
+        exp //= 256
+    return result
+
 def split_iterable(seq, length):
     getter = iter(seq)
     while True:
@@ -9,7 +24,4 @@ def split_iterable(seq, length):
             return
 
 def byte_xor(b1, b2):
-    output = []
-    for x, y in zip_longest(reversed(b1), reversed(b2), fillvalue=0):
-        output.append('%02x'%(x^y))
-    return bytes.fromhex(''.join(reversed(output)))
+    return intToBytes(bytesToInt(b1)^bytesToInt(b2))

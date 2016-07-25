@@ -65,3 +65,18 @@ class test(unittest.TestCase):
             bytenum1 = bytes.fromhex(hexnum1)
             bytenum2 = bytes.fromhex(hexnum2)
             self.assertEqual(byte_xor(bytenum1, bytenum2), bytenumx)
+
+    def test_int_byte_conversion(self):
+        from agutil import intToBytes, bytesToInt
+        for trial in range(25):
+            num = random.randint(0, sys.maxsize)
+            self.assertEqual(num, bytesToInt(intToBytes(num)))
+        for trial in range(25):
+            bytelen = random.randint(16,5000)
+            bytestring = os.urandom(bytelen)
+            converted = intToBytes(bytesToInt(bytestring))
+            if bytelen <= 2048:
+                self.assertEqual(bytestring, converted)
+            else:
+                self.assertEqual(len(converted), bytelen)
+                self.assertEqual(hash(converted), hash(bytestring))

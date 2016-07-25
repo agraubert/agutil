@@ -10,6 +10,7 @@ __Version:__ 0.5.0b
 * search_range (A utility for manipulating numerical ranges)
 * status_bar (A simple progress bar indicator)
 * Logger (A class for fast, simple, logging)
+* Several standalone utility methods (See the [agutil module page](https://github.com/agraubert/agutil/wiki) on the wiki)
 
 
 The __bio__ package:
@@ -174,3 +175,16 @@ The `agutil.security` module provides a command line interface for encrypting an
     _-h, --help_         show this help message and exit
 
     _--py33_             Forces encryption or decryption to use the simplified, 3.3 compatable pbkdf2_hmac
+
+##agutil utility methods
+* agutil.intToBytes(num)
+  Converts the int _num_ to its big-endian byte representation
+
+* agutil.bytesToInt(num)
+  Converts the byte sequence _num_ into an integer
+
+* agutil.byte_xor(b1, b2)
+  Returns a byte sequence equivalent to the XOR of each byte in _b1_ with the corresponding byte in _b2_
+
+* agutil.split_iterable(seq, length)
+  Yields iterables which take from _seq_ in chunks up to _length_.  Each iterable returned will yield up to _length_ items.  If chained together, the iterables returned would iterate the same sequence as _seq_.

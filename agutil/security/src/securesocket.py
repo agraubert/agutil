@@ -1,5 +1,5 @@
 from .. import _PROTOCOL_IDENTIFIER_ as _protocol
-from ... import io, Logger, DummyLog
+from ... import io, Logger, DummyLog, intToBytes, bytesToInt
 import hashlib
 import rsa
 import os
@@ -77,11 +77,11 @@ class SecureSocket(io.QueuedSocket):
         self.sLog("Generation RSA keypair", "DEBUG")
         (self.pub, self.priv) = rsa.newkeys(rsabits, True, RSA_CPU)
         self.sLog("Sending RSA pubkey", "DETAIL")
-        self._sendq(self._baseEncrypt(protocols.intToBytes(self.pub.n)), '__control__')
-        self._sendq(self._baseEncrypt(protocols.intToBytes(self.pub.e)), '__control__')
+        self._sendq(self._baseEncrypt(intToBytes(self.pub.n)), '__control__')
+        self._sendq(self._baseEncrypt(intToBytes(self.pub.e)), '__control__')
         self.sLog("Receiving remote RSA pubkey", "DETAIL")
-        _n = protocols.bytesToInt(self._baseDecrypt(self._recvq('__control__')))
-        _e = protocols.bytesToInt(self._baseDecrypt(self._recvq('__control__')))
+        _n = bytesToInt(self._baseDecrypt(self._recvq('__control__')))
+        _e = bytesToInt(self._baseDecrypt(self._recvq('__control__')))
         self.rpub = rsa.PublicKey(_n, _e)
         self.sLog("Confirming encryption", "DEBUG")
         self._sendq(rsa.encrypt(
