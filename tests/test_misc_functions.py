@@ -29,7 +29,7 @@ class test(unittest.TestCase):
 
     def test_sequence_splitting(self):
         from agutil import split_iterable
-        for trial in range(5):
+        for trial in range(25):
             sequence = make_random_string(random.randint(10,10000))
             sequence_length = len(sequence)
             total = 0
@@ -48,7 +48,7 @@ class test(unittest.TestCase):
 
     def test_byte_xor(self):
         from agutil import byte_xor
-        for trial in range(5):
+        for trial in range(25):
             num1 = random.randint(0,sys.maxsize)
             num2 = random.randint(0,sys.maxsize)
             xnum = num1^num2
@@ -74,7 +74,7 @@ class test(unittest.TestCase):
         for trial in range(25):
             bytelen = random.randint(16,5000)
             bytestring = os.urandom(bytelen)
-            converted = intToBytes(bytesToInt(bytestring))
+            converted = intToBytes(bytesToInt(bytestring), bytelen)
             if bytelen <= 2048:
                 self.assertEqual(bytestring, converted)
             else:

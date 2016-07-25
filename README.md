@@ -177,8 +177,8 @@ The `agutil.security` module provides a command line interface for encrypting an
     _--py33_             Forces encryption or decryption to use the simplified, 3.3 compatable pbkdf2_hmac
 
 ##agutil utility methods
-* agutil.intToBytes(num)
-  Converts the int _num_ to its big-endian byte representation
+* agutil.intToBytes(num, padding\_length=0)
+  Converts the int _num_ to its big-endian byte representation.  If the length of the converted bytestring is less than _padding\_length_, 0-bytes (`\x00`) are added to the beginning of the string.  This has to do with an inherent issue with int<->byte conversion: 0-bytes in more-significant end of a bytestring are equivalent to adding zeroes to the left of an integer.  These bytes are lost in a conversion from bytes->int.  _padding\_length_ provides a solution if the length of the original bytestring is known.  For conversions of int->bytes->int, the _padding\_length_ parameter is not needed.  For conversions of bytes->int->bytes, it may be necessary to either communicate the desired length in advance, or prepend a non-zero byte to the start of the string
 
 * agutil.bytesToInt(num)
   Converts the byte sequence _num_ into an integer

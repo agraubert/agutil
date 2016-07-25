@@ -66,7 +66,7 @@ class test(unittest.TestCase):
                 control = set_range(control, start, stop)
                 c_start = start
 
-            for manipulation in range(250):
+            for manipulation in range(150):
                 start = random.randint(0,1000)
                 stop = random.randint(start, 1000)
                 if start < c_start and add:
@@ -117,7 +117,7 @@ class test(unittest.TestCase):
                 control_b = set_range(control_b, start_b, stop_b)
                 c_start = min(start_a, start_b)
 
-            for manipulation in range(250):
+            for manipulation in range(150):
                 add_b = random.random()<.5
                 start_a = random.randint(0,1000)
                 start_b = random.randint(0,1000)
@@ -173,7 +173,7 @@ class test(unittest.TestCase):
                 control = set_range(control, start, stop)
                 c_start = start
 
-            for manipulation in range(250):
+            for manipulation in range(150):
                 start = random.randint(0,1000)
                 stop = random.randint(start, 1000)
                 if start < c_start and add:
