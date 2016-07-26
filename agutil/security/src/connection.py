@@ -8,20 +8,26 @@ import os
 
 random.seed()
 
+_SECURECONNECTION_VERSION_ = '1.0.0'
+_SECURECONNECTION_IDENTIFIER_ = '<agutil.security.secureconnection:%s>'%_SECURECONNECTION_VERSION_
+
 class SecureConnection:
-    def __init__(self, address, port, password=None, rsabits=4096, timeout=3, logmethod=DummyLog):
+    def __init__(self, address, port, password=None, rsabits=4096, timeout=3, upstreamIdentifier=io._PROTOCOL_IDENTIFIER_, logmethod=DummyLog):
         if isinstance(logmethod, Logger):
             self.log = logmethod.bindToSender("SecureConnection")
         else:
             self.log=logmethod
+        _upstreamID = upstreamIdentifier + _SECURECONNECTION_IDENTIFIER_
         if address == '' or address == 'listen':
             ss = io.SocketServer(port, queue=0)
-            self.sock = SecureSocket(ss.accept(), password, rsabits, timeout, self.log.bindToSender(self.log.name+"->SecureSocket"))
+            self.sock = SecureSocket(ss.accept(), password, rsabits, timeout, _upstreamID, self.log.bindToSender(self.log.name+"->SecureSocket"))
             ss.close()
         elif not isinstance(address, io.Socket):
-            self.sock = SecureSocket(io.Socket(address, port), password, rsabits, timeout, self.log.bindToSender(self.log.name+"->SecureSocket"))
+            self.sock = SecureSocket(io.Socket(address, port), password, rsabits, timeout, _upstreamID, self.log.bindToSender(self.log.name+"->SecureSocket"))
         else:
-            self.sock = SecureSocket(address, password, rsabits, timeout, self.log.bindToSender(self.log.name+"->SecureSocket"))
+            self.sock = SecureSocket(address, password, rsabits, timeout, _upstreamID, self.log.bindToSender(self.log.name+"->SecureSocket"))
+        if not io.checkIdentifier(self.sock.remoteIdentifier, 'agutil.security.secureconnection', _SECURECONNECTION_VERSION_):
+            raise ValueError("Invalid remote protocol identifier at SecureConnection level")
         self.log("SecureConnection now initialized.  Starting background threads...")
         self.address = address
         self.port = port

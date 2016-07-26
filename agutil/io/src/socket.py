@@ -1,11 +1,11 @@
 import socket
-from .. import _PROTOCOL_IDENTIFIER_, parseIdentifier
+from .protocol_identifier import _PROTOCOL_IDENTIFIER_, parseIdentifier, checkIdentifier
 
 _SOCKET_VERSION_ = '1.0.0'
-_SOCKET_IDENTIFIER_ = '<agutil.io.Socket:%s>'%_SOCKET_VERSION_
+_SOCKET_IDENTIFIER_ = '<agutil.io.socket:%s>'%_SOCKET_VERSION_
 
 class Socket:
-    def __init__(self, address, port, upstreamIdentifier=_PROTOCOL_IDENTIFIER_, socket=None):
+    def __init__(self, address, port, upstreamIdentifier=_PROTOCOL_IDENTIFIER_, _socket=None):
         self.addr = address
         self.port = port
         self.rawIdentifier = upstreamIdentifier+_SOCKET_IDENTIFIER_
@@ -16,12 +16,15 @@ class Socket:
             self.sock = socket.socket()
             self.sock.connect((address, port))
         self.rollover = b""
-        self.send(self.rawIdentifier)
-        (self.remoteIdentifier, base_check) = parseIdentifier(self.recv(True))
+        self._base_send(self.rawIdentifier)
+        (self.remoteIdentifier, base_check) = parseIdentifier(self._base_recv(True))
         if not (base_check and checkIdentifier(self.remoteIdentifier, 'agutil.io.socket', _SOCKET_VERSION_)):
             raise ValueError("Invalid remote protocol identifier at Socket level")
 
     def send(self, msg):
+        self._base_send(msg)
+
+    def _base_send(self, msg):
         if type(msg)==str:
             msg=msg.encode()
         elif type(msg)!=bytes:
@@ -35,6 +38,9 @@ class Socket:
             msg = msg[len(msg)-payload_size:]
 
     def recv(self, decode=False):
+        return self._base_recv(decode)
+
+    def _base_recv(self, decode=False):
         msg = ""
         found_size = False
         size = ""
@@ -84,7 +90,7 @@ class SocketServer:
 
     def accept(self):
         (sock, addr) = self.sock.accept()
-        return Socket(addr, self.port, sock)
+        return Socket(addr, self.port, _socket=sock)
 
     def close(self):
         self.sock.close()

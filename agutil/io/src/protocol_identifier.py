@@ -5,11 +5,12 @@ def parseIdentifier(identifier):
     tags = identifier[1:-1].split("><")
     output = {}
     for tag in tags:
-        (key, value) = tag.split(":")
-        if value == '':
-            value = True
-        output[key]=value
+        data = tag.split(":")
+        if len(data)==1:
+            data.append(True)
+        output[data[0]]=data[1]
     return (output, checkIdentifier(output, 'agutil') and checkIdentifier(output, '__protocol__', _PROTOCOL_VERSION_))
 
 def checkIdentifier(identifier, key, value=True):
+    print("Identifier:", key, '--' if key not in identifier else identifier[key], value)
     return key in identifier and identifier[key]==value

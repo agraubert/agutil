@@ -1,13 +1,20 @@
 from .socket import Socket
+from .protocol_identifier import _PROTOCOL_IDENTIFIER_, parseIdentifier, checkIdentifier
 from socket import timeout as sockTimeout
 from ... import Logger, DummyLog
 import threading
 
+_QUEUEDSOCKET_VERSION_ = '1.0.0'
+_QUEUEDSOCKET_IDENTIFIER_ = '<agutil.io.queuedsocket:%s>'%_QUEUEDSOCKET_VERSION_
+
 class QueuedSocket(Socket):
-    def __init__(self, socket, logmethod=DummyLog):
+    def __init__(self, socket,  upstreamIdentifier=_PROTOCOL_IDENTIFIER_, logmethod=DummyLog):
         if not isinstance(socket, Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
-        super().__init__(socket.addr, socket.port, socket.sock)
+        _upstreamID = upstreamIdentifier+_QUEUEDSOCKET_IDENTIFIER_
+        super().__init__(socket.addr, socket.port, _upstreamID, socket.sock)
+        if not checkIdentifier(self.remoteIdentifier, 'agutil.io.queuedsocket', _QUEUEDSOCKET_VERSION_):
+            raise ValueError("Invalid remote protocol identifier at QueuedSocket level")
         self.incoming = {'__orphan__': []}
         self.outgoing = {}
         self.outgoing_channels = []

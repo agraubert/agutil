@@ -26,42 +26,38 @@ class _dummyCipher:
     def decrypt(self, msg):
         return msg
 
+_SECURESOCKET_VERSION_ = '1.0.0'
+_SECURESOCKET_IDENTIFIER_ = '<agutil.security.securesocket:%s>'%_SECURESOCKET_VERSION_
+
 class SecureSocket(io.QueuedSocket):
-    def __init__(self, socket, password=None, rsabits=4096, timeout=3, logmethod=DummyLog):
+    def __init__(self, socket, password=None, rsabits=4096, timeout=3, upstreamIdentifier=io._PROTOCOL_IDENTIFIER_, logmethod=DummyLog):
         if isinstance(logmethod, Logger):
             self.sLog = logmethod.bindToSender("SecureSocket")
         else:
             self.sLog = logmethod
         if not isinstance(socket, io.Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
-        super().__init__(socket, logmethod=self.sLog.bindToSender(self.sLog.name+"->QueuedSocket"))
-        self.sLog("The underlying QueuedSocket has been initialized.  Exchanging encryption data now")
-        self.rsabits = rsabits
-        self.timeout = timeout
-        protocolstring = _protocol
+        _upstreamID = upstreamIdentifier + _SECURESOCKET_IDENTIFIER_
+        password_hash = ''
         if password!=None:
-            protocolstring = _protocol+" <password-%s>"%(
-                hashlib.sha512(
-                    hashlib.sha512(password.encode()+b"lol").digest()
-                ).hexdigest()
+            password_hash = hashlib.sha512(
+                hashlib.sha512(password.encode()+b"lol").digest()
+            ).hexdigest()
+            _upstreamID += "<agutil.security.securesocket.password:%s>"%(
+                password_hash
             )
             self.baseCipher = AES.new(hashlib.sha256(password.encode()).digest())
         else:
             self.baseCipher = _dummyCipher()
-        self.sLog("Sending protocol identifier", "DETAIL")
-        self._sendq(protocolstring, '__control__')
-        self.sLog("Receiving remote identifier", "DETAIL")
-        remoteprotocol = self._recvq('__control__', decode=True, timeout=timeout)
-        if remoteprotocol != protocolstring:
-            self.sLog("The remote socket provided an invalid protocol identifier. (Theirs: %s) (Ours: %s)" % (
-                remoteprotocol,
-                protocolstring
-            ), "WARN")
-            self.close()
-            raise ValueError("The remote socket provided an invalid protocol identifier. (Theirs: %s) (Ours: %s)" % (
-                remoteprotocol,
-                protocolstring
-            ))
+        super().__init__(socket, upstreamIdentifier=_upstreamID, logmethod=self.sLog.bindToSender(self.sLog.name+"->QueuedSocket"))
+        if not io.checkIdentifier(self.remoteIdentifier, 'agutil.security.securesocket', _SECURESOCKET_VERSION_):
+            raise ValueError("Invalid remote protocol identifier at SecureSocket level")
+        if password!=None:
+            if not io.checkIdentifier(self.remoteIdentifier, 'agutil.security.securesocket.password', password_hash):
+                raise ValueError("Invalid password provided by the remote socket's identifier tag")
+        self.sLog("The underlying QueuedSocket has been initialized.  Exchanging encryption data now")
+        self.rsabits = rsabits
+        self.timeout = timeout
         self.sLog("Sending encryption confirmation", "DETAIL")
         self._sendq(self._baseEncrypt('OK'), '__control__')
         self.sLog("Receiving remote encryption confirmation", "DETAIL")
