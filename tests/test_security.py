@@ -7,6 +7,7 @@ import threading
 import warnings
 import tempfile
 import os
+import time
 
 TRAVIS = 'CI' in os.environ
 
@@ -159,6 +160,7 @@ class test(unittest.TestCase):
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
         self.assertRaises(TypeError, client_payload.sock.send, 13)
         server_payload.sock.close()
+        time.sleep(.25)
         client_payload.sock.close()
         self.assertEqual(client_payload.comms_check, '+')
         self.assertTrue(server_payload.exception)
@@ -194,8 +196,9 @@ class test(unittest.TestCase):
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(60+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
-        self.assertRaises(IOError, client_payload.sock.sendfile, 'blarg')
+        self.assertRaises(FileNotFoundError, client_payload.sock.sendfile, 'blarg')
         server_payload.sock.close()
+        time.sleep(.25)
         client_payload.sock.close()
         self.assertEqual(client_payload.comms_check, '+')
         self.assertTrue(server_payload.exception)
