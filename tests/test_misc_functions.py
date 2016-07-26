@@ -49,8 +49,8 @@ class test(unittest.TestCase):
     def test_byte_xor(self):
         from agutil import byte_xor
         for trial in range(25):
-            num1 = random.randint(0,sys.maxsize)
-            num2 = random.randint(0,sys.maxsize)
+            num1 = random.randint(0,sys.maxsize**2)
+            num2 = random.randint(0,sys.maxsize**2)
             xnum = num1^num2
             hexnumx = '%x'%xnum
             if len(hexnumx)%2:
@@ -64,12 +64,15 @@ class test(unittest.TestCase):
             bytenumx = bytes.fromhex(hexnumx)
             bytenum1 = bytes.fromhex(hexnum1)
             bytenum2 = bytes.fromhex(hexnum2)
+            if len(bytenumx) < max(len(bytenum1), len(bytenum2)):
+                bytenumx = (bytes(max(len(bytenum1), len(bytenum2))-len(bytenumx)))+bytenumx
             self.assertEqual(byte_xor(bytenum1, bytenum2), bytenumx)
+            self.assertEqual(byte_xor(bytenum2, bytenum1), bytenumx)
 
     def test_int_byte_conversion(self):
         from agutil import intToBytes, bytesToInt
         for trial in range(25):
-            num = random.randint(0, sys.maxsize)
+            num = random.randint(0, sys.maxsize**2)
             self.assertEqual(num, bytesToInt(intToBytes(num)))
         for trial in range(25):
             bytelen = random.randint(16,5000)
