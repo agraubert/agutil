@@ -15,7 +15,7 @@ class QueuedSocket(Socket):
         self.outgoing_channels = []
         self._shutdown = False
         self.datalock = threading.Condition()
-        self.iolock = threading.Condition()
+        self.new_messages = threading.Event()
         self.log = logmethod
         if isinstance(self.log, Logger):
             self.log = self.log.bindToSender("QueuedSocket")
@@ -62,12 +62,11 @@ class QueuedSocket(Socket):
             raise TypeError("msg argument must be str or bytes")
         self.datalock.acquire()
         if channel not in self.outgoing:
-            self.outgoing[channel] = [msg]
-        else:
-            self.outgoing[channel].append(msg)
+            self.outgoing[channel] = []
+        self.datalock.release()
+        self.outgoing[channel].append(msg)
         self.log("Message Queued on channel '%s'"%channel, "DEBUG")
         self.outgoing_channels.append(""+channel)
-        self.datalock.release()
 
     def recv(self, channel='__orphan__', decode=False, timeout=None, _logInit=True):
         if self._shutdown:
@@ -76,16 +75,16 @@ class QueuedSocket(Socket):
         self.datalock.acquire()
         if channel not in self.incoming:
             self.incoming[channel] = []
-        if not self._check_channel(channel):
-            if _logInit:
-                self.log("Waiting for input on channel '%s'" %channel, "DEBUG")
-            result = self.datalock.wait_for(lambda :self._check_channel(channel), timeout)
-            if not result:
-                self.datalock.release()
-                raise sockTimeout()
-            self.log("Input dequeued from channel '%s'"%channel, "DETAIL")
-        msg = self.incoming[channel].pop(0)
         self.datalock.release()
+        if _logInit:
+            self.log("Waiting for input on channel '%s'" %channel, "DEBUG")
+        while not self._check_channel(channel):
+            result = self.new_messages.wait(timeout)
+            if not result:
+                raise sockTimeout()
+            self.new_messages.clear()
+        self.log("Input dequeued from channel '%s'"%channel, "DETAIL")
+        msg = self.incoming[channel].pop(0)
         if decode:
             msg = msg.decode()
         return msg
@@ -96,14 +95,10 @@ class QueuedSocket(Socket):
             channel = channel.encode()
         msg = channel + msg
         # print("Sends:", msg)
-        self.iolock.acquire()
         super().send(msg)
-        self.iolock.release()
 
     def _recvs(self):
-        self.iolock.acquire()
         msg = super().recv()
-        self.iolock.release()
         # print("Recvs:", msg)
         if msg[:4] == b':ch#':
             channel = b""
@@ -119,15 +114,11 @@ class QueuedSocket(Socket):
 
     def _worker(self):
         self.log("QueuedSocket background thread initialized")
-        self.datalock.acquire()
         outqueue = len(self.outgoing_channels)
-        self.datalock.release()
         while outqueue or not self._shutdown:
             if outqueue:
-                self.datalock.acquire()
                 target = self.outgoing_channels.pop(0)
                 payload = self.outgoing[target].pop(0)
-                self.datalock.release()
                 self.log("Outgoing payload on channel '%s'" %target, "DEBUG")
                 try:
                     self._sends(payload, target)
@@ -146,10 +137,10 @@ class QueuedSocket(Socket):
                     self.datalock.acquire()
                     if channel not in self.incoming:
                         self.incoming[channel] = []
-                    self.incoming[channel].append(payload)
-                    self.datalock.notify_all()
-                    self.log("Threads waiting on '%s' have been notified" %channel, "DETAIL")
                     self.datalock.release()
+                    self.incoming[channel].append(payload)
+                    self.new_messages.set()
+                    self.log("Threads waiting on '%s' have been notified" %channel, "DETAIL")
                 except sockTimeout:
                     pass
                 except (OSError, BrokenPipeError) as e:
@@ -159,6 +150,4 @@ class QueuedSocket(Socket):
                     else:
                         self.log("QueuedSocket encountered an error: "+str(e), "ERROR")
                         raise e
-            self.datalock.acquire()
             outqueue = len(self.outgoing_channels)
-            self.datalock.release()
