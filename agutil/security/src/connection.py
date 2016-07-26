@@ -34,6 +34,7 @@ class SecureConnection:
         self.intakelock = threading.Condition()
         self.authlock = threading.Condition()
         self.transferlock = threading.Condition()
+        self.killlock = threading.Condition()
         self.completed_transfers = set()
         self.queuedmessages = [] #Queue of decrypted received text messages
         self.schedulingqueue = [] #Queue of task commands to be scheduled
@@ -217,9 +218,8 @@ class SecureConnection:
     def close(self, timeout=3, _remote=False):
         if self._shutdown or self._init_shutdown:
             return
-        self.log("Initiating "+("remote " if _remote else "")+"shutdown of SecureConnection")
-        self.killlock = threading.Condition()
         self._init_shutdown = True
+        self.log("Initiating "+("remote " if _remote else "")+"shutdown of SecureConnection")
         self._listener.join(.2)
         with self.killlock:
             self.killlock.wait_for(lambda :len(self.tasks)==0, timeout)

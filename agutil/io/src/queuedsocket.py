@@ -152,7 +152,7 @@ class QueuedSocket(Socket):
                     self.datalock.release()
                 except sockTimeout:
                     pass
-                except OSError as e:
+                except (OSError, BrokenPipeError) as e:
                     if self._shutdown:
                         self.log("QueuedSocket background thread halted")
                         return
