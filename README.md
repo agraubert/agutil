@@ -21,6 +21,7 @@ The __io__ package:
 * Socket (A low-level network IO class built on top of the standard socket class)
 * SocketServer (A low-level listen server to accept connections and return Socket classes)
 * QueuedSocket (A low-level network IO class built to manage input across multiple channels)
+* parseIdentifier and checkIdentifier (Utility methods for parsing and verifying protocol identifiers)
 
 The __security__ package:
 * SecureSocket (A mid-level network IO class built to manage encrypted network communications)
@@ -202,3 +203,16 @@ An _upstreamIdentifier_ parameter has been added to the constructor
 * Socket(address, port, upstreamIdentifier=_PROTOCOL_IDENTIFIER_) _(constructor)_
   Creates a connection to _address_:_port_.
   _upstreamIdentifier_ allows subclasses or wrapper classes to provide their own identifier tags for confirming protocols at each layer.
+
+##io.PARSEIDENTIFIER and io.CHECKIDENTIFIER
+The `agutil.io` module includes two methods for working with agutil's protocol identifier scheme: `agutil.io.parseIdentifier()` and `agutil.io.checkIdentifier()`.
+
+#####API
+* parseIdentifier(identifier)
+  Parses the string _identifier_ into a dictionary of tag:value pairs. _identifier_ must be a string made up of one or more valid concatenated agutil protocol tags in the following form: `<tagname>` or `<tagname:value>`.
+  Example for an `agutil.io.QueuedSocket` identifier: `<agutil><__protocol__:1.0.0><agutil.io.queuedsocket:1.0.0><agutil.io.socket:1.0.0>`.
+  Tags without a specified value (ie: `<agutil>`) are mapped to True in the returned dictonary
+
+* checkIdentifier(identifier, key, value=True)
+  Checks that _key_ exists in the dictionary _identifier_ and that _identifier[key]_ == _value_
+  Returns False if at least one of those conditions is not true

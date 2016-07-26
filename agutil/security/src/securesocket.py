@@ -1,4 +1,3 @@
-from .. import _PROTOCOL_IDENTIFIER_ as _protocol
 from ... import io, Logger, DummyLog, intToBytes, bytesToInt
 import hashlib
 import rsa
