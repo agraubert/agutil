@@ -30,7 +30,7 @@ class SecureConnection:
         self.tasks = {} #Queue of taskname : thread pairs for currently running tasks
         self.authqueue = [] #Queue of task commands pending authorization
         self.filemap = {} #mapping of auth_key : filename pairs for files ready to transfer
-        self.schedulinglock = threading.Condition()
+        self.pending_tasks = threading.Event()
         self.intakelock = threading.Condition()
         self.authlock = threading.Condition()
         self.transferlock = threading.Condition()
@@ -71,9 +71,8 @@ class SecureConnection:
     def _scheduler_worker(self):
         self.log("SecureConnection Task Scheduling thread active")
         while not self._shutdown:
-            self.schedulinglock.acquire()
-            size = self.schedulinglock.wait_for(lambda :len(self.schedulingqueue), .05)
-            if size:
+            if len(self.schedulingqueue):
+                self.pending_tasks.clear()
                 command = self.schedulingqueue.pop(0)
                 self.log("Scheduling new command: %d"%command['cmd'], "DETAIL")
                 if protocols._COMMANDS[command['cmd']]=='kill':
@@ -92,7 +91,8 @@ class SecureConnection:
                     self.tasks[name] = threading.Thread(target=worker, args=(self,command,name), name=name, daemon=True)
                     self.tasks[name].start()
                     self.log("Started new task '%s'"%name, "DEBUG")
-            self.schedulinglock.release()
+            else:
+                self.pending_tasks.wait(.05)
         self.log("SecureConnection Task Scheduling thread inactive")
 
     def _listener_worker(self):
@@ -102,10 +102,8 @@ class SecureConnection:
                 # self.sock.recvRAW('__cmd__', timeout=.1)
                 cmd = self.sock.recvAES('__cmd__', timeout=.1, _logInit=False)
                 self.log("Remote command received", "DETAIL")
-                self.schedulinglock.acquire()
                 self.schedulingqueue.append(protocols.unpackcmd(cmd))
-                self.schedulinglock.notify_all()
-                self.schedulinglock.release()
+                self.pending_tasks.set()
             except socketTimeout:
                 pass
         self.log("SecureConnection Remote Command thread inactive")
@@ -119,15 +117,13 @@ class SecureConnection:
         elif type(msg)!=bytes:
             self.log("Attempt to send message which was not str or bytes", "WARN")
             raise TypeError("msg argument must be str or bytes")
-        self.schedulinglock.acquire()
         self.log("Outgoing text message scheduled", "DEBUG")
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('to'),
             'msg': msg,
             'retries': retries
         })
-        self.schedulinglock.notify_all()
-        self.schedulinglock.release()
+        self.pending_tasks.set()
 
     def read(self, decode=True, timeout=-1):
         if self._init_shutdown:
@@ -154,14 +150,12 @@ class SecureConnection:
         if not os.path.isfile(filename):
             self.log("Unable to determine file specified by path '%s'"%filename, "ERROR")
             raise FileNotFoundError("The provided filename does not exist or is invalid")
-        self.schedulinglock.acquire()
         self.log("Outgoing file request scheduled", "DEBUG")
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('fro'),
             'filepath': os.path.abspath(filename)
         })
-        self.schedulinglock.notify_all()
-        self.schedulinglock.release()
+        self.pending_tasks.set()
 
     def savefile(self, destination, timeout=-1, force=False):
         if self._init_shutdown:
@@ -189,25 +183,21 @@ class SecureConnection:
                 else:
                     accepted = True
             if choice[0] != 'y':
-                self.schedulinglock.acquire()
                 self.log("User rejected transfer of file '%s'"%filename)
                 self.schedulingqueue.append({
                     'cmd': protocols.lookupcmd('fti'),
                     'auth': auth,
                     'reject': True
                 })
-                self.schedulinglock.notify_all()
-                self.schedulinglock.release()
+                self.pending_tasks.set()
                 return
-        self.schedulinglock.acquire()
         self.log("Accepted transfer of file '%s'"%filename)
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('fti'),
             'auth': auth,
             'filepath': destination
         })
-        self.schedulinglock.notify_all()
-        self.schedulinglock.release()
+        self.pending_tasks.set()
         self.transferlock.acquire()
         self.log("Waiting for transfer to complete...", "DEBUG")
         self.transferlock.wait_for(lambda :destination in self.completed_transfers)
