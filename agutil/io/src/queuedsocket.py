@@ -134,7 +134,7 @@ class QueuedSocket(Socket):
                 self.log("Outgoing payload on channel '%s'" %target, "DEBUG")
                 try:
                     self._sends(payload, target)
-                except (OSError, BrokenPipeError, IOError) as e:
+                except (OSError, BrokenPipeError) as e:
                     if self._shutdown:
                         self.log("QueuedSocket background thread halted (attempted to send after shutdown)")
                         return
