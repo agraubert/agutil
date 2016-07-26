@@ -1,5 +1,5 @@
 from .connection import SecureConnection
-from ...io import SocketServer
+from ...io import SocketServer, _PROTOCOL_IDENTIFIER_
 from ... import Logger, DummyLog
 
 class SecureServer:
@@ -13,7 +13,7 @@ class SecureServer:
 
     def accept(self):
         socket = self.server.accept()
-        return SecureConnection(socket, self.port, self.password, self.rsabits, self.childtimeout, self.childlogger)
+        return SecureConnection(socket, self.port, self.password, self.rsabits, self.childtimeout, _PROTOCOL_IDENTIFIER_, self.childlogger)
 
     def close(self):
         self.server.close()
