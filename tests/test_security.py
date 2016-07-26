@@ -22,6 +22,11 @@ def make_random_file(filename):
 
 def server_comms(secureClass, port, payload):
     ss = secureClass(port, password='password', rsabits=1024)
+    try:
+        sock = ss.accept()
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
     sock = ss.accept()
     payload.intake=[]
     payload.output=[]
@@ -34,6 +39,11 @@ def server_comms(secureClass, port, payload):
     payload.sock = sock
 
 def client_comms(secureclass, port, payload):
+    try:
+        sock = secureclass('localhost', port, password='password', rsabits=1024, _useIdentifier="<potato>")
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
     sock = secureclass('localhost', port, password='password', rsabits=1024)
     payload.intake=[]
     payload.output=[]
@@ -46,6 +56,11 @@ def client_comms(secureclass, port, payload):
 
 def server_comms_files(secureClass, port, payload):
     ss = secureClass(port, password='password', rsabits=1024)
+    try:
+        sock = ss.accept()
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
     sock = ss.accept()
     payload.intake=[]
     payload.output=[]
@@ -64,6 +79,11 @@ def server_comms_files(secureClass, port, payload):
     payload.sock = sock
 
 def client_comms_files(secureclass, port, payload):
+    try:
+        sock = secureclass('localhost', port, password='password', rsabits=1024, _useIdentifier="<potato>")
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
     sock = secureclass('localhost', port, password='password', rsabits=1024)
     payload.intake=[]
     payload.output=[]
@@ -140,6 +160,8 @@ class test(unittest.TestCase):
         server_payload.sock.close()
         client_payload.sock.close()
         self.assertEqual(client_payload.comms_check, '+')
+        self.assertTrue(server_payload.exception)
+        self.assertTrue(client_payload.exception)
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)
@@ -172,6 +194,8 @@ class test(unittest.TestCase):
         server_payload.sock.close()
         client_payload.sock.close()
         self.assertEqual(client_payload.comms_check, '+')
+        self.assertTrue(server_payload.exception)
+        self.assertTrue(client_payload.exception)
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         for i in range(len(server_payload.intake)):

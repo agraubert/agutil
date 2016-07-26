@@ -1,4 +1,3 @@
-from .. import _PROTOCOL_IDENTIFIER_ as _protocol
 from ... import io, Logger, DummyLog, intToBytes, bytesToInt
 import hashlib
 import rsa
@@ -7,6 +6,8 @@ import Crypto.Cipher.AES as AES
 import threading
 from io import BytesIO, BufferedReader, BufferedWriter
 from . import protocols, files
+
+_SECURESOCKET_IDENTIFIER_ = '<agutil.security.securesocket:1.0.0>'
 
 RSA_CPU = None
 try:
@@ -27,7 +28,7 @@ class _dummyCipher:
         return msg
 
 class SecureSocket(io.QueuedSocket):
-    def __init__(self, socket, password=None, rsabits=4096, timeout=3, logmethod=DummyLog):
+    def __init__(self, socket, password=None, rsabits=4096, timeout=3, logmethod=DummyLog, _skipIdentifier=False, _useIdentifier=_SECURESOCKET_IDENTIFIER_):
         if isinstance(logmethod, Logger):
             self.sLog = logmethod.bindToSender("SecureSocket")
         else:
@@ -38,9 +39,9 @@ class SecureSocket(io.QueuedSocket):
         self.sLog("The underlying QueuedSocket has been initialized.  Exchanging encryption data now")
         self.rsabits = rsabits
         self.timeout = timeout
-        protocolstring = _protocol
+        protocolstring=_useIdentifier
         if password!=None:
-            protocolstring = _protocol+" <password-%s>"%(
+            protocolstring+="<agutil.security.securesocket.password:%s>"%(
                 hashlib.sha512(
                     hashlib.sha512(password.encode()+b"lol").digest()
                 ).hexdigest()
@@ -49,19 +50,16 @@ class SecureSocket(io.QueuedSocket):
         else:
             self.baseCipher = _dummyCipher()
         self.sLog("Sending protocol identifier", "DETAIL")
-        self._sendq(protocolstring, '__control__')
+        self._sendq(protocolstring, '__protocol__')
         self.sLog("Receiving remote identifier", "DETAIL")
-        remoteprotocol = self._recvq('__control__', decode=True, timeout=timeout)
+        remoteprotocol = self._recvq('__protocol__', decode=True, timeout=timeout)
         if remoteprotocol != protocolstring:
-            self.sLog("The remote socket provided an invalid protocol identifier. (Theirs: %s) (Ours: %s)" % (
+            self.sLog("The remote socket provided an invalid SecureSocket protocol identifier. (Theirs: %s) (Ours: %s)" % (
                 remoteprotocol,
                 protocolstring
             ), "WARN")
             self.close()
-            raise ValueError("The remote socket provided an invalid protocol identifier. (Theirs: %s) (Ours: %s)" % (
-                remoteprotocol,
-                protocolstring
-            ))
+            raise ValueError("The remote socket provided an invalid protocol identifier at the SecureSocket level")
         self.sLog("Sending encryption confirmation", "DETAIL")
         self._sendq(self._baseEncrypt('OK'), '__control__')
         self.sLog("Receiving remote encryption confirmation", "DETAIL")

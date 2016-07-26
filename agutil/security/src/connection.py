@@ -8,8 +8,10 @@ import os
 
 random.seed()
 
+_SECURECONNECTION_IDENTIFIER_ = '<agutil.security.secureconnection:1.0.0>'
+
 class SecureConnection:
-    def __init__(self, address, port, password=None, rsabits=4096, timeout=3, logmethod=DummyLog):
+    def __init__(self, address, port, password=None, rsabits=4096, timeout=3, logmethod=DummyLog, _skipIdentifier=False, _useIdentifier=_SECURECONNECTION_IDENTIFIER_):
         if isinstance(logmethod, Logger):
             self.log = logmethod.bindToSender("SecureConnection")
         else:
@@ -47,6 +49,17 @@ class SecureConnection:
         #Constantly receives from __cmd__ and adds new tasks to the scheduling queue
         self._listener = threading.Thread(target=SecureConnection._listener_worker, args=(self,), name="SecureConnection Remote Task Listener", daemon=True)
         self._listener.start()
+
+        if not _skipIdentifier:
+            self.sock.sendRAW(_useIdentifier, '__protocol__')
+            remoteID = self.sock.recvRAW('__protocol__', True)
+            if remoteID != _useIdentifier:
+                self.log("The remote socket provided an invalid SecureConnection protocol identifier. (Theirs: %s) (Ours: %s)" % (
+                    remoteID,
+                    _useIdentifier
+                ), "WARN")
+                self.close()
+                raise ValueError("The remote socket provided an invalid identifier at the SecureConnection level")
 
     def _reserve_task(self, prefix):
         taskname = prefix+"_"+"".join(str(random.randint(0,9)) for _ in range(3))
