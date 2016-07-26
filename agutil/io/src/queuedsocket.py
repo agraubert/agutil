@@ -56,6 +56,10 @@ class QueuedSocket(Socket):
         if '|' in channel:
             self.log("Attempt to send message over illegal channel name", "WARN")
             raise ValueError("Channel names cannot contain '|' characters (ascii 124)")
+        if type(msg)==str:
+            msg=msg.encode()
+        elif type(msg)!=bytes:
+            raise TypeError("msg argument must be str or bytes")
         self.datalock.acquire()
         if channel not in self.outgoing:
             self.outgoing[channel] = [msg]

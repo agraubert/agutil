@@ -116,6 +116,7 @@ class test(unittest.TestCase):
         client_thread.join(10+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
         self.assertRaises(ValueError, client_payload.sock.send, 'fish', 'ta|cos')
+        self.assertRaises(TypeError, client_payload.sock.send, 13, 'test')
         server_payload.sock.close()
         client_payload.sock.close()
         self.assertTrue(server_payload.exception)
@@ -124,3 +125,5 @@ class test(unittest.TestCase):
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)
         self.assertListEqual(server_payload.output, client_payload.intake)
+        self.assertRaises(IOError, client_payload.sock.send, "hi")
+        self.assertRaises(IOError, client_payload.sock.recv)

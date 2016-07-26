@@ -46,7 +46,7 @@ def client_comms(_sockClass, port, payload):
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
         payload.intake.append(sock.recv(True))
-    sock.close()
+    payload.sock = sock
 
 class test(unittest.TestCase):
     @classmethod
@@ -100,6 +100,8 @@ class test(unittest.TestCase):
         ss.close()
         self.assertTrue(server_payload.exception)
         self.assertTrue(client_payload.exception)
+        self.assertRaises(TypeError, client_payload.sock.send, 13)
+        client_payload.sock.close()
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)

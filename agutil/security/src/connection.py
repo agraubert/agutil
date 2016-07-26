@@ -148,6 +148,9 @@ class SecureConnection:
         if self._init_shutdown:
             self.log("Attempt to use the SecureConnection after shutdown", "WARN")
             raise IOError("This SecureConnection has already initiated shutdown")
+        if not os.path.isfile(filename):
+            self.log("Unable to determine file specified by path '%s'"%filename, "ERROR")
+            raise IOError("The provided filename does not exist or is invalid")
         self.schedulinglock.acquire()
         self.log("Outgoing file request scheduled", "DEBUG")
         self.schedulingqueue.append({

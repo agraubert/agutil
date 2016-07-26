@@ -157,6 +157,7 @@ class test(unittest.TestCase):
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(60+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
+        self.assertRaises(TypeError, client_payload.sock.send, 13)
         server_payload.sock.close()
         client_payload.sock.close()
         self.assertEqual(client_payload.comms_check, '+')
@@ -166,6 +167,8 @@ class test(unittest.TestCase):
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)
         self.assertListEqual(server_payload.output, client_payload.intake)
+        self.assertRaises(IOError, client_payload.sock.send, 'fish')
+        self.assertRaises(IOError, client_payload.sock.read)
 
     @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on windows")
     def test_files_io(self):
@@ -191,6 +194,7 @@ class test(unittest.TestCase):
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(60+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
+        self.assertRaises(IOError, client_payload.sock.sendfile, 'blarg')
         server_payload.sock.close()
         client_payload.sock.close()
         self.assertEqual(client_payload.comms_check, '+')
@@ -210,5 +214,5 @@ class test(unittest.TestCase):
                 self.assertEqual(hash(client_payload.intake[i]), hash(server_payload.output[i]))
             else:
                 self.assertEqual(client_payload.intake[i], server_payload.output[i])
-        # self.assertListEqual(server_payload.intake, client_payload.output)
-        # self.assertListEqual(server_payload.output, client_payload.intake)
+        self.assertRaises(IOError, client_payload.sock.sendfile, 'fish')
+        self.assertRaises(IOError, client_payload.sock.savefile, 'fish')
