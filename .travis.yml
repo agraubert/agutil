@@ -16,8 +16,11 @@ python:
 install:
   - pip install rsa
   - pip install pycrypto
+  - pip install coveralls
 script:
-- python3 -m unittest discover -v
+  - coverage run --source=agutil --omit=*__init__.py -m unittest discover -v
+after_success:
+  - coveralls
 before_deploy:
   - wget http://github.com/jgm/pandoc/releases/download/1.17.1/pandoc-1.17.1-2-amd64.deb
   - sudo dpkg -i pandoc-1.17.1-2-amd64.deb

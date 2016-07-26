@@ -16,6 +16,11 @@ def make_random_string():
 def server_comms(ss, payload):
     global startup_lock
     startup_lock.release()
+    try:
+        sock = ss.accept()
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
     sock = ss.accept()
     payload.intake=[]
     payload.output=[]
@@ -29,6 +34,11 @@ def client_comms(_sockClass, port, payload):
     global startup_lock
     startup_lock.acquire()
     startup_lock.release()
+    try:
+        sock = _sockClass('localhost', port, _useIdentifier='<potato>')
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
     sock = _sockClass('localhost', port)
     payload.intake=[]
     payload.output=[]
@@ -36,7 +46,7 @@ def client_comms(_sockClass, port, payload):
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
         payload.intake.append(sock.recv(True))
-    sock.close()
+    payload.sock = sock
 
 class test(unittest.TestCase):
     @classmethod
@@ -83,11 +93,17 @@ class test(unittest.TestCase):
         server_thread.start()
         client_thread.start()
         extra = 30 if TRAVIS else 0
+        if sys.version_info==(3,3):
+            extra+=5
         server_thread.join(10+extra)
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(10+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
         ss.close()
+        self.assertTrue(server_payload.exception)
+        self.assertTrue(client_payload.exception)
+        self.assertRaises(TypeError, client_payload.sock.send, 13)
+        client_payload.sock.close()
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)

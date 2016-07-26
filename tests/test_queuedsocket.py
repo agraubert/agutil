@@ -16,6 +16,11 @@ def make_random_string():
 def server_comms(queueclass, ss, payload, CHANNELS):
     global startup_lock
     startup_lock.release()
+    try:
+        sock = queueclass(ss.accept())
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
     sock = queueclass(ss.accept())
     ss.close()
     payload.intake=[]
@@ -37,6 +42,11 @@ def client_comms(queueclass, _sockClass, port, payload, CHANNELS):
     global startup_lock
     startup_lock.acquire()
     startup_lock.release()
+    try:
+        sock = queueclass(_sockClass('localhost', port), _useIdentifier="<potato>")
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
     sock = queueclass(_sockClass('localhost', port))
     payload.intake=[]
     payload.output=[]
@@ -101,14 +111,21 @@ class test(unittest.TestCase):
         server_thread.start()
         client_thread.start()
         extra = 30 if TRAVIS else 0
+        if sys.version_info==(3,3):
+            extra+=5
         server_thread.join(10+extra)
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(10+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
         self.assertRaises(ValueError, client_payload.sock.send, 'fish', 'ta|cos')
+        self.assertRaises(TypeError, client_payload.sock.send, 13, 'test')
         server_payload.sock.close()
         client_payload.sock.close()
+        self.assertTrue(server_payload.exception)
+        self.assertTrue(client_payload.exception)
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)
         self.assertListEqual(server_payload.output, client_payload.intake)
+        self.assertRaises(IOError, client_payload.sock.send, "hi")
+        self.assertRaises(IOError, client_payload.sock.recv)

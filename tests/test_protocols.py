@@ -28,12 +28,6 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    def test_int_byte_conversion(self):
-        from agutil.security.src.protocols import intToBytes, bytesToInt
-        for trial in range(25):
-            num = random.randint(0, sys.maxsize)
-            self.assertEqual(num, bytesToInt(intToBytes(num)))
-
     def test_padding_and_unpadding(self):
         from agutil.security.src.protocols import padstring, unpadstring
         for trial in range(25):

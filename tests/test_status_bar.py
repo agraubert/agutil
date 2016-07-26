@@ -26,7 +26,12 @@ class test(unittest.TestCase):
 
     def test_rolling(self):
         from agutil import status_bar
-        q = status_bar(10000, True, prepend="PRE ", append=" POST", debugging=True)
+        # q = status_bar(10000, True, prepend="PRE ", append=" POST", debugging=True)
+        q = status_bar(10000, True, debugging=True)
+        self.assertEqual(q.display, '['+(' '*q.cols)+'] 0.000%')
+        q.prepend("PRE ")
+        self.assertEqual(q.display, 'PRE ['+(' '*q.cols)+'] 0.000%')
+        q.append(" POST")
         self.assertEqual(q.display, 'PRE ['+(' '*q.cols)+'] 0.000% POST')
         threshold = 10000/q.cols
         self.assertEqual(q.threshold, threshold)
@@ -51,3 +56,5 @@ class test(unittest.TestCase):
             self.assertEqual(q.display[q.cols+5], ']')
             self.assertEqual(q.display[-5:], ' POST')
             self.assertLessEqual(abs(float(q.display.split()[-2].strip('% '))- (100*i/10000)), q.update_threshold)
+        q.clear(True)
+        self.assertEqual(q.display, ' '*len(q.display))

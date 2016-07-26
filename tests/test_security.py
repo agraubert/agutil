@@ -22,6 +22,11 @@ def make_random_file(filename):
 
 def server_comms(secureClass, port, payload):
     ss = secureClass(port, password='password', rsabits=1024)
+    try:
+        sock = ss.accept()
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
     sock = ss.accept()
     payload.intake=[]
     payload.output=[]
@@ -34,7 +39,12 @@ def server_comms(secureClass, port, payload):
     payload.sock = sock
 
 def client_comms(secureclass, port, payload):
-    sock = secureclass('localhost', port, password='password', rsabits=1024, verbose=False)
+    try:
+        sock = secureclass('localhost', port, password='password', rsabits=1024, _useIdentifier="<potato>")
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
+    sock = secureclass('localhost', port, password='password', rsabits=1024)
     payload.intake=[]
     payload.output=[]
     payload.comms_check = sock.sock.recvRAW(decode=True)
@@ -46,6 +56,11 @@ def client_comms(secureclass, port, payload):
 
 def server_comms_files(secureClass, port, payload):
     ss = secureClass(port, password='password', rsabits=1024)
+    try:
+        sock = ss.accept()
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
     sock = ss.accept()
     payload.intake=[]
     payload.output=[]
@@ -64,7 +79,12 @@ def server_comms_files(secureClass, port, payload):
     payload.sock = sock
 
 def client_comms_files(secureclass, port, payload):
-    sock = secureclass('localhost', port, password='password', rsabits=1024, verbose=False)
+    try:
+        sock = secureclass('localhost', port, password='password', rsabits=1024, _useIdentifier="<potato>")
+        payload.exception = False
+    except ValueError:
+        payload.exception = True
+    sock = secureclass('localhost', port, password='password', rsabits=1024)
     payload.intake=[]
     payload.output=[]
     payload.comms_check = sock.sock.recvRAW(decode=True)
@@ -137,13 +157,18 @@ class test(unittest.TestCase):
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(60+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
+        self.assertRaises(TypeError, client_payload.sock.send, 13)
         server_payload.sock.close()
         client_payload.sock.close()
         self.assertEqual(client_payload.comms_check, '+')
+        self.assertTrue(server_payload.exception)
+        self.assertTrue(client_payload.exception)
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)
         self.assertListEqual(server_payload.output, client_payload.intake)
+        self.assertRaises(IOError, client_payload.sock.send, 'fish')
+        self.assertRaises(IOError, client_payload.sock.read)
 
     @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on windows")
     def test_files_io(self):
@@ -169,9 +194,12 @@ class test(unittest.TestCase):
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(60+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
+        self.assertRaises(IOError, client_payload.sock.sendfile, 'blarg')
         server_payload.sock.close()
         client_payload.sock.close()
         self.assertEqual(client_payload.comms_check, '+')
+        self.assertTrue(server_payload.exception)
+        self.assertTrue(client_payload.exception)
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         for i in range(len(server_payload.intake)):
@@ -186,5 +214,5 @@ class test(unittest.TestCase):
                 self.assertEqual(hash(client_payload.intake[i]), hash(server_payload.output[i]))
             else:
                 self.assertEqual(client_payload.intake[i], server_payload.output[i])
-        # self.assertListEqual(server_payload.intake, client_payload.output)
-        # self.assertListEqual(server_payload.output, client_payload.intake)
+        self.assertRaises(IOError, client_payload.sock.sendfile, 'fish')
+        self.assertRaises(IOError, client_payload.sock.savefile, 'fish')

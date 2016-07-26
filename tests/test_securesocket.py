@@ -16,7 +16,17 @@ def make_random_string():
 def server_comms(secureclass, queueclass, ss, payload):
     global startup_lock
     startup_lock.release()
-    sock = secureclass(ss.accept(), rsabits=1024, verbose=False)
+    try:
+        sock = secureclass(ss.accept(), rsabits=1024)
+        payload.exception1 = False
+    except ValueError:
+        payload.exception1 = True
+    try:
+        sock = secureclass(ss.accept(), rsabits=1024)
+        payload.exception2 = False
+    except ValueError:
+        payload.exception2 = True
+    sock = secureclass(ss.accept(), rsabits=1024)
     ss.close()
     payload.intake=[]
     payload.output=[]
@@ -35,7 +45,17 @@ def client_comms(secureclass, queueclass, _sockClass, port, payload):
     global startup_lock
     startup_lock.acquire()
     startup_lock.release()
-    sock = secureclass(_sockClass('localhost', port), rsabits=1024, verbose=False)
+    try:
+        sock = secureclass(_sockClass('localhost', port), rsabits=1024, _useIdentifier="<potato>")
+        payload.exception1 = False
+    except ValueError:
+        payload.exception1 = True
+    try:
+        sock = secureclass(_sockClass('localhost', port), rsabits=1024, password="potato")
+        payload.exception2 = False
+    except ValueError:
+        payload.exception2 = True
+    sock = secureclass(_sockClass('localhost', port), rsabits=1024)
     payload.intake=[]
     payload.output=[]
     for trial in range(5):
@@ -100,9 +120,19 @@ class test(unittest.TestCase):
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(60+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
+        self.assertRaises(TypeError, client_payload.sock.sendRAW, 13, 'test')
+        self.assertRaises(TypeError, client_payload.sock.send, 13, 'test')
+        self.assertRaises(TypeError, client_payload.sock.sendAES, 13)
+        self.assertRaises(TypeError, client_payload.sock.sendAES, 'blorg', 'test', 13)
+        self.assertRaises(TypeError, client_payload.sock.sendAES, 'blorg', 'test', True, 13)
         server_payload.sock.close()
         client_payload.sock.close()
+        self.assertTrue(server_payload.exception1)
+        self.assertTrue(server_payload.exception2)
+        self.assertTrue(client_payload.exception1)
+        self.assertTrue(client_payload.exception2)
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)
         self.assertListEqual(server_payload.output, client_payload.intake)
+        self.assertRaises(IOError, client_payload.sock.send, "fish")
