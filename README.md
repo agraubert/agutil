@@ -4,13 +4,13 @@
 
 A collection of python utilities
 
-__Version:__ 0.6.0b
+__Version:__ 0.6.1b
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
 * status_bar (A simple progress bar indicator)
 * Logger (A class for fast, simple, logging)
-* Several standalone utility methods (See the [agutil module page](https://github.com/agraubert/agutil/wiki/agutil-&#40;main-module&#41;) on the wiki)
+* Several standalone utility methods (See the [agutil module page](https://github.com/agraubert/agutil/wiki/agutil-%28main-module%29) on the wiki)
 
 The __bio__ package:
 
