@@ -58,7 +58,7 @@ class SecureConnection:
                     remoteID,
                     _useIdentifier
                 ), "WARN")
-                self.close()
+                self.close(_remote=True)
                 raise ValueError("The remote socket provided an invalid identifier at the SecureConnection level")
 
     def _reserve_task(self, prefix):
@@ -215,15 +215,14 @@ class SecureConnection:
         self.close(timeout)
 
     def close(self, timeout=3, _remote=False):
-        if self._shutdown:
+        if self._shutdown or self._init_shutdown:
             return
         self.log("Initiating shutdown of SecureConnection")
         self.killlock = threading.Condition()
         self._init_shutdown = True
         self._listener.join(.2)
-        self.killlock.acquire()
-        self.killlock.wait_for(lambda :len(self.tasks)==0, timeout)
-        self.killlock.release()
+        with self.killlock:
+            self.killlock.wait_for(lambda :len(self.tasks)==0, timeout)
         self._shutdown = True
         self._scheduler.join(.1)
         if not _remote:
