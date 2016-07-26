@@ -110,37 +110,42 @@ The _transcript_ parameter has been removed from the constructor.  The status_ba
   _debugging_ triggers the status_bar to never print to stdout.  If set true, no output will be produced, but exact string of what *would* be displayed is maintained at all times in the _display_ attribute
 
 ##io.QUEUEDSOCKET
-The following change has been made to the `agutil.io.QueuedSocket` API:
+The following changes have been made to the `agutil.io.QueuedSocket` API:
 A _logmethod_ parameter has been added to the constructor
+An _upstreamIdentifier_ parameter has been added to the constructor
 
 #####API
-* QueuedSocket(socket, logmethod=DummyLog) _(constructor)_
-  Takes an `agutil.io.Socket` class to extend.  _logmethod_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _logmethod_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
+* QueuedSocket(socket, upstreamIdentifier=_PROTOCOL_IDENTIFIER_, logmethod=DummyLog) _(constructor)_
+  Takes an `agutil.io.Socket` class to extend.  _upstreamIdentifier_ allows subclasses or wrapper classes to provide their own identifier tags for confirming protocols at each layer.  _logmethod_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _logmethod_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
 
 ##security.SECURECONNECTION
-The following change has been made to the `agutil.security.SecureConnection` API:
+The following changes have been made to the `agutil.security.SecureConnection` API:
 A _logmethod_ parameter has been added to the constructor, and the _verbose_ parameter has been removed
+An _upstreamIdentifier_ parameter has been added to the constructor
 
 #####API
-* SecureConnection(address, port, password=None, rsabits=4096, timeout=3, logmethod=DummyLog) _(constructor)_
+* SecureConnection(address, port, password=None, rsabits=4096, timeout=3, upstreamIdentifier=_PROTOCOL_IDENTIFIER_, logmethod=DummyLog) _(constructor)_
   Opens a new secure connection to the address specified by opening a new `SecureSocket` to use internally.
   If _address_ is set to '' or 'listen', the `SecureConnection` will listen for an incoming connection on _port_.
   Otherwise, it attempts to connect to another `SecureConnection` on the specified _port_ at _address_.
   _password_ and _rsabits_ configure the internal `SecureSocket`, and are used for its constructor.
   _timeout_ sets the default timeout on the internal `SecureSocket`.
+  _upstreamIdentifier_ allows subclasses or wrapper classes to provide their own identifier tags for confirming protocols at each layer.
   _logmethod_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _logmethod_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
 
 
 ##security.SECURESOCKET
-The following change has been made to the `agutil.security.SecureSocket` API:
+The following changes have been made to the `agutil.security.SecureSocket` API:
 A _logmethod_ parameter has been added to the constructor, and the _verbose_ parameter has been removed
+An _upstreamIdentifier_ parameter has been added to the constructor
 
 #####API
-* SecureSocket(socket, password=None, rsabits=4096, timeout=3, logmethod=DummyLog) _(constructor)_
+* SecureSocket(socket, password=None, rsabits=4096, timeout=3, upstreamIdentifier=_PROTOCOL_IDENTIFIER_, logmethod=DummyLog) _(constructor)_
   Initializes an `agutil.security.SecureSocket` object around an `agutil.io.Socket` instance.
   Generates a new RSA keypair of _rsabits_ size, and exchanges public keys with the remote socket (which must also be a `SecureSocket`).
   If _password_ is set, and not None, it is used to generate an AES ECB cipher which is used to encrypt all basic communications between the sockets (the remote socket must use the same password).
   _timeout_ sets the default timeout for receiving incoming messages.
+  _upstreamIdentifier_ allows subclasses or wrapper classes to provide their own identifier tags for confirming protocols at each layer.
   _logmethod_ specifies a logging object to use.  It defaults to `agutil.DummyLog` (which does not log anything).  _logmethod_ may either be an `agutil.Logger` class, or a bound method returned by `agutil.Logger.bindToSender()`.
 
 
@@ -188,3 +193,12 @@ The `agutil.security` module provides a command line interface for encrypting an
 
 * agutil.split_iterable(seq, length)
   Yields iterables which take from _seq_ in chunks up to _length_.  Each iterable returned will yield up to _length_ items.  If chained together, the iterables returned would iterate the same sequence as _seq_.
+
+##io.SOCKET
+The following changes have been made to the `agutil.io.Socket` API:
+An _upstreamIdentifier_ parameter has been added to the constructor
+
+#####API
+* Socket(address, port, upstreamIdentifier=_PROTOCOL_IDENTIFIER_) _(constructor)_
+  Creates a connection to _address_:_port_.
+  _upstreamIdentifier_ allows subclasses or wrapper classes to provide their own identifier tags for confirming protocols at each layer.

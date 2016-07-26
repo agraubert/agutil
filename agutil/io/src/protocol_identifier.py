@@ -12,5 +12,4 @@ def parseIdentifier(identifier):
     return (output, checkIdentifier(output, 'agutil') and checkIdentifier(output, '__protocol__', _PROTOCOL_VERSION_))
 
 def checkIdentifier(identifier, key, value=True):
-    print("Identifier:", key, '--' if key not in identifier else identifier[key], value)
     return key in identifier and identifier[key]==value

@@ -8,7 +8,7 @@ _QUEUEDSOCKET_VERSION_ = '1.0.0'
 _QUEUEDSOCKET_IDENTIFIER_ = '<agutil.io.queuedsocket:%s>'%_QUEUEDSOCKET_VERSION_
 
 class QueuedSocket(Socket):
-    def __init__(self, socket,  upstreamIdentifier=_PROTOCOL_IDENTIFIER_, logmethod=DummyLog):
+    def __init__(self, socket, upstreamIdentifier=_PROTOCOL_IDENTIFIER_, logmethod=DummyLog):
         if not isinstance(socket, Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
         _upstreamID = upstreamIdentifier+_QUEUEDSOCKET_IDENTIFIER_
