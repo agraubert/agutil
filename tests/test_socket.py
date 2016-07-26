@@ -93,6 +93,8 @@ class test(unittest.TestCase):
         server_thread.start()
         client_thread.start()
         extra = 30 if TRAVIS else 0
+        if sys.version_info==(3,3):
+            extra+=5
         server_thread.join(10+extra)
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(10+extra)
