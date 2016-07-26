@@ -3,7 +3,7 @@ from .. import _PROTOCOL_IDENTIFIER_
 
 _SOCKET_IDENTIFIER_ = '<agutil.io.socket:1.0.0>'
 class Socket:
-    def __init__(self, address, port, _socket=None, _skipIdentifier=False):
+    def __init__(self, address, port, _socket=None, _skipIdentifier=False, _useIdentifier=_PROTOCOL_IDENTIFIER_+_SOCKET_IDENTIFIER_):
         self.addr = address
         self.port = port
         if _socket!=None:
@@ -13,9 +13,9 @@ class Socket:
             self.sock.connect((address, port))
         self.rollover = b""
         if not _skipIdentifier:
-            self.send(_PROTOCOL_IDENTIFIER_+_SOCKET_IDENTIFIER_)
+            self.send(_useIdentifier)
             remoteID = self.recv(True)
-            if remoteID != _PROTOCOL_IDENTIFIER_+_SOCKET_IDENTIFIER_:
+            if remoteID != _useIdentifier:
                 self.close()
                 raise ValueError("The remote socket provided an invalid identifier at the Socket level")
 

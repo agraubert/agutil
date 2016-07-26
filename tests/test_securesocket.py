@@ -16,6 +16,16 @@ def make_random_string():
 def server_comms(secureclass, queueclass, ss, payload):
     global startup_lock
     startup_lock.release()
+    try:
+        sock = secureclass(ss.accept(), rsabits=1024)
+        payload.exception1 = False
+    except ValueError:
+        payload.exception1 = True
+    try:
+        sock = secureclass(ss.accept(), rsabits=1024)
+        payload.exception2 = False
+    except ValueError:
+        payload.exception2 = True
     sock = secureclass(ss.accept(), rsabits=1024)
     ss.close()
     payload.intake=[]
@@ -35,6 +45,16 @@ def client_comms(secureclass, queueclass, _sockClass, port, payload):
     global startup_lock
     startup_lock.acquire()
     startup_lock.release()
+    try:
+        sock = secureclass(_sockClass('localhost', port), rsabits=1024, _useIdentifier="<potato>")
+        payload.exception1 = False
+    except ValueError:
+        payload.exception1 = True
+    try:
+        sock = secureclass(_sockClass('localhost', port), rsabits=1024, password="potato")
+        payload.exception2 = False
+    except ValueError:
+        payload.exception2 = True
     sock = secureclass(_sockClass('localhost', port), rsabits=1024)
     payload.intake=[]
     payload.output=[]
@@ -102,6 +122,10 @@ class test(unittest.TestCase):
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
         server_payload.sock.close()
         client_payload.sock.close()
+        self.assertTrue(server_payload.exception1)
+        self.assertTrue(server_payload.exception2)
+        self.assertTrue(client_payload.exception1)
+        self.assertTrue(client_payload.exception2)
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)

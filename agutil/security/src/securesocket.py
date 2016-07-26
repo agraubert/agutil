@@ -28,7 +28,7 @@ class _dummyCipher:
         return msg
 
 class SecureSocket(io.QueuedSocket):
-    def __init__(self, socket, password=None, rsabits=4096, timeout=3, logmethod=DummyLog, _skipIdentifier=False):
+    def __init__(self, socket, password=None, rsabits=4096, timeout=3, logmethod=DummyLog, _skipIdentifier=False, _useIdentifier=_SECURESOCKET_IDENTIFIER_):
         if isinstance(logmethod, Logger):
             self.sLog = logmethod.bindToSender("SecureSocket")
         else:
@@ -39,7 +39,7 @@ class SecureSocket(io.QueuedSocket):
         self.sLog("The underlying QueuedSocket has been initialized.  Exchanging encryption data now")
         self.rsabits = rsabits
         self.timeout = timeout
-        protocolstring=_SECURESOCKET_IDENTIFIER_
+        protocolstring=_useIdentifier
         if password!=None:
             protocolstring+="<agutil.security.securesocket.password:%s>"%(
                 hashlib.sha512(

@@ -6,7 +6,7 @@ import threading
 _QUEUEDSOCKET_IDENTIFIER_ = '<agutil.io.queuedsocket:1.0.0>'
 
 class QueuedSocket(Socket):
-    def __init__(self, socket, logmethod=DummyLog, _skipIdentifier=False):
+    def __init__(self, socket, logmethod=DummyLog, _skipIdentifier=False, _useIdentifier=_QUEUEDSOCKET_IDENTIFIER_):
         if not isinstance(socket, Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
         super().__init__(socket.addr, socket.port, socket.sock, True)
@@ -28,12 +28,12 @@ class QueuedSocket(Socket):
         )
         self._thread.start()
         if not _skipIdentifier:
-            QueuedSocket.send(self, _QUEUEDSOCKET_IDENTIFIER_, '__protocol__')
+            QueuedSocket.send(self, _useIdentifier, '__protocol__')
             remoteID = QueuedSocket.recv(self, '__protocol__', True)
-            if remoteID != _QUEUEDSOCKET_IDENTIFIER_:
+            if remoteID != _useIdentifier:
                 self.log("The remote socket provided an invalid QueuedSocket protocol identifier. (Theirs: %s) (Ours: %s)" % (
                     remoteID,
-                    _QUEUEDSOCKET_IDENTIFIER_
+                    _useIdentifier
                 ), "WARN")
                 self.close()
                 raise ValueError("The remote socket provided an invalid identifier at the QueuedSocket level")

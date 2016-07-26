@@ -11,7 +11,7 @@ random.seed()
 _SECURECONNECTION_IDENTIFIER_ = '<agutil.security.secureconnection:1.0.0>'
 
 class SecureConnection:
-    def __init__(self, address, port, password=None, rsabits=4096, timeout=3, logmethod=DummyLog, _skipIdentifier=False):
+    def __init__(self, address, port, password=None, rsabits=4096, timeout=3, logmethod=DummyLog, _skipIdentifier=False, _useIdentifier=_SECURECONNECTION_IDENTIFIER_):
         if isinstance(logmethod, Logger):
             self.log = logmethod.bindToSender("SecureConnection")
         else:
@@ -51,12 +51,12 @@ class SecureConnection:
         self._listener.start()
 
         if not _skipIdentifier:
-            self.sock.sendRAW(_SECURECONNECTION_IDENTIFIER_, '__protocol__')
+            self.sock.sendRAW(_useIdentifier, '__protocol__')
             remoteID = self.sock.recvRAW('__protocol__', True)
-            if remoteID != _SECURECONNECTION_IDENTIFIER_:
+            if remoteID != _useIdentifier:
                 self.log("The remote socket provided an invalid SecureConnection protocol identifier. (Theirs: %s) (Ours: %s)" % (
                     remoteID,
-                    _QUEUEDSOCKET_IDENTIFIER_
+                    _useIdentifier
                 ), "WARN")
                 self.close()
                 raise ValueError("The remote socket provided an invalid identifier at the SecureConnection level")
