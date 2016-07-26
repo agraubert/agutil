@@ -74,7 +74,7 @@ class SecureConnection:
             size = self.schedulinglock.wait_for(lambda :len(self.schedulingqueue), .05)
             if size:
                 command = self.schedulingqueue.pop(0)
-                self.log("Preparing to schedule new command", "DETAIL")
+                self.log("Scheduling new command: %d"%command['cmd'], "DETAIL")
                 if protocols._COMMANDS[command['cmd']]=='kill':
                     self.tasks[command['name']].join(.05)
                     del self.tasks[command['name']]
@@ -99,7 +99,7 @@ class SecureConnection:
         while not self._init_shutdown:
             try:
                 # self.sock.recvRAW('__cmd__', timeout=.1)
-                cmd = self.sock.recvAES('__cmd__', timeout=.1)
+                cmd = self.sock.recvAES('__cmd__', timeout=.1, _logInit=False)
                 self.log("Remote command received", "DETAIL")
                 self.schedulinglock.acquire()
                 self.schedulingqueue.append(protocols.unpackcmd(cmd))
@@ -219,9 +219,9 @@ class SecureConnection:
             return
         self.log("Initiating shutdown of SecureConnection")
         self.killlock = threading.Condition()
-        self.killlock.acquire()
         self._init_shutdown = True
         self._listener.join(.2)
+        self.killlock.acquire()
         self.killlock.wait_for(lambda :len(self.tasks)==0, timeout)
         self.killlock.release()
         self._shutdown = True

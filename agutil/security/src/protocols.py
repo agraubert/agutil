@@ -236,7 +236,7 @@ def _file_transfer_in(sock,cmd,name):
     sock.schedulinglock.release()
 
 def _disconnect_in(sock, cmd, name):
-    sock.sock.close(_remote=True)
+    sock.close(_remote=True)
     sock.schedulinglock.acquire()
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
