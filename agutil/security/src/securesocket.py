@@ -3,7 +3,6 @@ import hashlib
 import rsa
 import os
 import Crypto.Cipher.AES as AES
-import threading
 from io import BytesIO, BufferedReader, BufferedWriter
 from . import protocols, files
 
