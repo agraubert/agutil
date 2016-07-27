@@ -87,10 +87,8 @@ def _text_in(sock,cmd,name):
             )
             sock.sock.sendRAW('+', name)
             tasklog("Message validated", "DEBUG")
-            sock.intakelock.acquire()
             sock.queuedmessages.append(msg)
-            sock.intakelock.notify_all()
-            sock.intakelock.release()
+            sock.intakeEvent.set()
             sock.schedulingqueue.append({
                 'cmd': lookupcmd('kill'),
                 'name': name

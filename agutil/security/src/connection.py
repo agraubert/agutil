@@ -31,7 +31,7 @@ class SecureConnection:
         self.authqueue = [] #Queue of task commands pending authorization
         self.filemap = {} #mapping of auth_key : filename pairs for files ready to transfer
         self.pending_tasks = threading.Event()
-        self.intakelock = threading.Condition()
+        self.intakeEvent = threading.Event()
         self.authlock = threading.Condition()
         self.transferlock = threading.Condition()
         self.killlock = threading.Condition()
@@ -131,14 +131,12 @@ class SecureConnection:
             raise IOError("This SecureConnection has already initiated shutdown")
         if timeout == -1:
             timeout = self.sock.timeout
-        self.intakelock.acquire()
         self.log("Waiting to receive incoming text message", "DEBUG")
-        result = self.intakelock.wait_for(lambda :len(self.queuedmessages), timeout)
-        if not result:
-            self.intakelock.release()
+        self.intakeEvent.wait(timeout)
+        if not len(self.queuedmessages):
             raise socketTimeout("No message recieved within the specified timeout")
         msg = self.queuedmessages.pop(0)
-        self.intakelock.release()
+        self.intakeEvent.clear()
         if decode:
             msg = msg.decode()
         return msg
