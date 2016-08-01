@@ -147,7 +147,8 @@ class Logger:
                 self._idle = True
                 self.idlelock.wait(timeout=.05)
                 self.idlelock.release()
-        self.logwriter.write(time.strftime(">>>>>Logging queue closed: %a %m/%d/%Y %I:%M:%S %p\n"))
+        if self.logfile:
+            self.logwriter.write(time.strftime(">>>>>Logging queue closed: %a %m/%d/%Y %I:%M:%S %p\n"))
         while len(self.logqueue):
             msg_data = self.logqueue.pop(0)
             if msg_data[0] in self.channels:

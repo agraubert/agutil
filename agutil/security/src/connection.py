@@ -135,7 +135,7 @@ class SecureConnection:
             raise IOError("This SecureConnection has already initiated shutdown")
         self.intakelock.acquire()
         self.log("Waiting to receive incoming text message", "DEBUG")
-        result = self.intakelock.wait_for(lambda :len(self.queuedmessages))
+        result = self.intakelock.wait_for(lambda :len(self.queuedmessages), timeout)
         if not result:
             self.intakelock.release()
             raise socketTimeout("No message recieved within the specified timeout")
