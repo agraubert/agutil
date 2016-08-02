@@ -38,8 +38,10 @@ class SecureSocket(io.QueuedSocket):
         super().__init__(socket, logmethod=self.sLog.bindToSender(self.sLog.name+"->QueuedSocket"))
         self.sLog("The underlying QueuedSocket has been initialized.  Exchanging encryption data now")
         self.rsabits = rsabits
-        if not (timeout==None or (type(timeout)==int and timeout>=0)):
-            raise ValueError("Timeout parameter must be a non-negative integer, or None")
+        if not (timeout==None or type(timeout)==int):
+            raise TypeError("Timeout parameter must be an integer or None")
+        if type(tyimeout)==int and timeout < 0:
+            raise ValueError("Timeout cannot be negative")
         self.timeout = timeout
         protocolstring=_useIdentifier
         if password!=None:
