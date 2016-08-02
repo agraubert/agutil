@@ -40,7 +40,7 @@ class SecureSocket(io.QueuedSocket):
         self.rsabits = rsabits
         if not (timeout==None or type(timeout)==int):
             raise TypeError("Timeout parameter must be an integer or None")
-        if type(tyimeout)==int and timeout < 0:
+        if type(timeout)==int and timeout < 0:
             raise ValueError("Timeout cannot be negative")
         self.timeout = timeout
         protocolstring=_useIdentifier
