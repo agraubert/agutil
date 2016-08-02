@@ -171,6 +171,8 @@ class test(unittest.TestCase):
         self.assertListEqual(server_payload.output, client_payload.intake)
         self.assertRaises(IOError, client_payload.sock.send, 'fish')
         self.assertRaises(IOError, client_payload.sock.read)
+        self.assertFalse(len(client_payload.sock.tasks))
+        self.assertFalse(len(server_payload.sock.tasks))
 
     @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on windows")
     def test_files_io(self):
@@ -219,3 +221,5 @@ class test(unittest.TestCase):
                 self.assertEqual(client_payload.intake[i], server_payload.output[i])
         self.assertRaises(IOError, client_payload.sock.sendfile, 'fish')
         self.assertRaises(IOError, client_payload.sock.savefile, 'fish')
+        self.assertFalse(len(client_payload.sock.tasks))
+        self.assertFalse(len(server_payload.sock.tasks))
