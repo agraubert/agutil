@@ -174,7 +174,7 @@ class SecureConnection:
         result = self.authlock.wait_for(lambda :len(self.authqueue), timeout)
         if not result:
             self.authlock.release()
-            raise SocketTimeout("No file transfer requests recieved within the specified timeout")
+            raise socketTimeout("No file transfer requests recieved within the specified timeout")
         (filename, auth) = self.authqueue.pop(0)
         self.authlock.release()
         if not force:
