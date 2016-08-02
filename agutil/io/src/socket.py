@@ -32,6 +32,11 @@ class Socket:
         msg_size = len(msg)
         # print("Sending: <", payload_size, ">",msg)
         # self.sock.send(b"|")
+        test = self.inlock.acquire(False)
+        if not test:
+            print("Input locked")
+        else:
+            self.inlock.release()
         with self.inlock:
             while msg_size > 0:
                 msg_size -= self.sock.send(msg)
@@ -41,6 +46,11 @@ class Socket:
         msg = ""
         found_size = False
         size = ""
+        test = self.outlock.acquire(False)
+        if not test:
+            print("Output locked")
+        else:
+            self.outlock.release()
         with self.outlock:
             while not found_size:
                 intake = self.rollover + self.sock.recv(4096)
