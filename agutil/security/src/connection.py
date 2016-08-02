@@ -129,10 +129,12 @@ class SecureConnection:
         self.schedulinglock.notify_all()
         self.schedulinglock.release()
 
-    def read(self, decode=True, timeout=None):
+    def read(self, decode=True, timeout=-1):
         if self._init_shutdown:
             self.log("Attempt to use the SecureConnection after shutdown", "WARN")
             raise IOError("This SecureConnection has already initiated shutdown")
+        if timeout == -1:
+            timeout = self.sock.timeout
         self.intakelock.acquire()
         self.log("Waiting to receive incoming text message", "DEBUG")
         result = self.intakelock.wait_for(lambda :len(self.queuedmessages), timeout)
@@ -161,10 +163,12 @@ class SecureConnection:
         self.schedulinglock.notify_all()
         self.schedulinglock.release()
 
-    def savefile(self, destination, timeout=None, force=False):
+    def savefile(self, destination, timeout=-1, force=False):
         if self._init_shutdown:
             self.log("Attempt to use the SecureConnection after shutdown", "WARN")
             raise IOError("This SecureConnection has already initiated shutdown")
+        if timeout == -1:
+            timeout = self.sock.timeout
         self.authlock.acquire()
         self.log("Waiting to receive incoming file request", "DEBUG")
         result = self.authlock.wait_for(lambda :len(self.authqueue), timeout)
@@ -212,12 +216,14 @@ class SecureConnection:
         self.log("File transfer complete", "DEBUG")
         return destination
 
-    def shutdown(self, timeout=3):
+    def shutdown(self, timeout=-1):
         self.close(timeout)
 
-    def close(self, timeout=3, _remote=False):
+    def close(self, timeout=-1, _remote=False):
         if self._shutdown or self._init_shutdown:
             return
+        if timeout == -1:
+            timeout = self.sock.timeout
         self._init_shutdown = True
         self.log("Initiating "+("remote " if _remote else "")+"shutdown of SecureConnection")
         self._listener.join(.2)
