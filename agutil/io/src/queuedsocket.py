@@ -47,6 +47,7 @@ class QueuedSocket(Socket):
         self.datalock.release()
         self._thread.join(timeout)
         super().close()
+        self.log("Shutdown complete")
         self.log.close()
 
     def send(self, msg, channel='__orphan__'):
