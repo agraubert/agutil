@@ -90,8 +90,8 @@ class SecureConnection:
                         name = self._reserve_task(protocols._COMMANDS[command['cmd']])
                     worker = protocols._assign_task(protocols._COMMANDS[command['cmd']])
                     self.tasks[name] = threading.Thread(target=worker, args=(self,command,name), name=name, daemon=True)
-                    self.tasks[name].start()
                     self.log("Started new task '%s'"%name, "DEBUG")
+                    self.tasks[name].start()
             self.schedulinglock.release()
         self.log("SecureConnection Task Scheduling thread inactive")
 
