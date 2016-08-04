@@ -20,7 +20,10 @@ except OSError:
     pass
 
 if not version:
-    raise ValueError("Unable to parse version number from README.rst")
+    reader = open("README.md", mode='r')
+    long_desc = reader.read()
+    version = re.search(r'__Version:__ ([0-9\.a-zA-Z]*)', long_desc).group(1)
+    reader.close()
 
 setup(
     name="agutil",
