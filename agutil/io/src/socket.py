@@ -1,11 +1,14 @@
 import socket
 from .. import _PROTOCOL_IDENTIFIER_
+from threading import RLock
 
 _SOCKET_IDENTIFIER_ = '<agutil.io.socket:1.0.0>'
 class Socket:
     def __init__(self, address, port, _socket=None, _skipIdentifier=False, _useIdentifier=_PROTOCOL_IDENTIFIER_+_SOCKET_IDENTIFIER_):
         self.addr = address
         self.port = port
+        self.inlock = RLock()
+        self.outlock = RLock()
         if _socket!=None:
             self.sock = _socket
         else:
@@ -25,32 +28,45 @@ class Socket:
         elif type(msg)!=bytes:
             raise TypeError("msg argument must be str or bytes")
         payload_size = len(msg)
+        msg = format(payload_size, 'x').encode()+b'|' + msg
+        msg_size = len(msg)
         # print("Sending: <", payload_size, ">",msg)
-        self.sock.send(format(payload_size, 'x').encode()+b'|')
         # self.sock.send(b"|")
-        while payload_size > 0:
-            payload_size -= self.sock.send(msg)
-            msg = msg[len(msg)-payload_size:]
+        test = self.inlock.acquire(False)
+        if not test:
+            print("Input locked")
+        else:
+            self.inlock.release()
+        with self.inlock:
+            while msg_size > 0:
+                msg_size -= self.sock.send(msg)
+                msg = msg[len(msg)-msg_size:]
 
     def recv(self, decode=False):
         msg = ""
         found_size = False
         size = ""
-        while not found_size:
-            intake = self.rollover + self.sock.recv(4096)
-            for i in range(len(intake)):
-                current = intake[i:i+1]
-                if current == b'|':
-                    size = int(size, 16)
-                    msg = intake[i+1:i+1+size]
-                    self.rollover = intake[i+1+size:]
-                    found_size = True
-                    break
-                else:
-                    size+=current.decode()
+        test = self.outlock.acquire(False)
+        if not test:
+            print("Output locked")
+        else:
+            self.outlock.release()
+        with self.outlock:
+            while not found_size:
+                intake = self.rollover + self.sock.recv(4096)
+                for i in range(len(intake)):
+                    current = intake[i:i+1]
+                    if current == b'|':
+                        size = int(size, 16)
+                        msg = intake[i+1:i+1+size]
+                        self.rollover = intake[i+1+size:]
+                        found_size = True
+                        break
+                    else:
+                        size+=current.decode()
 
-        while len(msg) < size:
-            msg += self.sock.recv(min(4096, size-len(msg)))
+            while len(msg) < size:
+                msg += self.sock.recv(min(4096, size-len(msg)))
 
         if decode:
             return msg.decode()

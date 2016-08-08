@@ -17,16 +17,16 @@ def server_comms(secureclass, queueclass, ss, payload):
     global startup_lock
     startup_lock.release()
     try:
-        sock = secureclass(ss.accept(), rsabits=1024)
+        sock = secureclass(ss.accept(), rsabits=1024, timeout=None)
         payload.exception1 = False
     except ValueError:
         payload.exception1 = True
     try:
-        sock = secureclass(ss.accept(), rsabits=1024)
+        sock = secureclass(ss.accept(), rsabits=1024, timeout=None)
         payload.exception2 = False
     except ValueError:
         payload.exception2 = True
-    sock = secureclass(ss.accept(), rsabits=1024)
+    sock = secureclass(ss.accept(), rsabits=1024, timeout=None)
     ss.close()
     payload.intake=[]
     payload.output=[]
@@ -46,16 +46,16 @@ def client_comms(secureclass, queueclass, _sockClass, port, payload):
     startup_lock.acquire()
     startup_lock.release()
     try:
-        sock = secureclass(_sockClass('localhost', port), rsabits=1024, _useIdentifier="<potato>")
+        sock = secureclass(_sockClass('localhost', port), rsabits=1024, timeout=None, _useIdentifier="<potato>")
         payload.exception1 = False
     except ValueError:
         payload.exception1 = True
     try:
-        sock = secureclass(_sockClass('localhost', port), rsabits=1024, password="potato")
+        sock = secureclass(_sockClass('localhost', port), rsabits=1024, timeout=None, password="potato")
         payload.exception2 = False
     except ValueError:
         payload.exception2 = True
-    sock = secureclass(_sockClass('localhost', port), rsabits=1024)
+    sock = secureclass(_sockClass('localhost', port), rsabits=1024, timeout=None)
     payload.intake=[]
     payload.output=[]
     for trial in range(5):
