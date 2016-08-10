@@ -41,7 +41,7 @@ class QueuedSocket(Socket):
     def close(self, timeout=1):
         if self._shutdown:
             return
-        self.log("Shutdown initiated")
+        self.log("Shutdown initiated.  Waiting for background thread to send remaining messages (%d queued)" % len(self.outgoing_channels))
         self.datalock.acquire()
         self._shutdown = True
         self.datalock.release()
@@ -69,7 +69,7 @@ class QueuedSocket(Socket):
         self.outgoing_channels.append(""+channel)
         self.datalock.release()
 
-    def recv(self, channel='__orphan__', decode=False, timeout=None):
+    def recv(self, channel='__orphan__', decode=False, timeout=None, _logInit=True):
         if self._shutdown:
             self.log("Attempt to use the QueuedSocket after shutdown", "WARN")
             raise IOError("This QueuedSocket has already been closed")
@@ -77,7 +77,8 @@ class QueuedSocket(Socket):
         if channel not in self.incoming:
             self.incoming[channel] = []
         if not self._check_channel(channel):
-            self.log("Waiting for input on channel '%s'" %channel, "DEBUG")
+            if _logInit:
+                self.log("Waiting for input on channel '%s'" %channel, "DEBUG")
             result = self.datalock.wait_for(lambda :self._check_channel(channel), timeout)
             if not result:
                 self.datalock.release()
@@ -118,14 +119,10 @@ class QueuedSocket(Socket):
 
     def _worker(self):
         self.log("QueuedSocket background thread initialized")
-        while True:
-            self.datalock.acquire()
-            status = self._shutdown
-            outqueue = len(self.outgoing_channels)
-            self.datalock.release()
-            if status:
-                self.log("QueuedSocket background thread halted")
-                return
+        self.datalock.acquire()
+        outqueue = len(self.outgoing_channels)
+        self.datalock.release()
+        while outqueue or not self._shutdown:
             if outqueue:
                 self.datalock.acquire()
                 target = self.outgoing_channels.pop(0)
@@ -134,30 +131,34 @@ class QueuedSocket(Socket):
                 self.log("Outgoing payload on channel '%s'" %target, "DEBUG")
                 try:
                     self._sends(payload, target)
-                except OSError as e:
+                except (OSError, BrokenPipeError) as e:
+                    if self._shutdown:
+                        self.log("QueuedSocket background thread halted (attempted to send after shutdown)")
+                        return
+                    else:
+                        self.log("QueuedSocket encountered an error: "+str(e), "ERROR")
+                        raise e
+            if not self._shutdown:
+                super().settimeout(.05)
+                try:
+                    (channel, payload) = self._recvs()
+                    self.log("Incoming payload on channel '%s'" %channel, "DEBUG")
+                    self.datalock.acquire()
+                    if channel not in self.incoming:
+                        self.incoming[channel] = []
+                    self.incoming[channel].append(payload)
+                    self.datalock.notify_all()
+                    self.log("Threads waiting on '%s' have been notified" %channel, "DETAIL")
+                    self.datalock.release()
+                except sockTimeout:
+                    pass
+                except (OSError, BrokenPipeError) as e:
                     if self._shutdown:
                         self.log("QueuedSocket background thread halted")
                         return
                     else:
                         self.log("QueuedSocket encountered an error: "+str(e), "ERROR")
                         raise e
-            super().settimeout(.05)
-            try:
-                (channel, payload) = self._recvs()
-                self.log("Incoming payload on channel '%s'" %channel, "DEBUG")
-                self.datalock.acquire()
-                if channel not in self.incoming:
-                    self.incoming[channel] = []
-                self.incoming[channel].append(payload)
-                self.datalock.notify_all()
-                self.log("Threads waiting on '%s' have been notified" %channel, "DETAIL")
-                self.datalock.release()
-            except sockTimeout:
-                pass
-            except OSError as e:
-                if self._shutdown:
-                    self.log("QueuedSocket background thread halted")
-                    return
-                else:
-                    self.log("QueuedSocket encountered an error: "+str(e), "ERROR")
-                    raise e
+            self.datalock.acquire()
+            outqueue = len(self.outgoing_channels)
+            self.datalock.release()

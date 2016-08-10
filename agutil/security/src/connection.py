@@ -34,6 +34,7 @@ class SecureConnection:
         self.intakelock = threading.Condition()
         self.authlock = threading.Condition()
         self.transferlock = threading.Condition()
+        self.killlock = threading.Condition()
         self.completed_transfers = set()
         self.queuedmessages = [] #Queue of decrypted received text messages
         self.schedulingqueue = [] #Queue of task commands to be scheduled
@@ -58,7 +59,7 @@ class SecureConnection:
                     remoteID,
                     _useIdentifier
                 ), "WARN")
-                self.close()
+                self.close(_remote=True)
                 raise ValueError("The remote socket provided an invalid identifier at the SecureConnection level")
 
     def _reserve_task(self, prefix):
@@ -74,7 +75,7 @@ class SecureConnection:
             size = self.schedulinglock.wait_for(lambda :len(self.schedulingqueue), .05)
             if size:
                 command = self.schedulingqueue.pop(0)
-                self.log("Preparing to schedule new command", "DETAIL")
+                self.log("Scheduling new command: %d"%command['cmd'], "DETAIL")
                 if protocols._COMMANDS[command['cmd']]=='kill':
                     self.tasks[command['name']].join(.05)
                     del self.tasks[command['name']]
@@ -99,7 +100,7 @@ class SecureConnection:
         while not self._init_shutdown:
             try:
                 # self.sock.recvRAW('__cmd__', timeout=.1)
-                cmd = self.sock.recvAES('__cmd__', timeout=.1)
+                cmd = self.sock.recvAES('__cmd__', timeout=.1, _logInit=False)
                 self.log("Remote command received", "DETAIL")
                 self.schedulinglock.acquire()
                 self.schedulingqueue.append(protocols.unpackcmd(cmd))
@@ -128,13 +129,15 @@ class SecureConnection:
         self.schedulinglock.notify_all()
         self.schedulinglock.release()
 
-    def read(self, decode=True, timeout=None):
+    def read(self, decode=True, timeout=-1):
         if self._init_shutdown:
             self.log("Attempt to use the SecureConnection after shutdown", "WARN")
             raise IOError("This SecureConnection has already initiated shutdown")
+        if timeout == -1:
+            timeout = self.sock.timeout
         self.intakelock.acquire()
         self.log("Waiting to receive incoming text message", "DEBUG")
-        result = self.intakelock.wait_for(lambda :len(self.queuedmessages))
+        result = self.intakelock.wait_for(lambda :len(self.queuedmessages), timeout)
         if not result:
             self.intakelock.release()
             raise socketTimeout("No message recieved within the specified timeout")
@@ -150,7 +153,7 @@ class SecureConnection:
             raise IOError("This SecureConnection has already initiated shutdown")
         if not os.path.isfile(filename):
             self.log("Unable to determine file specified by path '%s'"%filename, "ERROR")
-            raise IOError("The provided filename does not exist or is invalid")
+            raise FileNotFoundError("The provided filename does not exist or is invalid")
         self.schedulinglock.acquire()
         self.log("Outgoing file request scheduled", "DEBUG")
         self.schedulingqueue.append({
@@ -160,16 +163,18 @@ class SecureConnection:
         self.schedulinglock.notify_all()
         self.schedulinglock.release()
 
-    def savefile(self, destination, timeout=None, force=False):
+    def savefile(self, destination, timeout=-1, force=False):
         if self._init_shutdown:
             self.log("Attempt to use the SecureConnection after shutdown", "WARN")
             raise IOError("This SecureConnection has already initiated shutdown")
+        if timeout == -1:
+            timeout = self.sock.timeout
         self.authlock.acquire()
         self.log("Waiting to receive incoming file request", "DEBUG")
         result = self.authlock.wait_for(lambda :len(self.authqueue), timeout)
         if not result:
             self.authlock.release()
-            raise SocketTimeout("No file transfer requests recieved within the specified timeout")
+            raise socketTimeout("No file transfer requests recieved within the specified timeout")
         (filename, auth) = self.authqueue.pop(0)
         self.authlock.release()
         if not force:
@@ -211,19 +216,19 @@ class SecureConnection:
         self.log("File transfer complete", "DEBUG")
         return destination
 
-    def shutdown(self, timeout=3):
+    def shutdown(self, timeout=-1):
         self.close(timeout)
 
-    def close(self, timeout=3, _remote=False):
-        if self._shutdown:
+    def close(self, timeout=-1, _remote=False):
+        if self._shutdown or self._init_shutdown:
             return
-        self.log("Initiating shutdown of SecureConnection")
-        self.killlock = threading.Condition()
-        self.killlock.acquire()
+        if timeout == -1:
+            timeout = self.sock.timeout
         self._init_shutdown = True
+        self.log("Initiating "+("remote " if _remote else "")+"shutdown of SecureConnection")
         self._listener.join(.2)
-        self.killlock.wait_for(lambda :len(self.tasks)==0, timeout)
-        self.killlock.release()
+        with self.killlock:
+            self.killlock.wait_for(lambda :len(self.tasks)==0, timeout)
         self._shutdown = True
         self._scheduler.join(.1)
         if not _remote:

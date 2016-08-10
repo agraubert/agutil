@@ -236,7 +236,8 @@ def _file_transfer_in(sock,cmd,name):
     sock.schedulinglock.release()
 
 def _disconnect_in(sock, cmd, name):
-    sock.sock.close(_remote=True)
+    from threading import Thread
+    Thread(target=sock.close, args=(3, True), name="SecureConnection Shutdown Thread", daemon=True).start()
     sock.schedulinglock.acquire()
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),

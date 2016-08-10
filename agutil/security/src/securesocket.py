@@ -38,6 +38,10 @@ class SecureSocket(io.QueuedSocket):
         super().__init__(socket, logmethod=self.sLog.bindToSender(self.sLog.name+"->QueuedSocket"))
         self.sLog("The underlying QueuedSocket has been initialized.  Exchanging encryption data now")
         self.rsabits = rsabits
+        if not (timeout==None or type(timeout)==int):
+            raise TypeError("Timeout parameter must be an integer or None")
+        if type(timeout)==int and timeout < 0:
+            raise ValueError("Timeout cannot be negative")
         self.timeout = timeout
         protocolstring=_useIdentifier
         if password!=None:
@@ -99,8 +103,8 @@ class SecureSocket(io.QueuedSocket):
     def _sendq(self, msg, channel='__orphan__'):
         super().send(msg, channel)
 
-    def _recvq(self, channel='__orphan__', decode=False, timeout=None):
-        return super().recv(channel, decode, timeout)
+    def _recvq(self, channel='__orphan__', decode=False, timeout=None, _logInit=True):
+        return super().recv(channel, decode, timeout, _logInit)
 
     def _baseEncrypt(self, msg):
         return self.baseCipher.encrypt(
@@ -207,11 +211,12 @@ class SecureSocket(io.QueuedSocket):
             self._sendq(self._baseEncrypt('-'), channel)
         self.sLog("Message sent", "DEBUG")
 
-    def recvAES(self, channel='__aes__', decode=False, timeout=-1, output_file=None):
-        self.sLog("Attempting to receive AES encrypted message", "DEBUG")
+    def recvAES(self, channel='__aes__', decode=False, timeout=-1, output_file=None, _logInit=True):
+        if _logInit:
+            self.sLog("Attempting to receive AES encrypted message", "DEBUG")
         if timeout == -1:
             timeout = self.timeout
-        mode = self._baseDecrypt(self._recvq(channel, timeout=timeout)).decode()
+        mode = self._baseDecrypt(self._recvq(channel, timeout=timeout, _logInit=_logInit)).decode()
         self.sLog("AES encryption using mode: "+mode, "DETAIL")
         if mode == 'BASE':
             cipher = self.baseCipher
