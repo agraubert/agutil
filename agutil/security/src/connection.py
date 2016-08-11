@@ -32,9 +32,9 @@ class SecureConnection:
         self.filemap = {} #mapping of auth_key : filename pairs for files ready to transfer
         self.pending_tasks = threading.Event()
         self.intakeEvent = threading.Event()
-        self.authlock = threading.Condition()
-        self.transferlock = threading.Condition()
-        self.killlock = threading.Condition()
+        self.pendingRequest = threading.Event()
+        self.transferComplete = threading.Event()
+        self.killedtask = threading.Event()
         self.completed_transfers = set()
         self.queuedmessages = [] #Queue of decrypted received text messages
         self.schedulingqueue = [] #Queue of task commands to be scheduled
@@ -78,10 +78,8 @@ class SecureConnection:
                 if protocols._COMMANDS[command['cmd']]=='kill':
                     self.tasks[command['name']].join(.05)
                     del self.tasks[command['name']]
-                    if self._init_shutdown:
-                        self.killlock.acquire()
-                        self.killlock.notify_all()
-                        self.killlock.release()
+                    if self._init_shutdown and not len(self.tasks):
+                        self.killedtask.set()
                 elif command['cmd'] < len(protocols._COMMANDS):
                     if command['cmd'] % 2:
                         name = command['name']
@@ -161,14 +159,13 @@ class SecureConnection:
             raise IOError("This SecureConnection has already initiated shutdown")
         if timeout == -1:
             timeout = self.sock.timeout
-        self.authlock.acquire()
         self.log("Waiting to receive incoming file request", "DEBUG")
-        result = self.authlock.wait_for(lambda :len(self.authqueue), timeout)
-        if not result:
-            self.authlock.release()
-            raise socketTimeout("No file transfer requests recieved within the specified timeout")
+        while not len(self.authqueue):
+            result = self.pendingRequest.wait(timeout)
+            if not result:
+                raise SocketTimeout("No file transfer requests recieved within the specified timeout")
+            self.pendingRequest.clear()
         (filename, auth) = self.authqueue.pop(0)
-        self.authlock.release()
         if not force:
             print("The remote socket is attempting to send the file '%s'")
             accepted = False
@@ -196,11 +193,13 @@ class SecureConnection:
             'filepath': destination
         })
         self.pending_tasks.set()
-        self.transferlock.acquire()
         self.log("Waiting for transfer to complete...", "DEBUG")
-        self.transferlock.wait_for(lambda :destination in self.completed_transfers)
+        while destination not in self.completed_transfers:
+            result = self.transferComplete.wait(timeout)
+            if not result:
+                raise SocketTimeout("File transfer did not complete in the specified timeout")
+            self.transferComplete.clear()
         self.completed_transfers.remove(destination)
-        self.transferlock.release()
         self.log("File transfer complete", "DEBUG")
         return destination
 
@@ -215,8 +214,7 @@ class SecureConnection:
         self._init_shutdown = True
         self.log("Initiating "+("remote " if _remote else "")+"shutdown of SecureConnection")
         self._listener.join(.2)
-        with self.killlock:
-            self.killlock.wait_for(lambda :len(self.tasks)==0, timeout)
+        self.killedtask.wait(timeout)
         self._shutdown = True
         self._scheduler.join(.1)
         if not _remote:

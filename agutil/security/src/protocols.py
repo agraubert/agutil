@@ -144,12 +144,10 @@ def _text_out(sock,cmd,name):
 
 def _file_request_out(sock,cmd,name):
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
-    sock.authlock.acquire()
     auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
     while auth_key in sock.filemap:
         auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
     sock.filemap[auth_key] = cmd['filepath']
-    sock.authlock.release()
     sock.sock.sendAES(packcmd(
         'fri',
         {'auth':auth_key, 'filename':os.path.basename(cmd['filepath']), 'name':name}
@@ -164,10 +162,8 @@ def _file_request_out(sock,cmd,name):
 def _file_request_in(sock,cmd,name):
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
     tasklog("Received new file request.  Queueing authorization", "DETAIL")
-    sock.authlock.acquire()
     sock.authqueue.append((cmd['filename'], cmd['auth']))
-    sock.authlock.notify_all()
-    sock.authlock.release()
+    sock.pendingRequest.set()
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
         'name': name
@@ -177,10 +173,8 @@ def _file_request_in(sock,cmd,name):
 def _file_transfer_out(sock,cmd,name):
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
     tasklog("Initiating File:out task", "DEBUG")
-    sock.authlock.acquire()
     filepath = sock.filemap[cmd['auth']]
     del sock.filemap[cmd['auth']]
-    sock.authlock.release()
     if 'reject' not in cmd:
         reader = open(filepath, mode='rb')
         tasklog("Now sending file to remote socket", "DETAIL")
@@ -205,10 +199,8 @@ def _file_transfer_in(sock,cmd,name):
         sock.sock.recvRAW(name, timeout=None)
         tasklog("File transfer initiated", "DEBUG")
         sock.sock.recvAES(name, output_file=cmd['filepath'])
-        sock.transferlock.acquire()
         sock.completed_transfers.add(cmd['filepath'])
-        sock.transferlock.notify_all()
-        sock.transferlock.release()
+        sock.transferComplete.set()
         tasklog("Transfer complete", "DEBUG")
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
