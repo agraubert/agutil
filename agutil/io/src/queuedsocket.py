@@ -53,9 +53,9 @@ class QueuedSocket(Socket):
         if self._shutdown:
             self.log("Attempt to use the QueuedSocket after shutdown", "WARN")
             raise IOError("This QueuedSocket has already been closed")
-        if '|' in channel:
+        if '^' in channel:
             self.log("Attempt to send message over illegal channel name", "WARN")
-            raise ValueError("Channel names cannot contain '|' characters (ascii 124)")
+            raise ValueError("Channel names cannot contain '^' characters (ascii 94)")
         if type(msg)==str:
             msg=msg.encode()
         elif type(msg)!=bytes:
@@ -90,7 +90,7 @@ class QueuedSocket(Socket):
         return msg
 
     def _sends(self, msg, channel):
-        channel = ":ch#"+channel+"|"
+        channel = ":ch#"+channel+"^"
         if type(msg)==bytes:
             channel = channel.encode()
         msg = channel + msg
@@ -103,7 +103,7 @@ class QueuedSocket(Socket):
         if msg[:4] == b':ch#':
             channel = b""
             i = 4
-            while msg[i:i+1] != b'|':
+            while msg[i:i+1] != b'^':
                 channel += msg[i:i+1]
                 i+=1
             return (channel.decode(), msg[i+1:])
@@ -130,7 +130,7 @@ class QueuedSocket(Socket):
                         self.log("QueuedSocket encountered an error: "+str(e), "ERROR")
                         raise e
             if not self._shutdown:
-                super().settimeout(.05)
+                super().settimeout(.025)
                 try:
                     (channel, payload) = self._recvs()
                     self.log("Incoming payload on channel '%s'" %channel, "DEBUG")
