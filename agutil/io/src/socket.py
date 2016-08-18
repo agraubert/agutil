@@ -24,12 +24,11 @@ class Socket:
             msg=msg.encode()
         elif type(msg)!=bytes:
             raise TypeError("msg argument must be str or bytes")
+        msg += b'\x00\x02'
         payload_size = len(msg)
         # print("Sending: <", payload_size, ">",msg)
-        # self.sock.send(format(payload_size, 'x').encode()+b'|')
         msg = format(payload_size, 'x').encode()+b'|'+msg
         msg_size = len(msg)
-        # self.sock.send(b"|")
         while msg_size > 0:
             msg_size -= self.sock.send(msg)
             msg = msg[len(msg)-msg_size:]
@@ -57,10 +56,12 @@ class Socket:
         while len(msg) < size:
             msg += self.sock.recv(min(4096, size-len(msg)))
 
+        if not msg.endswith(b'\x00\x02'):
+            raise IOError("Received message with invalid padding bytes")
         if decode:
-            return msg.decode()
+            return msg[:-2].decode()
         # print("Received: <", size, ">", msg)
-        return msg
+        return msg[:-2]
 
     def settimeout(self, time):
         self.sock.settimeout(time)
