@@ -25,19 +25,23 @@ class Socket:
         elif type(msg)!=bytes:
             raise TypeError("msg argument must be str or bytes")
         payload_size = len(msg)
+        msg = format(payload_size, 'x').encode()+b'|' + msg
+        msg_size = len(msg)
         # print("Sending: <", payload_size, ">",msg)
-        self.sock.send(format(payload_size, 'x').encode()+b'|')
         # self.sock.send(b"|")
-        while payload_size > 0:
-            payload_size -= self.sock.send(msg)
-            msg = msg[len(msg)-payload_size:]
+        while msg_size > 0:
+            msg_size -= self.sock.send(msg)
+            msg = msg[len(msg)-msg_size:]
 
     def recv(self, decode=False):
         msg = ""
         found_size = False
         size = ""
         while not found_size:
-            intake = self.rollover + self.sock.recv(4096)
+            if len(self.rollover):
+                intake = self.rollover
+            else:
+                intake = self.sock.recv(4096)
             for i in range(len(intake)):
                 current = intake[i:i+1]
                 if current == b'|':

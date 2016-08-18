@@ -22,7 +22,7 @@ def make_random_file(filename):
     return contents
 
 def server_comms(secureClass, port, payload):
-    ss = secureClass(port, password='password', rsabits=1024)
+    ss = secureClass(port, password='password', rsabits=1024, childtimeout=None)
     try:
         sock = ss.accept()
         payload.exception = False
@@ -41,11 +41,11 @@ def server_comms(secureClass, port, payload):
 
 def client_comms(secureclass, port, payload):
     try:
-        sock = secureclass('localhost', port, password='password', rsabits=1024, _useIdentifier="<potato>")
+        sock = secureclass('localhost', port, password='password', rsabits=1024, timeout=None, _useIdentifier="<potato>")
         payload.exception = False
     except ValueError:
         payload.exception = True
-    sock = secureclass('localhost', port, password='password', rsabits=1024)
+    sock = secureclass('localhost', port, password='password', rsabits=1024, timeout=None)
     payload.intake=[]
     payload.output=[]
     payload.comms_check = sock.sock.recvRAW(decode=True)
@@ -56,7 +56,7 @@ def client_comms(secureclass, port, payload):
     payload.sock = sock
 
 def server_comms_files(secureClass, port, payload):
-    ss = secureClass(port, password='password', rsabits=1024)
+    ss = secureClass(port, password='password', rsabits=1024, childtimeout=None)
     try:
         sock = ss.accept()
         payload.exception = False
@@ -81,11 +81,11 @@ def server_comms_files(secureClass, port, payload):
 
 def client_comms_files(secureclass, port, payload):
     try:
-        sock = secureclass('localhost', port, password='password', rsabits=1024, _useIdentifier="<potato>")
+        sock = secureclass('localhost', port, password='password', rsabits=1024, timeout=None, _useIdentifier="<potato>")
         payload.exception = False
     except ValueError:
         payload.exception = True
-    sock = secureclass('localhost', port, password='password', rsabits=1024)
+    sock = secureclass('localhost', port, password='password', rsabits=1024, timeout=None)
     payload.intake=[]
     payload.output=[]
     payload.comms_check = sock.sock.recvRAW(decode=True)
@@ -171,6 +171,8 @@ class test(unittest.TestCase):
         self.assertListEqual(server_payload.output, client_payload.intake)
         self.assertRaises(IOError, client_payload.sock.send, 'fish')
         self.assertRaises(IOError, client_payload.sock.read)
+        self.assertFalse(len(client_payload.sock.tasks))
+        self.assertFalse(len(server_payload.sock.tasks))
 
     @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on windows")
     def test_files_io(self):
@@ -219,3 +221,5 @@ class test(unittest.TestCase):
                 self.assertEqual(client_payload.intake[i], server_payload.output[i])
         self.assertRaises(IOError, client_payload.sock.sendfile, 'fish')
         self.assertRaises(IOError, client_payload.sock.savefile, 'fish')
+        self.assertFalse(len(client_payload.sock.tasks))
+        self.assertFalse(len(server_payload.sock.tasks))
