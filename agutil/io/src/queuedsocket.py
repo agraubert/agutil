@@ -130,7 +130,7 @@ class QueuedSocket(Socket):
                         self.log("QueuedSocket encountered an error: "+str(e), "ERROR")
                         raise e
             if not self._shutdown:
-                super().settimeout(.05)
+                super().settimeout(.025)
                 try:
                     (channel, payload) = self._recvs()
                     self.log("Incoming payload on channel '%s'" %channel, "DEBUG")
