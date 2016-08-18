@@ -37,7 +37,10 @@ class Socket:
         found_size = False
         size = ""
         while not found_size:
-            intake = self.rollover + self.sock.recv(4096)
+            if len(self.rollover):
+                intake = self.rollover
+            else:
+                intake = self.sock.recv(4096)
             for i in range(len(intake)):
                 current = intake[i:i+1]
                 if current == b'|':
