@@ -167,7 +167,7 @@ class SecureConnection:
             self.pendingRequest.clear()
         (filename, auth) = self.authqueue.pop(0)
         if not force:
-            print("The remote socket is attempting to send the file '%s'")
+            print("The remote socket is attempting to send the file '%s'"%filename)
             accepted = False
             choice = ""
             while not accepted:
