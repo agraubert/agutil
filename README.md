@@ -4,7 +4,7 @@
 
 A collection of python utilities
 
-__Version:__ 1.0.1
+__Version:__ 1.1.0
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
@@ -36,26 +36,3 @@ Detailed documentation of these packages can be found on the [agutil Github wiki
 
 ##Installation note:
 This package requires PyCrypto, which typically has issues compiling on windows.  If you are on windows and `pip install agutil` fails during the installation of PyCrypto, then follow the instructions [here](https://github.com/sfbahr/PyCrypto-Wheels) for installing PyCrypto from a precompiled wheel, and then run `pip install agutil` again.
-
-##Features in development:
-
-##STATUS_BAR
-The following changes have been made to the `agutil.status_bar` api:
-- Status bar now supports the context manager protocol.  The bar is immediately initialized on entry, and automatically cleared on exit
-- The `status_bar.clear()` method now defaults to _erase_=True
-- Fixed a bug which occurs when running a status bar in reverse, where trailing percent signs would be left as the display shortened
-
-#####API
-* status_bar.clear(erase=True)
-
-  Clears the readout from stdout.
-  If _erase_ is true, the readout is cleared entirely.
-  Otherwise, the cursor position is simply reset to the front of the bar, which will overwrite characters in the readout with subsequent output to stdout by any source
-
-* status_bar.\_\_enter\_\_() _(Context manager entry)_
-
-  Immediately initializes the display and returns the status_bar object
-
-* status_bar.\_\_exit\_\_(self, type, value, traceback) _(Context manager exit)_
-
-  Clears and erases the display
