@@ -79,7 +79,7 @@ class test(unittest.TestCase):
         )
         sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.script_path))))
         random.seed()
-        cls.CHANNELS = [make_random_string().replace('|', '<PIPE>') for _ in range(3)]
+        cls.CHANNELS = [make_random_string().replace('^', '<CARROT>') for _ in range(3)]
         cls.CHANNELS = [cls.CHANNELS[0]] *2 + [cls.CHANNELS[1]] + [cls.CHANNELS[2]] + [cls.CHANNELS[0]]
 
     def test_compilation(self):
@@ -117,7 +117,7 @@ class test(unittest.TestCase):
         self.assertFalse(server_thread.is_alive(), "Server thread still running")
         client_thread.join(10+extra)
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
-        self.assertRaises(ValueError, client_payload.sock.send, 'fish', 'ta|cos')
+        self.assertRaises(ValueError, client_payload.sock.send, 'fish', 'ta^cos')
         self.assertRaises(TypeError, client_payload.sock.send, 13, 'test')
         server_payload.sock.close()
         client_payload.sock.close()

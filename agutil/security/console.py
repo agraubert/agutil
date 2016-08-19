@@ -17,12 +17,6 @@ def simple_pbkdf2_hmac(_, password, salt, iterations):
 
 def main(args_input = sys.argv[1:]):
     parser = argparse.ArgumentParser("agutil-secure")
-    # subparsers = parser.add_suparsers()
-
-    # parser = subparsers.add_parser(
-    #     "encrypt",
-    #     help="Encrypts a file"
-    # )
     parser.add_argument(
         'action',
         choices=['encrypt', 'decrypt'],
@@ -57,14 +51,8 @@ def main(args_input = sys.argv[1:]):
     iv = os.urandom(16)
     cipher = AES.new(key, AES.MODE_CBC, iv)
     if args.action == 'encrypt':
-        # args.output.write(cipher.encrypt(os.urandom(16)))
-        # args.input.close()
-        # args.output.close()
         encryptFile(args.input.name, args.output.name, cipher, True)
     else:
-        # cipher.decrypt(args.input.read(16))
-        # args.input.close()
-        # args.output.close()
         decryptFile(args.input.name, args.output.name, cipher, True)
     args.input.close()
     args.output.close()

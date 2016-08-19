@@ -1,6 +1,6 @@
 import sys
 from shutil import get_terminal_size
-
+from math import log10
 
 class status_bar:
     def __init__(self, maximum, show_percent = False, init=True,  prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False):
@@ -76,13 +76,20 @@ class status_bar:
                 self._write(" " * (self.cols - (self.cursor-len(self.pre)) + 1))
             else:
                 self._backtrack_to(1+self.cols+len(self.pre))
-            self._write("] %0.3f%%" % ((100.0 *self.current)/(self.cols * self.threshold)))
-            if self.cursor >= self.post_start:
+            current_percent = (100.0 *self.current)/(self.cols * self.threshold)
+            self._write("] %0.3f%%" % (current_percent))
+            last_percent = (100.0 *self.last_value)/(self.cols * self.threshold)
+            backtrack = last_percent>0 and int(log10(current_percent))<int(log10(last_percent))
+            if self.cursor >= self.post_start or backtrack:
                 self.post_start = self.cursor +1
                 self._write(self.post)
+                if backtrack:
+                    self._write(' ')
+                    self._backtrack_to(self.cursor-1)
+                    self.display = self.display[:-1]
             self.last_value = value
 
-    def clear(self, erase=False):
+    def clear(self, erase=True):
         self._backtrack_to(0)
         if erase:
             self._write(' '*(self.cols + 2+len(self.pre)))
@@ -104,3 +111,10 @@ class status_bar:
             self._initialize()
             self.update(self.last_value)
         self.pending_text_update |= not updateText
+
+    def __enter__(self):
+        self._initialize()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.clear(True)
