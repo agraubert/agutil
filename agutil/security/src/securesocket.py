@@ -6,7 +6,7 @@ import Crypto.Cipher.AES as AES
 from io import BytesIO, BufferedReader, BufferedWriter
 from . import protocols, files
 
-_SECURESOCKET_IDENTIFIER_ = '<agutil.security.securesocket:1.0.0>'
+_SECURESOCKET_IDENTIFIER_ = '<agutil.security.securesocket:2.0.0>'
 
 RSA_CPU = None
 try:
@@ -32,7 +32,7 @@ class SecureSocket(io.QueuedSocket):
             self.sLog = logmethod.bindToSender("SecureSocket")
         else:
             self.sLog = logmethod
-        if not isinstance(socket, io.Socket):
+        if isinstance(socket, io.QueuedSocket) or not isinstance(socket, io.Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
         super().__init__(socket, logmethod=self.sLog.bindToSender(self.sLog.name+"->QueuedSocket"))
         self.sLog("The underlying QueuedSocket has been initialized.  Exchanging encryption data now")
@@ -43,7 +43,7 @@ class SecureSocket(io.QueuedSocket):
             raise ValueError("Timeout cannot be negative")
         self.timeout = timeout
         protocolstring=_useIdentifier
-        if password!=None:
+        if password!=None and not _skipIdentifier:
             protocolstring+="<agutil.security.securesocket.password:%s>"%(
                 hashlib.sha512(
                     hashlib.sha512(password.encode()+b"lol").digest()
@@ -52,24 +52,25 @@ class SecureSocket(io.QueuedSocket):
             self.baseCipher = AES.new(hashlib.sha256(password.encode()).digest())
         else:
             self.baseCipher = _dummyCipher()
-        self.sLog("Sending protocol identifier", "DETAIL")
-        self._sendq(protocolstring, '__protocol__')
-        self.sLog("Receiving remote identifier", "DETAIL")
-        remoteprotocol = self._recvq('__protocol__', decode=True, timeout=timeout)
-        if remoteprotocol != protocolstring:
-            self.sLog("The remote socket provided an invalid SecureSocket protocol identifier. (Theirs: %s) (Ours: %s)" % (
-                remoteprotocol,
-                protocolstring
-            ), "WARN")
-            self.close()
-            raise ValueError("The remote socket provided an invalid protocol identifier at the SecureSocket level")
-        self.sLog("Sending encryption confirmation", "DETAIL")
-        self._sendq(self._baseEncrypt('OK'), '__control__')
-        self.sLog("Receiving remote encryption confirmation", "DETAIL")
-        if self._baseDecrypt(self._recvq('__control__', timeout=timeout)) != b'OK':
-            self.sLog("Unable to confirm base encryption with the remote socket.  Are you sure you entered the correct password?", "WARN")
-            self.close()
-            raise ValueError("Unable to confirm base encryption with the remote socket.  Are you sure you entered the correct password?")
+        if not _skipIdentifier:
+            self.sLog("Sending protocol identifier", "DETAIL")
+            self._sendq(protocolstring, '__protocol__')
+            self.sLog("Receiving remote identifier", "DETAIL")
+            remoteprotocol = self._recvq('__protocol__', decode=True, timeout=timeout)
+            if remoteprotocol != protocolstring:
+                self.sLog("The remote socket provided an invalid SecureSocket protocol identifier. (Theirs: %s) (Ours: %s)" % (
+                    remoteprotocol,
+                    protocolstring
+                ), "WARN")
+                self.close()
+                raise ValueError("The remote socket provided an invalid protocol identifier at the SecureSocket level")
+            self.sLog("Sending encryption confirmation", "DETAIL")
+            self._sendq(self._baseEncrypt('OK'), '__control__')
+            self.sLog("Receiving remote encryption confirmation", "DETAIL")
+            if self._baseDecrypt(self._recvq('__control__', timeout=timeout)) != b'OK':
+                self.sLog("Unable to confirm base encryption with the remote socket.  Are you sure you entered the correct password?", "WARN")
+                self.close()
+                raise ValueError("Unable to confirm base encryption with the remote socket.  Are you sure you entered the correct password?")
         self.sLog("Sending RSA keysize", "DETAIL")
         self._sendq(self._baseEncrypt(format(rsabits, 'x')), '__control__')
         self.sLog("Receiving remote RSA keysize", "DETAIL")
@@ -84,19 +85,20 @@ class SecureSocket(io.QueuedSocket):
         _n = bytesToInt(self._baseDecrypt(self._recvq('__control__')))
         _e = bytesToInt(self._baseDecrypt(self._recvq('__control__')))
         self.rpub = rsa.PublicKey(_n, _e)
-        self.sLog("Confirming encryption", "DEBUG")
-        self._sendq(rsa.encrypt(
-            b'OK',
-            self.rpub
-        ), '__control__')
-        response = rsa.decrypt(
-            self._recvq('__control__', timeout=timeout),
-            self.priv
-        )
-        if response != b'OK':
-            self.sLog("Unable to confirm RSA encryption with the remote socket.", "WARN")
-            self.close()
-            raise ValueError("Unable to confirm RSA encryption with the remote socket.")
+        if not _skipIdentifier:
+            self.sLog("Confirming encryption", "DEBUG")
+            self._sendq(rsa.encrypt(
+                b'OK',
+                self.rpub
+            ), '__control__')
+            response = rsa.decrypt(
+                self._recvq('__control__', timeout=timeout),
+                self.priv
+            )
+            if response != b'OK':
+                self.sLog("Unable to confirm RSA encryption with the remote socket.", "WARN")
+                self.close()
+                raise ValueError("Unable to confirm RSA encryption with the remote socket.")
 
 
     def _sendq(self, msg, channel='__orphan__'):

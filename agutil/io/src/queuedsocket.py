@@ -7,7 +7,7 @@ _QUEUEDSOCKET_IDENTIFIER_ = '<agutil.io.queuedsocket:1.0.0>'
 
 class QueuedSocket(Socket):
     def __init__(self, socket, logmethod=DummyLog, _skipIdentifier=False, _useIdentifier=_QUEUEDSOCKET_IDENTIFIER_):
-        if not isinstance(socket, Socket):
+        if isinstance(socket, QueuedSocket) or not isinstance(socket, Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
         super().__init__(socket.addr, socket.port, socket.sock, True)
         self.incoming = {'__orphan__': []}
