@@ -32,6 +32,7 @@ def server_comms(queueclass, ss, payload, CHANNELS):
             raw_output[local_channels[trial]] = []
         raw_output[local_channels[trial]].append(make_random_string())
         sock.send(raw_output[local_channels[trial]][-1], local_channels[trial])
+    sock.flush()
     for trial in range(5):
         payload.intake.append(sock.recv(CHANNELS[trial], True))
     for trial in range(5):
@@ -57,6 +58,7 @@ def client_comms(queueclass, _sockClass, port, payload, CHANNELS):
             raw_output[local_channels[trial]] = []
         raw_output[local_channels[trial]].append(make_random_string())
         sock.send(raw_output[local_channels[trial]][-1], local_channels[trial])
+    sock.flush()
     for trial in range(5):
         payload.intake.append(sock.recv(CHANNELS[trial], True))
     for trial in range(5):

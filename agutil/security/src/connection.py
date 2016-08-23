@@ -78,7 +78,7 @@ class SecureConnection:
                 if protocols._COMMANDS[command['cmd']]=='kill':
                     self.tasks[command['name']].join(.05)
                     del self.tasks[command['name']]
-                    if self._init_shutdown and not len(self.tasks):
+                    if not len(self.tasks):
                         self.killedtask.set()
                 elif command['cmd'] < len(protocols._COMMANDS):
                     if command['cmd'] % 2:
@@ -86,6 +86,7 @@ class SecureConnection:
                     else:
                         name = self._reserve_task(protocols._COMMANDS[command['cmd']])
                     worker = protocols._assign_task(protocols._COMMANDS[command['cmd']])
+                    self.killedtask.clear()
                     self.tasks[name] = threading.Thread(target=worker, args=(self,command,name), name=name, daemon=True)
                     self.tasks[name].start()
                     self.log("Started new task '%s'"%name, "DEBUG")
@@ -202,6 +203,9 @@ class SecureConnection:
         self.completed_transfers.remove(destination)
         self.log("File transfer complete", "DEBUG")
         return destination
+
+    def flush(self):
+        self.killedtask.wait()
 
     def shutdown(self, timeout=-1):
         self.close(timeout)
