@@ -37,6 +37,7 @@ def server_comms(secureClass, port, payload):
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
         payload.intake.append(sock.read())
+    sock.flush()
     payload.sock = sock
 
 def client_comms(secureclass, port, payload):
@@ -53,6 +54,7 @@ def client_comms(secureclass, port, payload):
         payload.output.append(make_random_string())
         sock.send(payload.output[-1])
         payload.intake.append(sock.read())
+    sock.flush()
     payload.sock = sock
 
 def server_comms_files(secureClass, port, payload):
@@ -77,6 +79,7 @@ def server_comms_files(secureClass, port, payload):
         payload.output.append(make_random_file(outfile.name))
         sock.sendfile(outfile.name)
         sock.sock.recvRAW()
+    sock.flush()
     payload.sock = sock
 
 def client_comms_files(secureclass, port, payload):
@@ -99,6 +102,7 @@ def client_comms_files(secureclass, port, payload):
         reader = open(infile.name, mode='rb')
         payload.intake.append(reader.read().decode())
         reader.close()
+    sock.flush()
     payload.sock = sock
 
 class test(unittest.TestCase):
