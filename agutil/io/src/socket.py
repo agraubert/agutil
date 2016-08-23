@@ -61,7 +61,7 @@ class Socket:
         if not msg.endswith(b'\x00\x02'):
             raise IOError("Received message with invalid padding bytes")
         if msg[-3]!=(sum(msg[:-3])%256):
-            raise IOError("Msg failed hamming weight test")
+            raise IOError("Unable to validate message integrity")
         if decode:
             return msg[:-3].decode()
         # print("Received: <", size, ">", msg)
