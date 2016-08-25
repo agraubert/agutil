@@ -5,6 +5,11 @@ import sys
 import tempfile
 from filecmp import cmp
 
+def tempname():
+    (handle, name) = tempfile.mkstemp()
+    os.close(handle)
+    return name
+
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -29,16 +34,16 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_manipulation(self):
         import agutil.bio.tsvmanip
-        output_file = tempfile.NamedTemporaryFile()
+        output_file = tempname()
         agutil.bio.tsvmanip.main([
             os.path.join(
                 self.data_path,
                 'input.txt'
             ),
-            output_file.name,
+            output_file,
             '-c',
             '0',
             '-c',
@@ -57,9 +62,10 @@ class test(unittest.TestCase):
             '0:3'
         ])
         self.assertTrue(cmp(
-            output_file.name,
+            output_file,
             os.path.join(
                 self.data_path,
                 'output.txt'
             )
         ))
+        os.remove(output_file)

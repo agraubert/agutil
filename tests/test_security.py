@@ -22,6 +22,11 @@ def make_random_file(filename):
     writer.close()
     return contents
 
+def tempname():
+    (handle, name) = tempfile.mkstemp()
+    os.close(handle)
+    return name
+
 def server_comms(secureClass, port, payload):
     ss = secureClass(port, password='password', rsabits=1024)
     try:
@@ -71,17 +76,18 @@ def server_comms_files(secureClass, port, payload):
     ss.close()
     sock.sock.sendRAW("+")
     for trial in range(5):
-        outfile = tempfile.NamedTemporaryFile()
-        infile = tempfile.NamedTemporaryFile()
-        sock.savefile(infile.name, force=True)
-        reader = open(infile.name, mode='rb')
+        outfile = tempname()
+        infile = tempname()
+        sock.savefile(infile, force=True)
+        reader = open(infile, mode='rb')
         payload.intake.append(reader.read().decode())
         reader.close()
-        payload.output.append(make_random_file(outfile.name))
-        sock.sendfile(outfile.name)
+        payload.output.append(make_random_file(outfile))
+        sock.sendfile(outfile)
         sock.sock.recvRAW()
-    (handle, outfile) = tempfile.mkstemp()
-    os.close(handle)
+        os.remove(outfile)
+        os.remove(infile)
+    outfile = tempname()
     payload.output.append(make_random_file(outfile))
     sock.sendfile(outfile)
     sock.sock.recvRAW()
@@ -100,21 +106,23 @@ def client_comms_files(secureclass, port, payload):
     payload.output=[]
     payload.comms_check = sock.sock.recvRAW(decode=True)
     for trial in range(5):
-        outfile = tempfile.NamedTemporaryFile()
-        infile = tempfile.NamedTemporaryFile()
-        payload.output.append(make_random_file(outfile.name))
-        sock.sendfile(outfile.name)
-        sock.savefile(infile.name, force=True)
+        outfile = tempname()
+        infile = tempname()
+        payload.output.append(make_random_file(outfile))
+        sock.sendfile(outfile)
+        sock.savefile(infile, force=True)
         sock.sock.sendRAW('+')
-        reader = open(infile.name, mode='rb')
+        reader = open(infile, mode='rb')
         payload.intake.append(reader.read().decode())
         reader.close()
+        os.remove(outfile)
+        os.remove(infile)
     sys.stdout = open(os.devnull, 'w')
-    infile = tempfile.NamedTemporaryFile()
+    infile = tempname()
     sys.stdin = io.StringIO("y"+os.linesep)
-    sock.savefile(infile.name)
+    sock.savefile(infile)
     sock.sock.sendRAW("+")
-    reader = open(infile.name, mode='rb')
+    reader = open(infile, mode='rb')
     payload.intake.append(reader.read().decode())
     reader.close()
     sock.flush()
@@ -122,6 +130,7 @@ def client_comms_files(secureclass, port, payload):
     sys.stdout = sys.__stdout__
     sys.stdin.close()
     sys.stdin = sys.__stdin__
+    os.remove(infile)
     payload.sock = sock
 
 class test(unittest.TestCase):
@@ -195,7 +204,7 @@ class test(unittest.TestCase):
         self.assertRaises(IOError, client_payload.sock.send, 'fish')
         self.assertRaises(IOError, client_payload.sock.read)
 
-    @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on windows")
+    # @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on windows")
     def test_files_io(self):
         from agutil.security import SecureConnection, SecureServer
         server_payload = lambda x:None

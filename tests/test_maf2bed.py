@@ -7,6 +7,11 @@ import tempfile
 from filecmp import cmp
 import csv
 
+def tempname():
+    (handle, name) = tempfile.mkstemp()
+    os.close(handle)
+    return name
+
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -38,7 +43,7 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output(self):
         import agutil.bio.maf2bed
         output_dir = tempfile.TemporaryDirectory()
@@ -97,7 +102,7 @@ class test(unittest.TestCase):
                 self.assertEqual(intake[i][key], result[i][key])
         output_dir.cleanup()
 
-    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output_noSilents(self):
         import agutil.bio.maf2bed
         output_dir = tempfile.TemporaryDirectory()
@@ -157,47 +162,49 @@ class test(unittest.TestCase):
                 self.assertEqual(intake[i][key], result[i][key])
         output_dir.cleanup()
 
-    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output_noKeyfile(self):
         import agutil.bio.maf2bed
-        output_file = tempfile.NamedTemporaryFile()
+        output_file = tempname()
         agutil.bio.maf2bed.main([
             'convert',
             os.path.join(
                 self.data_path,
                 'source.txt'
             ),
-            output_file.name,
+            output_file,
             '--skip-keyfile',
             '-v'
         ])
         self.assertTrue(cmp(
-            output_file.name,
+            output_file,
             os.path.join(
                 self.data_path,
                 'output_wSilents_noKey.bed'
             )
         ))
+        os.remove(output_file)
 
-    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output_noSilents_noKeyfile(self):
         import agutil.bio.maf2bed
-        output_file = tempfile.NamedTemporaryFile()
+        output_file = tempname()
         agutil.bio.maf2bed.main([
             'convert',
             os.path.join(
                 self.data_path,
                 'source.txt'
             ),
-            output_file.name,
+            output_file,
             '--exclude-silent',
             '--skip-keyfile',
             '-v'
         ])
         self.assertTrue(cmp(
-            output_file.name,
+            output_file,
             os.path.join(
                 self.data_path,
                 'output_noSilents_noKey.bed'
             )
         ))
+        os.remove(output_file)
