@@ -3,6 +3,8 @@ import hashlib
 import sys
 import os
 import Crypto.Cipher.AES as AES
+import tempfile
+import shutil
 try:
     from src.files import encryptFile, decryptFile
 except ImportError:
@@ -24,17 +26,18 @@ def main(args_input = sys.argv[1:]):
     )
     parser.add_argument(
         'input',
-        type=argparse.FileType('rb'),
+        type=argparse.FileType('r+b'),
         help="Input file to encrypt or decrypt"
-    )
-    parser.add_argument(
-        'output',
-        type=argparse.FileType('wb'),
-        help="Where to save the encrypted or decrypted file"
     )
     parser.add_argument(
         'password',
         help="The password to encrypt or decrypt with.  Note: passwords containing " " (spaces) must be encapsulated with quotations (\"\")"
+    )
+    parser.add_argument(
+        '-o', '--output',
+        type=argparse.FileType('wb'),
+        help="Where to save the encrypted or decrypted file",
+        default=None
     )
     parser.add_argument(
         '--py33',
@@ -47,15 +50,26 @@ def main(args_input = sys.argv[1:]):
     else:
         key_algo = hashlib.pbkdf2_hmac
 
+    inPlace = False
+    if not args.output:
+        inPlace = tempfile.NamedTemporaryFile()
+        args.output = inPlace.file
+
     key = hashlib.sha256(key_algo('sha512', args.password.encode(), b'this is some serious salt, yo', 250000)).digest()
     iv = os.urandom(16)
     cipher = AES.new(key, AES.MODE_CBC, iv)
     if args.action == 'encrypt':
-        encryptFile(args.input.name, args.output.name, cipher, True)
+        encryptFile(args.input, args.output, cipher, True)
     else:
-        decryptFile(args.input.name, args.output.name, cipher, True)
+        decryptFile(args.input, args.output, cipher, True)
+    if inPlace:
+        args.output.seek(0)
+        shutil.copyfileobj(args.output, args.input)
     args.input.close()
-    args.output.close()
+    if inPlace:
+        inPlace.close()
+    else:
+        args.output.close()
 
 
 if __name__ == '__main__':

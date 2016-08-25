@@ -7,6 +7,7 @@ import tempfile
 from filecmp import cmp
 import rsa.randnum
 import Crypto.Cipher.AES as AES
+import shutil
 
 def make_random_string():
     return "".join(chr(random.randint(0,255)) for i in range(25))
@@ -77,6 +78,7 @@ class test(unittest.TestCase):
             agutil.security.console.main([
                 'encrypt',
                 source,
+                '-o',
                 encrypted,
                 "\"%s\""%password
             ])
@@ -84,6 +86,7 @@ class test(unittest.TestCase):
             agutil.security.console.main([
                 'decrypt',
                 encrypted,
+                '-o',
                 decrypted,
                 "\"%s\""%password
             ])
@@ -91,6 +94,34 @@ class test(unittest.TestCase):
             os.remove(source)
             os.remove(encrypted)
             os.remove(decrypted)
+
+    # @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
+    def test_in_place_commands(self):
+        import agutil.security.console
+        for trial in range(5):
+            source = tempname()
+            target = tempname()
+            password = make_random_string()
+            writer = open(source, mode='w')
+            for line in range(15):
+                writer.write(make_random_string())
+                writer.write('\n')
+            writer.close()
+            shutil.copyfile(source, target)
+            agutil.security.console.main([
+                'encrypt',
+                target,
+                "\"%s\""%password
+            ])
+            self.assertFalse(cmp(source, target))
+            agutil.security.console.main([
+                'decrypt',
+                target,
+                "\"%s\""%password
+            ])
+            self.assertTrue(cmp(source, target))
+            os.remove(source)
+            os.remove(target)
 
     def test_chunk_encryption_decryption(self):
         from agutil.security.src.files import _encrypt_chunk, _decrypt_chunk
