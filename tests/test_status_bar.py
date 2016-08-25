@@ -26,7 +26,7 @@ class test(unittest.TestCase):
 
     def test_rolling(self):
         from agutil import status_bar
-        with status_bar(10000, True) as q:
+        with status_bar(10000, True, debugging=True) as q:
             self.assertEqual(q.display, '['+(' '*q.cols)+'] 0.000%')
             q.prepend("PRE ")
             self.assertEqual(q.display, 'PRE ['+(' '*q.cols)+'] 0.000%')
