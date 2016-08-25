@@ -165,7 +165,7 @@ class SecureConnection:
         while not len(self.authqueue):
             result = self.pendingRequest.wait(timeout)
             if not result:
-                raise SocketTimeout("No file transfer requests recieved within the specified timeout")
+                raise socketTimeout("No file transfer requests recieved within the specified timeout")
             self.pendingRequest.clear()
         (filename, auth) = self.authqueue.pop(0)
         if not force:
@@ -199,7 +199,7 @@ class SecureConnection:
         while destination not in self.completed_transfers:
             result = self.transferComplete.wait(timeout)
             if not result:
-                raise SocketTimeout("File transfer did not complete in the specified timeout")
+                raise socketTimeout("File transfer did not complete in the specified timeout")
             self.transferComplete.clear()
         self.completed_transfers.remove(destination)
         self.log("File transfer complete", "INFO")

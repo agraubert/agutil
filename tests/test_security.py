@@ -8,6 +8,7 @@ import warnings
 import tempfile
 import os
 import time
+import io
 
 TRAVIS = 'CI' in os.environ
 
@@ -79,7 +80,13 @@ def server_comms_files(secureClass, port, payload):
         payload.output.append(make_random_file(outfile.name))
         sock.sendfile(outfile.name)
         sock.sock.recvRAW()
+    (handle, outfile) = tempfile.mkstemp()
+    os.close(handle)
+    payload.output.append(make_random_file(outfile))
+    sock.sendfile(outfile)
+    sock.sock.recvRAW()
     sock.flush()
+    os.remove(outfile)
     payload.sock = sock
 
 def client_comms_files(secureclass, port, payload):
@@ -102,7 +109,19 @@ def client_comms_files(secureclass, port, payload):
         reader = open(infile.name, mode='rb')
         payload.intake.append(reader.read().decode())
         reader.close()
+    sys.stdout = open(os.devnull, 'w')
+    infile = tempfile.NamedTemporaryFile()
+    sys.stdin = io.StringIO("y"+os.linesep)
+    sock.savefile(infile.name)
+    sock.sock.sendRAW("+")
+    reader = open(infile.name, mode='rb')
+    payload.intake.append(reader.read().decode())
+    reader.close()
     sock.flush()
+    sys.stdout.close()
+    sys.stdout = sys.__stdout__
+    sys.stdin.close()
+    sys.stdin = sys.__stdin__
     payload.sock = sock
 
 class test(unittest.TestCase):
