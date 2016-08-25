@@ -14,6 +14,7 @@ def make_random_string(length=25, lower=0, upper=255):
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        sys.stdout = open(os.devnull, 'w')
         cls.script_path = os.path.join(
             os.path.dirname(
                 os.path.dirname(
@@ -32,6 +33,11 @@ class test(unittest.TestCase):
         sys.path.append(os.path.dirname(os.path.dirname(cls.script_path)))
         random.seed()
 
+    @classmethod
+    def tearDownClass(cls):
+        sys.stdout.close()
+        sys.stdout = sys.__stdout__
+
     def test_compilation(self):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
@@ -42,7 +48,7 @@ class test(unittest.TestCase):
         time_mock = unittest.mock.Mock(side_effect = lambda text:text)
         agutil.src.logger.time.strftime = time_mock
         output_file = tempfile.NamedTemporaryFile()
-        log = agutil.src.logger.Logger(output_file.name)
+        log = agutil.src.logger.Logger(output_file.name, stdout_level = agutil.src.logger.Logger.LOGLEVEL_DETAIL)
         log.log("Test message")
         log.log("More messages!", sender="me")
         log.log("OH NO! This one's an error!", "Foo", "ERROR")
