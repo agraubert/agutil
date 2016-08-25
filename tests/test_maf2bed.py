@@ -10,6 +10,7 @@ import csv
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        sys.stdout = open(os.devnull, mode='w')
         random.seed()
         cls.script_path = os.path.join(
             os.path.dirname(
@@ -28,6 +29,11 @@ class test(unittest.TestCase):
         )
         sys.path.append(os.path.dirname(os.path.dirname(cls.script_path)))
 
+    @classmethod
+    def tearDownClass(cls):
+        sys.stdout.close()
+        sys.stdout = sys.__stdout__
+
     def test_compilation(self):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
@@ -45,7 +51,8 @@ class test(unittest.TestCase):
             os.path.join(
                 output_dir.name,
                 'output.bed'
-            )
+            ),
+            '-v'
         ])
         self.assertTrue(cmp(
             os.path.join(
@@ -104,7 +111,8 @@ class test(unittest.TestCase):
                 output_dir.name,
                 'output.bed'
             ),
-            '--exclude-silent'
+            '--exclude-silent',
+            '-v'
         ])
         self.assertTrue(cmp(
             os.path.join(
@@ -160,7 +168,8 @@ class test(unittest.TestCase):
                 'source.txt'
             ),
             output_file.name,
-            '--skip-keyfile'
+            '--skip-keyfile',
+            '-v'
         ])
         self.assertTrue(cmp(
             output_file.name,
@@ -182,7 +191,8 @@ class test(unittest.TestCase):
             ),
             output_file.name,
             '--exclude-silent',
-            '--skip-keyfile'
+            '--skip-keyfile',
+            '-v'
         ])
         self.assertTrue(cmp(
             output_file.name,
