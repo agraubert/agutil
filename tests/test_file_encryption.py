@@ -11,6 +11,11 @@ import Crypto.Cipher.AES as AES
 def make_random_string():
     return "".join(chr(random.randint(0,255)) for i in range(25))
 
+def tempname():
+    (handle, name) = tempfile.mkstemp()
+    os.close(handle)
+    return name
+
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -32,54 +37,60 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
+    # @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
     def test_encrypts_and_decrypts(self):
         from agutil.security import encryptFile, decryptFile
         for trial in range(5):
-            source = tempfile.NamedTemporaryFile()
-            encrypted = tempfile.NamedTemporaryFile()
-            decrypted = tempfile.NamedTemporaryFile()
+            source = tempname()
+            encrypted = tempname()
+            decrypted = tempname()
             aes_key = rsa.randnum.read_random_bits(256)
             aes_iv = rsa.randnum.read_random_bits(128)
             encryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
             decryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
-            writer = open(source.name, mode='w')
+            writer = open(source, mode='w')
             for line in range(15):
                 writer.write(make_random_string())
                 writer.write('\n')
             writer.close()
-            encryptFile(source.name, encrypted.name, encryptionCipher)
-            self.assertFalse(cmp(source.name, encrypted.name))
-            decryptFile(encrypted.name, decrypted.name, decryptionCipher)
-            self.assertTrue(cmp(source.name, decrypted.name))
+            encryptFile(source, encrypted, encryptionCipher)
+            self.assertFalse(cmp(source, encrypted))
+            decryptFile(encrypted, decrypted, decryptionCipher)
+            self.assertTrue(cmp(source, decrypted))
+            os.remove(source)
+            os.remove(encrypted)
+            os.remove(decrypted)
 
-    @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
+    # @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
     def test_commands(self):
         import agutil.security.console
         for trial in range(5):
-            source = tempfile.NamedTemporaryFile()
-            encrypted = tempfile.NamedTemporaryFile()
-            decrypted = tempfile.NamedTemporaryFile()
+            source = tempname()
+            encrypted = tempname()
+            decrypted = tempname()
             password = make_random_string()
-            writer = open(source.name, mode='w')
+            writer = open(source, mode='w')
             for line in range(15):
                 writer.write(make_random_string())
                 writer.write('\n')
             writer.close()
             agutil.security.console.main([
                 'encrypt',
-                source.name,
-                encrypted.name,
+                source,
+                encrypted,
                 "\"%s\""%password
             ])
-            self.assertFalse(cmp(source.name, encrypted.name))
+            self.assertFalse(cmp(source, encrypted))
             agutil.security.console.main([
                 'decrypt',
-                encrypted.name,
-                decrypted.name,
+                encrypted,
+                decrypted,
                 "\"%s\""%password
             ])
-            self.assertTrue(cmp(source.name, decrypted.name))
+            self.assertTrue(cmp(source, decrypted))
+            os.remove(source)
+            os.remove(encrypted)
+            os.remove(decrypted)
 
     def test_chunk_encryption_decryption(self):
         from agutil.security.src.files import _encrypt_chunk, _decrypt_chunk

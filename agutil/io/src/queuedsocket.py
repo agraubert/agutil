@@ -7,7 +7,7 @@ _QUEUEDSOCKET_IDENTIFIER_ = '<agutil.io.queuedsocket:1.0.0>'
 
 class QueuedSocket(Socket):
     def __init__(self, socket, logmethod=DummyLog, _skipIdentifier=False, _useIdentifier=_QUEUEDSOCKET_IDENTIFIER_):
-        if not isinstance(socket, Socket):
+        if isinstance(socket, QueuedSocket) or not isinstance(socket, Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
         super().__init__(socket.addr, socket.port, socket.sock, True)
         self.incoming = {'__orphan__': []}
@@ -16,6 +16,7 @@ class QueuedSocket(Socket):
         self._shutdown = False
         self.datalock = threading.Condition()
         self.new_messages = threading.Event()
+        self.message_sent = threading.Event()
         self.log = logmethod
         if isinstance(self.log, Logger):
             self.log = self.log.bindToSender("QueuedSocket")
@@ -89,6 +90,11 @@ class QueuedSocket(Socket):
             msg = msg.decode()
         return msg
 
+    def flush(self):
+        while len(self.outgoing_channels):
+            self.message_sent.wait()
+            self.message_sent.clear()
+
     def _sends(self, msg, channel):
         channel = ":ch#"+channel+"^"
         if type(msg)==bytes:
@@ -122,6 +128,7 @@ class QueuedSocket(Socket):
                 self.log("Outgoing payload on channel '%s'" %target, "DEBUG")
                 try:
                     self._sends(payload, target)
+                    self.message_sent.set()
                 except (OSError, BrokenPipeError) as e:
                     if self._shutdown:
                         self.log("QueuedSocket background thread halted (attempted to send after shutdown)")

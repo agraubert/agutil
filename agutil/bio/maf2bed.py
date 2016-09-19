@@ -23,8 +23,8 @@ def maf2bed(args):
         args.v = len([False for row in reader])
         reader.close()
     elif args.v:
-        from subprocess import run, PIPE
-        args.v = int(run(['wc -l %s'%args.input.name], shell=True, stdout=PIPE).stdout.decode().split()[0])
+        from subprocess import check_output
+        args.v = int(check_output(['wc -l %s'%args.input.name], shell=True).decode().split()[0])
     key_file = None
     if not args.skip_keyfile:
         key_file = open(args.output.name+".key", mode='w')

@@ -78,7 +78,7 @@ class SecureConnection:
                 if protocols._COMMANDS[command['cmd']]=='kill':
                     self.tasks[command['name']].join(.05)
                     del self.tasks[command['name']]
-                    if self._init_shutdown and not len(self.tasks):
+                    if not len(self.tasks):
                         self.killedtask.set()
                 elif command['cmd'] < len(protocols._COMMANDS):
                     if command['cmd'] % 2:
@@ -86,6 +86,7 @@ class SecureConnection:
                     else:
                         name = self._reserve_task(protocols._COMMANDS[command['cmd']])
                     worker = protocols._assign_task(protocols._COMMANDS[command['cmd']])
+                    self.killedtask.clear()
                     self.tasks[name] = threading.Thread(target=worker, args=(self,command,name), name=name, daemon=True)
                     self.tasks[name].start()
                     self.log("Started new task '%s'"%name, "DEBUG")
@@ -115,7 +116,7 @@ class SecureConnection:
         elif type(msg)!=bytes:
             self.log("Attempt to send message which was not str or bytes", "WARN")
             raise TypeError("msg argument must be str or bytes")
-        self.log("Outgoing text message scheduled", "DEBUG")
+        self.log("Outgoing text message scheduled", "INFO")
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('to'),
             'msg': msg,
@@ -129,12 +130,13 @@ class SecureConnection:
             raise IOError("This SecureConnection has already initiated shutdown")
         if timeout == -1:
             timeout = self.sock.timeout
-        self.log("Waiting to receive incoming text message", "DEBUG")
+        self.log("Waiting to receive incoming text message", "INFO")
         self.intakeEvent.wait(timeout)
         if not len(self.queuedmessages):
             raise socketTimeout("No message recieved within the specified timeout")
         msg = self.queuedmessages.pop(0)
         self.intakeEvent.clear()
+        self.log("Text message received", "INFO")
         if decode:
             msg = msg.decode()
         return msg
@@ -146,7 +148,7 @@ class SecureConnection:
         if not os.path.isfile(filename):
             self.log("Unable to determine file specified by path '%s'"%filename, "ERROR")
             raise FileNotFoundError("The provided filename does not exist or is invalid")
-        self.log("Outgoing file request scheduled", "DEBUG")
+        self.log("Outgoing file request scheduled", "INFO")
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('fro'),
             'filepath': os.path.abspath(filename)
@@ -159,15 +161,15 @@ class SecureConnection:
             raise IOError("This SecureConnection has already initiated shutdown")
         if timeout == -1:
             timeout = self.sock.timeout
-        self.log("Waiting to receive incoming file request", "DEBUG")
+        self.log("Waiting to receive incoming file request", "INFO")
         while not len(self.authqueue):
             result = self.pendingRequest.wait(timeout)
             if not result:
-                raise SocketTimeout("No file transfer requests recieved within the specified timeout")
+                raise socketTimeout("No file transfer requests recieved within the specified timeout")
             self.pendingRequest.clear()
         (filename, auth) = self.authqueue.pop(0)
         if not force:
-            print("The remote socket is attempting to send the file '%s'")
+            print("The remote socket is attempting to send the file '%s'"%filename)
             accepted = False
             choice = ""
             while not accepted:
@@ -193,15 +195,18 @@ class SecureConnection:
             'filepath': destination
         })
         self.pending_tasks.set()
-        self.log("Waiting for transfer to complete...", "DEBUG")
+        self.log("Waiting for transfer to complete...", "INFO")
         while destination not in self.completed_transfers:
             result = self.transferComplete.wait(timeout)
             if not result:
-                raise SocketTimeout("File transfer did not complete in the specified timeout")
+                raise socketTimeout("File transfer did not complete in the specified timeout")
             self.transferComplete.clear()
         self.completed_transfers.remove(destination)
-        self.log("File transfer complete", "DEBUG")
+        self.log("File transfer complete", "INFO")
         return destination
+
+    def flush(self):
+        self.killedtask.wait()
 
     def shutdown(self, timeout=-1):
         self.close(timeout)

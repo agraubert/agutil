@@ -1,7 +1,7 @@
 import socket
 from .. import _PROTOCOL_IDENTIFIER_
 
-_SOCKET_IDENTIFIER_ = '<agutil.io.socket:1.0.0>'
+_SOCKET_IDENTIFIER_ = '<agutil.io.socket:2.0.0>'
 class Socket:
     def __init__(self, address, port, _socket=None, _skipIdentifier=False, _useIdentifier=_PROTOCOL_IDENTIFIER_+_SOCKET_IDENTIFIER_):
         self.addr = address
@@ -24,6 +24,8 @@ class Socket:
             msg=msg.encode()
         elif type(msg)!=bytes:
             raise TypeError("msg argument must be str or bytes")
+        weight = sum(msg)%256
+        msg += bytes.fromhex('%02x'%weight)
         msg += b'\x00\x02'
         payload_size = len(msg)
         # print("Sending: <", payload_size, ">",msg)
@@ -58,10 +60,12 @@ class Socket:
 
         if not msg.endswith(b'\x00\x02'):
             raise IOError("Received message with invalid padding bytes")
+        if msg[-3]!=(sum(msg[:-3])%256):
+            raise IOError("Unable to validate message integrity")
         if decode:
-            return msg[:-2].decode()
+            return msg[:-3].decode()
         # print("Received: <", size, ">", msg)
-        return msg[:-2]
+        return msg[:-3]
 
     def settimeout(self, time):
         self.sock.settimeout(time)

@@ -11,9 +11,15 @@ from filecmp import cmp
 def make_random_string(length=25, lower=0, upper=255):
     return "".join(chr(random.randint(lower,upper)) for i in range(length))
 
+def tempname():
+    (handle, name) = tempfile.mkstemp()
+    os.close(handle)
+    return name
+
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        sys.stdout = open(os.devnull, 'w')
         cls.script_path = os.path.join(
             os.path.dirname(
                 os.path.dirname(
@@ -32,6 +38,11 @@ class test(unittest.TestCase):
         sys.path.append(os.path.dirname(os.path.dirname(cls.script_path)))
         random.seed()
 
+    @classmethod
+    def tearDownClass(cls):
+        sys.stdout.close()
+        sys.stdout = sys.__stdout__
+
     def test_compilation(self):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
@@ -41,8 +52,8 @@ class test(unittest.TestCase):
         import agutil.src.logger
         time_mock = unittest.mock.Mock(side_effect = lambda text:text)
         agutil.src.logger.time.strftime = time_mock
-        output_file = tempfile.NamedTemporaryFile()
-        log = agutil.src.logger.Logger(output_file.name)
+        output_file = tempname()
+        log = agutil.src.logger.Logger(output_file, stdout_level = agutil.src.logger.Logger.LOGLEVEL_DETAIL)
         log.log("Test message")
         log.log("More messages!", sender="me")
         log.log("OH NO! This one's an error!", "Foo", "ERROR")
@@ -66,9 +77,10 @@ class test(unittest.TestCase):
         time.sleep(.1)
         self.assertFalse(log.close())
         self.assertTrue(cmp(
-            output_file.name,
+            output_file,
             os.path.join(
                 self.data_path,
                 'logger_compare.txt'
             )
         ))
+        os.remove(output_file)

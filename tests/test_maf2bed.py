@@ -7,9 +7,15 @@ import tempfile
 from filecmp import cmp
 import csv
 
+def tempname():
+    (handle, name) = tempfile.mkstemp()
+    os.close(handle)
+    return name
+
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        sys.stdout = open(os.devnull, mode='w')
         random.seed()
         cls.script_path = os.path.join(
             os.path.dirname(
@@ -28,11 +34,16 @@ class test(unittest.TestCase):
         )
         sys.path.append(os.path.dirname(os.path.dirname(cls.script_path)))
 
+    @classmethod
+    def tearDownClass(cls):
+        sys.stdout.close()
+        sys.stdout = sys.__stdout__
+
     def test_compilation(self):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output(self):
         import agutil.bio.maf2bed
         output_dir = tempfile.TemporaryDirectory()
@@ -45,7 +56,8 @@ class test(unittest.TestCase):
             os.path.join(
                 output_dir.name,
                 'output.bed'
-            )
+            ),
+            '-v'
         ])
         self.assertTrue(cmp(
             os.path.join(
@@ -90,7 +102,7 @@ class test(unittest.TestCase):
                 self.assertEqual(intake[i][key], result[i][key])
         output_dir.cleanup()
 
-    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output_noSilents(self):
         import agutil.bio.maf2bed
         output_dir = tempfile.TemporaryDirectory()
@@ -104,7 +116,8 @@ class test(unittest.TestCase):
                 output_dir.name,
                 'output.bed'
             ),
-            '--exclude-silent'
+            '--exclude-silent',
+            '-v'
         ])
         self.assertTrue(cmp(
             os.path.join(
@@ -149,45 +162,49 @@ class test(unittest.TestCase):
                 self.assertEqual(intake[i][key], result[i][key])
         output_dir.cleanup()
 
-    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output_noKeyfile(self):
         import agutil.bio.maf2bed
-        output_file = tempfile.NamedTemporaryFile()
+        output_file = tempname()
         agutil.bio.maf2bed.main([
             'convert',
             os.path.join(
                 self.data_path,
                 'source.txt'
             ),
-            output_file.name,
-            '--skip-keyfile'
+            output_file,
+            '--skip-keyfile',
+            '-v'
         ])
         self.assertTrue(cmp(
-            output_file.name,
+            output_file,
             os.path.join(
                 self.data_path,
                 'output_wSilents_noKey.bed'
             )
         ))
+        os.remove(output_file)
 
-    @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
     def test_output_noSilents_noKeyfile(self):
         import agutil.bio.maf2bed
-        output_file = tempfile.NamedTemporaryFile()
+        output_file = tempname()
         agutil.bio.maf2bed.main([
             'convert',
             os.path.join(
                 self.data_path,
                 'source.txt'
             ),
-            output_file.name,
+            output_file,
             '--exclude-silent',
-            '--skip-keyfile'
+            '--skip-keyfile',
+            '-v'
         ])
         self.assertTrue(cmp(
-            output_file.name,
+            output_file,
             os.path.join(
                 self.data_path,
                 'output_noSilents_noKey.bed'
             )
         ))
+        os.remove(output_file)
