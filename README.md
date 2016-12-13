@@ -4,7 +4,7 @@
 
 A collection of python utilities
 
-__Version:__ 1.1.0
+__Version:__ 1.1.1
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
@@ -37,26 +37,3 @@ Detailed documentation of these packages can be found on the [agutil Github wiki
 ##Installation note:
 This package requires PyCrypto, which typically has issues compiling on windows.  If you are on windows and `pip install agutil` fails during the installation of PyCrypto, then follow the instructions [here](https://github.com/sfbahr/PyCrypto-Wheels) for installing PyCrypto from a precompiled wheel, and then run `pip install agutil` again.
 
-##Features in Development:
-
-##io.QueuedSocket
-The following change has been made to the `agutil.io.queuedsocket` api:
-
-* Added a `flush()` method
-
-#####API
-
-* queuedsocket.flush()
-
-  Waits for all queued outgoing messages to be sent, then returns.
-
-##security.SECURECONNECTION
-The following change has been made to the `agutil.security.secureconnection` api:
-
-* Added a `flush()` method
-
-#####API
-
-* secureconnection.flush()
-
-  Waits for all actively running tasks to complete, then returns
