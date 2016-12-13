@@ -62,3 +62,4 @@ class test(unittest.TestCase):
                 self.assertEqual(q.display[-5:], ' POST')
                 self.assertLessEqual(abs(float(q.display.split()[-2].strip('% '))- (100*i/10000)), q.update_threshold)
         self.assertEqual(q.display, ' '*len(q.display))
+        q.update(0)
