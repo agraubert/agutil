@@ -79,7 +79,7 @@ class status_bar:
             current_percent = (100.0 *self.current)/(self.cols * self.threshold)
             self._write("] %0.3f%%" % (current_percent))
             last_percent = (100.0 *self.last_value)/(self.cols * self.threshold)
-            backtrack = last_percent>0 and int(log10(current_percent))<int(log10(last_percent))
+            backtrack = last_percent>0 and (current_percent==0 or int(log10(current_percent))<int(log10(last_percent)))
             if self.cursor >= self.post_start or backtrack:
                 self.post_start = self.cursor +1
                 self._write(self.post)
