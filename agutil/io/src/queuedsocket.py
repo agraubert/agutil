@@ -61,6 +61,16 @@ class QueuedSocket(Socket):
             msg=msg.encode()
         elif type(msg)!=bytes:
             raise TypeError("msg argument must be str or bytes")
+        if not self._thread.is_alive():
+            self.log("The background thread has crashed or stopped before the QueuedSocket shut down.  Restarting thread...", "WARN")
+            self._thread = threading.Thread(
+                target=QueuedSocket._worker,
+                args=(self,),
+                name="QueuedSocket background thread",
+                daemon=True
+            )
+            self._thread.start()
+            self.log("The background thread has been restarted", "INFO")
         self.datalock.acquire()
         if channel not in self.outgoing:
             self.outgoing[channel] = []
@@ -73,6 +83,16 @@ class QueuedSocket(Socket):
         if self._shutdown:
             self.log("Attempt to use the QueuedSocket after shutdown", "WARN")
             raise IOError("This QueuedSocket has already been closed")
+        if not self._thread.is_alive():
+            self.log("The background thread has crashed or stopped before the QueuedSocket shut down.  Restarting thread...", "WARN")
+            self._thread = threading.Thread(
+                target=QueuedSocket._worker,
+                args=(self,),
+                name="QueuedSocket background thread",
+                daemon=True
+            )
+            self._thread.start()
+            self.log("The background thread has been restarted", "INFO")
         self.datalock.acquire()
         if channel not in self.incoming:
             self.incoming[channel] = []
