@@ -4,7 +4,7 @@
 
 A collection of python utilities
 
-__Version:__ 1.1.2
+__Version:__ 1.1.3
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
@@ -31,8 +31,8 @@ The __security__ package:
 * encryptFile and decryptFile (Simple methods for encrypting and decrypting local files)
 * agutil-secure (A command line utility for encrypting and decrypting files)
 
-##Documentation:
+## Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)
 
-##Installation note:
+## Installation note:
 This package requires PyCrypto, which typically has issues compiling on windows.  If you are on windows and `pip install agutil` fails during the installation of PyCrypto, then follow the instructions [here](https://github.com/sfbahr/PyCrypto-Wheels) for installing PyCrypto from a precompiled wheel, and then run `pip install agutil` again.
