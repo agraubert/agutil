@@ -30,6 +30,11 @@ class test(unittest.TestCase):
             "src",
             "files.py"
         )
+        cls.test_data_dir = os.path.join(
+            os.path.dirname(__file__),
+            'data',
+            'encryption'
+        )
         sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.script_path))))
         random.seed()
 
@@ -77,6 +82,7 @@ class test(unittest.TestCase):
             agutil.security.console.main([
                 'encrypt',
                 source,
+                '-o',
                 encrypted,
                 "\"%s\""%password
             ])
@@ -84,13 +90,47 @@ class test(unittest.TestCase):
             agutil.security.console.main([
                 'decrypt',
                 encrypted,
+                '-o',
                 decrypted,
                 "\"%s\""%password
             ])
             self.assertTrue(cmp(source, decrypted))
+            with self.assertRaises(SystemExit):
+                agutil.security.console.main([
+                    'decrypt',
+                    encrypted,
+                    '-o',
+                    decrypted,
+                    "\"%s\""%make_random_string()
+                ])
             os.remove(source)
             os.remove(encrypted)
             os.remove(decrypted)
+
+    def test_compatibility(self):
+        #to ensure backwards compatibility
+        #There must always be a way to decrypt the file, even as the api changes
+        import agutil.security.console
+        output_filename = tempname()
+        agutil.security.console.main([
+            'decrypt',
+            os.path.join(
+                self.test_data_dir,
+                'encrypted'
+            ),
+            '-o',
+            output_filename,
+            '-f',
+            'password'
+        ])
+        self.assertTrue(cmp(
+            os.path.join(
+                self.test_data_dir,
+                'expected'
+            ),
+            output_filename
+        ))
+        os.remove(output_filename)
 
     def test_chunk_encryption_decryption(self):
         from agutil.security.src.files import _encrypt_chunk, _decrypt_chunk
