@@ -28,18 +28,25 @@ def main(args_input = sys.argv[1:]):
         help="Input file to encrypt or decrypt"
     )
     parser.add_argument(
-        'output',
-        type=argparse.FileType('wb'),
-        help="Where to save the encrypted or decrypted file"
-    )
-    parser.add_argument(
         'password',
         help="The password to encrypt or decrypt with.  Note: passwords containing " " (spaces) must be encapsulated with quotations (\"\")"
+    )
+    parser.add_argument(
+        '-o','--output',
+        type=argparse.FileType('wb'),
+        default=None,
+        help="Where to save the encrypted or decrypted file. If omitted, agutil-secure will replace the input file"
     )
     parser.add_argument(
         '--py33',
         action='store_true',
         help="Forces encryption or decryption to use the simplified, 3.3 compatable pbkdf2_hmac "
+    )
+    parser.add_argument(
+        '-f', '--force',
+        action='store_false',
+        help="Attempts to decrypt the file without verifying the password. \
+        Files encrypted with agutil version 1.1.3 and earlier MUST be decrypted with this option"
     )
     args = parser.parse_args(args_input)
     if args.py33 or sys.version_info<(3,4):
@@ -47,15 +54,32 @@ def main(args_input = sys.argv[1:]):
     else:
         key_algo = hashlib.pbkdf2_hmac
 
+    if args.output is None:
+        from tempfile import mkstemp
+        (handle, output_name) = mkstemp()
+        os.close(handle)
+        output_file = open(output_name, mode='wb')
+    else:
+        output_file = args.output
+
     key = hashlib.sha256(key_algo('sha512', args.password.encode(), b'this is some serious salt, yo', 250000)).digest()
     iv = os.urandom(16)
     cipher = AES.new(key, AES.MODE_CBC, iv)
-    if args.action == 'encrypt':
-        encryptFile(args.input.name, args.output.name, cipher, True)
-    else:
-        decryptFile(args.input.name, args.output.name, cipher, True)
-    args.input.close()
-    args.output.close()
+    try:
+        if args.action == 'encrypt':
+            encryptFile(args.input.name, output_file.name, cipher, args.force, True)
+        else:
+            decryptFile(args.input.name, output_file.name, cipher, args.force, True)
+    except KeyError:
+        sys.exit("Failed!  The provided password may be incorrect")
+    finally:
+        args.input.close()
+        output_file.close()
+
+    if args.output is None:
+        from shutil import copyfile
+        copyfile(output_file.name, args.input.name)
+        os.remove(output_file.name)
 
 
 if __name__ == '__main__':
