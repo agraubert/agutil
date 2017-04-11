@@ -107,6 +107,7 @@ class test(unittest.TestCase):
             os.remove(encrypted)
             os.remove(decrypted)
 
+    @unittest.skipIf(sys.version_info<(3,4), "This test is for python 3.4 and newer")
     def test_compatibility(self):
         #to ensure backwards compatibility
         #There must always be a way to decrypt the file, even as the api changes
@@ -121,6 +122,55 @@ class test(unittest.TestCase):
             '-o',
             output_filename,
             '-f',
+            'password'
+        ])
+        self.assertTrue(cmp(
+            os.path.join(
+                self.test_data_dir,
+                'expected'
+            ),
+            output_filename
+        ))
+        os.remove(output_filename)
+
+    @unittest.skipIf(sys.version_info<(3,4), "This test is for python 3.4 and newer")
+    def test_platform_33_to_newer(self):
+        #Test if a file encrypted on 3.3 can be decrypted on newer python versions using the --py33 flag
+        import agutil.security.console
+        output_filename = tempname()
+        agutil.security.console.main([
+            'decrypt',
+            os.path.join(
+                self.test_data_dir,
+                'encrypted.3.3'
+            ),
+            '-o',
+            output_filename,
+            '--py33',
+            'password'
+        ])
+        self.assertTrue(cmp(
+            os.path.join(
+                self.test_data_dir,
+                'expected'
+            ),
+            output_filename
+        ))
+        os.remove(output_filename)
+
+    @unittest.skipIf(sys.version_info>=(3,4), "This test is for python 3.3 and older")
+    def test_platform_35_to_33(self):
+        #Test if a file encrypted on 3.5 with the --py33 flag can be decrypted on python 3.3
+        import agutil.security.console
+        output_filename = tempname()
+        agutil.security.console.main([
+            'decrypt',
+            os.path.join(
+                self.test_data_dir,
+                'encrypted.3.5'
+            ),
+            '-o',
+            output_filename,
             'password'
         ])
         self.assertTrue(cmp(
