@@ -3,6 +3,8 @@ import hashlib
 import sys
 import os
 import Crypto.Cipher.AES as AES
+from getpass import getpass
+
 try:
     from src.files import encryptFile, decryptFile
 except ImportError:
@@ -28,7 +30,8 @@ def main(args_input = sys.argv[1:]):
         help="Input file to encrypt or decrypt"
     )
     parser.add_argument(
-        'password',
+        '-p', '--password',
+        default=None,
         help="The password to encrypt or decrypt with.  Note: passwords containing " " (spaces) must be encapsulated with quotations (\"\")"
     )
     parser.add_argument(
@@ -53,7 +56,8 @@ def main(args_input = sys.argv[1:]):
         key_algo = simple_pbkdf2_hmac
     else:
         key_algo = hashlib.pbkdf2_hmac
-
+    if args.password is None:
+        args.password = getpass(args.action.title()+"ion password: ")
     if args.output is None:
         from tempfile import mkstemp
         (handle, output_name) = mkstemp()

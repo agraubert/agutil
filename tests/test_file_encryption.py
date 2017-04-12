@@ -1,4 +1,5 @@
 import unittest
+import unittest.mock
 import os
 from py_compile import compile
 import sys
@@ -84,6 +85,7 @@ class test(unittest.TestCase):
                 source,
                 '-o',
                 encrypted,
+                '-p',
                 "\"%s\""%password
             ])
             self.assertFalse(cmp(source, encrypted))
@@ -92,6 +94,7 @@ class test(unittest.TestCase):
                 encrypted,
                 '-o',
                 decrypted,
+                '-p',
                 "\"%s\""%password
             ])
             self.assertTrue(cmp(source, decrypted))
@@ -101,6 +104,7 @@ class test(unittest.TestCase):
                     encrypted,
                     '-o',
                     decrypted,
+                    '-p',
                     "\"%s\""%make_random_string()
                 ])
             os.remove(source)
@@ -122,6 +126,7 @@ class test(unittest.TestCase):
             '-o',
             output_filename,
             '-f',
+            '-p',
             'password'
         ])
         self.assertTrue(cmp(
@@ -147,6 +152,7 @@ class test(unittest.TestCase):
             '-o',
             output_filename,
             '--py33',
+            '-p',
             'password'
         ])
         self.assertTrue(cmp(
@@ -171,6 +177,7 @@ class test(unittest.TestCase):
             ),
             '-o',
             output_filename,
+            '-p',
             'password'
         ])
         self.assertTrue(cmp(
@@ -196,3 +203,36 @@ class test(unittest.TestCase):
                 self.assertEqual(source, decrypted)
             else:
                 self.assertEqual(hash(source), hash(decrypted))
+
+    def test_password_prompt(self):
+        from io import StringIO
+        import agutil.security.console
+        password = make_random_string()
+        mock = unittest.mock.create_autospec(agutil.security.console.getpass, return_value=password)
+        agutil.security.console.getpass = mock
+        source = tempname()
+        encrypted = tempname()
+        decrypted = tempname()
+        writer = open(source, mode='w')
+        for line in range(15):
+            writer.write(make_random_string())
+            writer.write('\n')
+        writer.close()
+        agutil.security.console.main([
+            'encrypt',
+            source,
+            '-o',
+            encrypted
+        ])
+        self.assertFalse(cmp(source, encrypted))
+        agutil.security.console.main([
+            'decrypt',
+            encrypted,
+            '-o',
+            decrypted
+        ])
+        self.assertTrue(cmp(source, decrypted))
+        mock.assert_has_calls([
+            unittest.mock.call('Encryption password: '),
+            unittest.mock.call('Decryption password: ')
+        ])
