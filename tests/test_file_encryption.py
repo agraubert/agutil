@@ -205,11 +205,13 @@ class test(unittest.TestCase):
         agutil.security.console.main([
             'encrypt',
             source,
+            '-p',
             "\"%s\""%password
         ])
         agutil.security.console.main([
             'decrypt',
             source,
+            '-p',
             "\"%s\""%password
         ])
         hasher = md5()
