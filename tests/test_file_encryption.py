@@ -7,6 +7,7 @@ import random
 import tempfile
 from filecmp import cmp
 import rsa.randnum
+from hashlib import md5
 import Crypto.Cipher.AES as AES
 
 def make_random_string():
@@ -188,6 +189,40 @@ class test(unittest.TestCase):
             output_filename
         ))
         os.remove(output_filename)
+
+    def test_in_place(self):
+        import agutil.security.console
+        source = tempname()
+        password = make_random_string()
+        writer = open(source, mode='w')
+        hasher = md5()
+        for line in range(15):
+            line = make_random_string() + '\n'
+            writer.write(line)
+            hasher.update(line.encode())
+        writer.close()
+        sourceHash = hasher.hexdigest()
+        agutil.security.console.main([
+            'encrypt',
+            source,
+            '-p',
+            "\"%s\""%password
+        ])
+        agutil.security.console.main([
+            'decrypt',
+            source,
+            '-p',
+            "\"%s\""%password
+        ])
+        hasher = md5()
+        reader = open(source, mode='rb')
+        chunk = reader.read(1024)
+        while chunk:
+            hasher.update(chunk)
+            chunk = reader.read(1024)
+        reader.close()
+        self.assertEqual(sourceHash, hasher.hexdigest())
+        os.remove(source)
 
     def test_chunk_encryption_decryption(self):
         from agutil.security.src.files import _encrypt_chunk, _decrypt_chunk
