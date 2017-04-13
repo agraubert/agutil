@@ -41,14 +41,21 @@ This package requires PyCrypto, which typically has issues compiling on windows.
 
 ## agutil-secure
 The following changes have been made to the `agutil-secure` console script:
-* The `output` parameter is now optional.  By default, `agutil-secure` will now perform operations
-in-place, overwriting the input file with the new data.  Use _-o <filename>_ or _--output <filename>_ to
+* The _password_ parameter is now optional.  By default, `agutil-secure` will now prompt
+the user for a password (in a secure manner) if it is not provided. When prompting for a password,
+the characters typed will not display on screen (unless the secure method of password input
+is not available on your platform, in which case a warning will be displayed that passwords
+will be visible).  Passwords can still be provided on the command line with _-p \<password\>_ or _--password \<password\>_.
+Passwords provided as command line arguments will still be visible.
+* The _output_ parameter is now optional.  By default, `agutil-secure` will now perform operations
+in-place, overwriting the input file with the new data.  Use _-o \<filename\>_ or _--output \<filename\>_ to
 save the output to `filename`
 * `agutil-secure` now validates files before decrypting.  If the password is incorrect,
 decryption halts and returns a status code of `1`.  Must use _-f_ parameter to decrypt
 files encrypted with previous versions of `agutil-secure`
-* Added _-f_/_--force_ option to `agutil-secure` to maintain compatibility with previous versions.
+* Added _-f_/_--force_ option to maintain compatibility with previous versions.
 Use _-f_ if decryption fails when decrypting files encrypted with old versions of `agutil-secure`
+* Added _-v_/_--verbose_ option to display the progress of the current operation
 
 ## security.ENCRYPTFILE and security.DECRYPTFILE
 The following change has been made to both `agutil.security.encryptFile` and `agutil.security.decryptFile`:
