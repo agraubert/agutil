@@ -234,5 +234,6 @@ class test(unittest.TestCase):
         self.assertTrue(cmp(source, decrypted))
         mock.assert_has_calls([
             unittest.mock.call('Encryption password: '),
+            unittest.mock.call('Confirm password: '),
             unittest.mock.call('Decryption password: ')
         ])

@@ -55,6 +55,7 @@ decryption halts and returns a status code of `1`.  Must use _-f_ parameter to d
 files encrypted with previous versions of `agutil-secure`
 * Added _-f_/_--force_ option to maintain compatibility with previous versions.
 Use _-f_ if decryption fails when decrypting files encrypted with old versions of `agutil-secure`
+* Added _-v_/_--verbose_ option to display the progress of the current operation
 
 ## security.ENCRYPTFILE and security.DECRYPTFILE
 The following change has been made to both `agutil.security.encryptFile` and `agutil.security.decryptFile`:
