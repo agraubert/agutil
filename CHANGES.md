@@ -1,7 +1,5 @@
 # CHANGELOG
 
----
-
 ## 1.2.0
 
 #### agutil-secure
@@ -62,8 +60,6 @@ The following change has been made to the `SecureSocket` API:
 * The constructor _timeout_ parameter is now required to be None or a non-negative integer.  A TypeError is raised otherwise.
 
 # Pre-Release Versions
-
----
 
 ## 0.6.0b
 
