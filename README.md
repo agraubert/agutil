@@ -4,7 +4,7 @@
 
 A collection of python utilities
 
-__Version:__ 1.1.3
+__Version:__ 1.2.0
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
