@@ -36,3 +36,16 @@ Detailed documentation of these packages can be found on the [agutil Github wiki
 
 ## Installation note:
 This package requires PyCrypto, which typically has issues compiling on windows.  If you are on windows and `pip install agutil` fails during the installation of PyCrypto, then follow the instructions [here](https://github.com/sfbahr/PyCrypto-Wheels) for installing PyCrypto from a precompiled wheel, and then run `pip install agutil` again.
+
+## Features in development:
+
+## agutil (main module)
+The following change has been made to the `agutil` module:
+* Added a new convenience method, `agutil.hashfile()`, to simplify hashing files
+
+##### API
+* agutil.hashfile(_filepath_, _algorithm_='sha1'):
+
+  Opens the file at the requested _filepath_ and generates a hash using the specified
+  _algorithm_.  If _filepath_ cannot be found, it raises a `FileNotFoundError`.
+  If _algorithm_ is not available on the current platform, it raises a `ValueError`.
