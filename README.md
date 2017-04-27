@@ -44,8 +44,10 @@ The following change has been made to the `agutil` module:
 * Added a new convenience method, `agutil.hashfile()`, to simplify hashing files
 
 ##### API
-* agutil.hashfile(_filepath_, _algorithm_='sha1'):
+* agutil.hashfile(_filepath_, _algorithm_='sha1', _length_=None):
 
   Opens the file at the requested _filepath_ and generates a hash using the specified
   _algorithm_.  If _filepath_ cannot be found, it raises a `FileNotFoundError`.
   If _algorithm_ is not available on the current platform, it raises a `ValueError`.
+  If _length_ is provided and is not None, it is passed to `algorithm.digest()`
+  for variable length digest algorithms (**shake_128** and **shake_256**)

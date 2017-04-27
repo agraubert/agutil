@@ -89,6 +89,7 @@ class test(unittest.TestCase):
     def test_hashfile(self):
         from agutil import hashfile
         temp_dir = tempfile.TemporaryDirectory()
+        #Test shake algorithms later
         for algo in hashlib.algorithms_available:
             for trial in range(2):
                 filename = os.path.join(
@@ -102,5 +103,9 @@ class test(unittest.TestCase):
                     writer.write(content)
                     hasher.update(content.encode())
                 writer.close()
-                self.assertEqual(hashfile(filename, algo), hasher.digest())
+                if algo.startswith('shake'):
+                    length = int(2**random.randint(4,10))
+                    self.assertEqual(hashfile(filename, algo, length), hasher.digest(length))
+                else:
+                    self.assertEqual(hashfile(filename, algo), hasher.digest())
         temp_dir.cleanup()

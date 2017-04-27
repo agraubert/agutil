@@ -30,7 +30,7 @@ def split_iterable(seq, length):
 def byte_xor(b1, b2):
     return intToBytes(bytesToInt(b1)^bytesToInt(b2), max(len(b1), len(b2)))
 
-def hashfile(filepath, algorithm='sha1'):
+def hashfile(filepath, algorithm='sha1', length=None):
     reader = open(filepath, mode='rb')
     hasher = hashlib.new(algorithm)
     chunk = reader.read(4096)
@@ -38,4 +38,6 @@ def hashfile(filepath, algorithm='sha1'):
         hasher.update(chunk)
         chunk = reader.read(4096)
     reader.close()
+    if isinstance(length, int):
+        return hasher.digest(length)
     return hasher.digest()
