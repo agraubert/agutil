@@ -15,9 +15,7 @@ python:
   - '3.5'
   - '3.6'
 install:
-  - pip install rsa
-  - pip install pycrypto
-  - pip install coveralls
+  - pip install -e .
 script:
   - coverage run --source=agutil --omit=*__init__.py -m unittest discover -v
 after_success:

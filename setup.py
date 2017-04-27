@@ -1,4 +1,5 @@
 from setuptools import setup
+from pip.req import parse_requirements
 
 import sys
 if sys.version_info<(3,3):
@@ -45,8 +46,10 @@ setup(
         ]
     },
     install_requires=[
-        'pycrypto',
-        'rsa'
+        str(package.req) for package in parse_requirements(
+            'requirements.txt',
+            session=''
+        )
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
