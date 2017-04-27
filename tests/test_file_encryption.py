@@ -9,6 +9,7 @@ from filecmp import cmp
 import rsa.randnum
 from hashlib import md5
 import Crypto.Cipher.AES as AES
+from itertools import chain
 
 def make_random_string():
     return "".join(chr(random.randint(0,255)) for i in range(25))
@@ -272,3 +273,80 @@ class test(unittest.TestCase):
             unittest.mock.call('Confirm password: '),
             unittest.mock.call('Decryption password: ')
         ])
+
+    def test_multi(self):
+        import agutil.security.console
+        encrypted = [tempname() for i in range(5)]
+        decrypted = [tempname() for i in range(5)]
+        password = make_random_string()
+        source = []
+        for i in range(5):
+            source.append(tempname())
+            writer = open(source[-1], mode='w')
+            for line in range(15):
+                writer.write(make_random_string())
+                writer.write('\n')
+            writer.close()
+        agutil.security.console.main([
+            'encrypt',
+            *source,
+            *list(chain.from_iterable(zip(['-o']*5, encrypted))),
+            '-p',
+            "\"%s\""%password
+        ])
+        for (sourcefile, encryptedfile) in zip(source, encrypted):
+            self.assertFalse(cmp(sourcefile, encryptedfile))
+        agutil.security.console.main([
+            'decrypt',
+            *encrypted,
+            *list(chain.from_iterable(zip(['-o']*5, decrypted))),
+            '-p',
+            "\"%s\""%password
+        ])
+        for (sourcefile, decryptedfile) in zip(source, decrypted):
+            self.assertTrue(cmp(sourcefile, decryptedfile))
+        for filename in source:
+            os.remove(filename)
+        for filename in encrypted:
+            os.remove(filename)
+        for filename in decrypted:
+            os.remove(filename)
+
+
+    def test_multi_in_place(self):
+        import agutil.security.console
+        password = make_random_string()
+        source = []
+        hashes = []
+        for i in range(5):
+            source.append(tempname())
+            hasher = md5()
+            writer = open(source[-1], mode='w')
+            for line in range(15):
+                line = make_random_string()+'\n'
+                writer.write(line)
+                hasher.update(line.encode())
+            writer.close()
+            hashes.append(hasher.digest())
+        agutil.security.console.main([
+            'encrypt',
+            *source,
+            '-p',
+            "\"%s\""%password
+        ])
+        agutil.security.console.main([
+            'decrypt',
+            *source,
+            '-p',
+            "\"%s\""%password
+        ])
+        for (filename, checksum) in zip(source, hashes):
+            hasher = md5()
+            reader = open(filename, mode='rb')
+            chunk = reader.read(1024)
+            while len(chunk):
+                hasher.update(chunk)
+                chunk = reader.read(1024)
+            self.assertEqual(hasher.digest(), checksum)
+            reader.close()
+            os.remove(filename)

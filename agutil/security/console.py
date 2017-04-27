@@ -4,6 +4,8 @@ import sys
 import os
 import Crypto.Cipher.AES as AES
 from getpass import getpass
+from itertools import chain
+from contextlib import ExitStack
 
 try:
     from .src import files
@@ -28,7 +30,7 @@ def main(args_input = sys.argv[1:]):
         'input',
         type=argparse.FileType('rb'),
         nargs='+',
-        help="Input file to encrypt or decrypt"
+        help="Input file(s) to encrypt or decrypt"
     )
     parser.add_argument(
         '-p', '--password',
@@ -38,8 +40,12 @@ def main(args_input = sys.argv[1:]):
     parser.add_argument(
         '-o','--output',
         type=argparse.FileType('wb'),
-        default=None,
-        help="Where to save the encrypted or decrypted file. If omitted, agutil-secure will replace the input file"
+        action='append',
+        default=[],
+        help="Where to save the encrypted or decrypted file(s). \
+        If omitted, agutil-secure will replace the input file(s). \
+        If any output files are provided, you must provide the same number of outputs \
+        as inputs, by providing the -o argument multiple times"
     )
     parser.add_argument(
         '--py33',
@@ -68,69 +74,68 @@ def main(args_input = sys.argv[1:]):
             check = getpass("Confirm password: ")
             if check != args.password:
                 sys.exit("Passwords do not match!")
-    if len(args.input) > 1 and args.output is not None:
-        sys.exit("Cannot use multiple input files with an explicit output file")
-    for input_file in args.input:
-        if args.output is None:
-            from tempfile import mkstemp
-            (handle, output_name) = mkstemp()
-            os.close(handle)
-            output_file = open(output_name, mode='wb')
-        else:
-            output_file = args.output
-
-        key = hashlib.sha256(key_algo('sha512', args.password.encode(), b'this is some serious salt, yo', 250000)).digest()
-        iv = os.urandom(16)
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        if args.verbose:
-            #this is definitely a hacky solution, but it looks better from the user's perspective
-            #I have no way of reporting the progress of copying the file in place,
-            #But I think it looks nicer to have the bar stick at 100% while doing that operation
-            #Than to just disappear and leave the user waiting at a blank line before the
-            #program finishes
-            from .. import status_bar
-            bar = status_bar(os.path.getsize(input_file.name), show_percent=True, init=False)
-            def wrapper(func):
-                def call(chunk, cipher):
-                    call.progress += len(chunk)
-                    bar.update(call.progress)
-                    return func(chunk, cipher)
-                call.progress = 0
-                return call
-            if args.action == 'encrypt':
-                files._encrypt_chunk = wrapper(files._encrypt_chunk)
+    if len(args.output)>0 and len(args.output) != len(args.input):
+        sys.exit("Must specify the same number of input files as outputs if explicitly providing output files")
+    with ExitStack() as exitStack:
+        for (input_file, output_arg) in zip(args.input, chain(args.output, [None]*len(args.input))):
+            if output_arg is None:
+                from tempfile import mkstemp
+                (handle, output_name) = mkstemp()
+                os.close(handle)
+                output_file = open(output_name, mode='wb')
             else:
-                files._decrypt_chunk = wrapper(files._decrypt_chunk)
-        try:
-            if args.action == 'encrypt':
-                files.encryptFile(
-                    input_file.name,
-                    output_file.name,
-                    cipher,
-                    validate=args.force,
-                    _prechunk=True
-                )
-            else:
-                files.decryptFile(
-                    input_file.name,
-                    output_file.name,
-                    cipher,
-                    validate=args.force,
-                    _prechunk=True
-                )
-        except KeyError:
-            sys.exit("Failed!  The provided password may be incorrect")
-        finally:
-            input_file.close()
-            output_file.close()
+                output_file = output_arg
+            exitStack.enter_context(input_file)
+            exitStack.enter_context(output_file)
+            key = hashlib.sha256(key_algo('sha512', args.password.encode(), b'this is some serious salt, yo', 250000)).digest()
+            iv = os.urandom(16)
+            cipher = AES.new(key, AES.MODE_CBC, iv)
+            if args.verbose:
+                #this is definitely a hacky solution, but it looks better from the user's perspective
+                #I have no way of reporting the progress of copying the file in place,
+                #But I think it looks nicer to have the bar stick at 100% while doing that operation
+                #Than to just disappear and leave the user waiting at a blank line before the
+                #program finishes
+                from .. import status_bar
+                bar = status_bar(os.path.getsize(input_file.name), show_percent=True, init=False)
+                def wrapper(func):
+                    def call(chunk, cipher):
+                        call.progress += len(chunk)
+                        bar.update(call.progress)
+                        return func(chunk, cipher)
+                    call.progress = 0
+                    return call
+                if args.action == 'encrypt':
+                    files._encrypt_chunk = wrapper(files._encrypt_chunk)
+                else:
+                    files._decrypt_chunk = wrapper(files._decrypt_chunk)
+            try:
+                if args.action == 'encrypt':
+                    files.encryptFile(
+                        input_file.name,
+                        output_file.name,
+                        cipher,
+                        validate=args.force,
+                        _prechunk=True
+                    )
+                else:
+                    files.decryptFile(
+                        input_file.name,
+                        output_file.name,
+                        cipher,
+                        validate=args.force,
+                        _prechunk=True
+                    )
+            except KeyError:
+                sys.exit("Failed!  The provided password may be incorrect")
 
-        if args.output is None:
-            from shutil import copyfile
-            copyfile(output_file.name, input_file.name)
-            os.remove(output_file.name)
+            if output_arg is None:
+                from shutil import copyfile
+                copyfile(output_file.name, input_file.name)
+                os.remove(output_file.name)
 
-        if args.verbose:
-            bar.clear()
+            if args.verbose:
+                bar.clear()
 
 
 if __name__ == '__main__':
