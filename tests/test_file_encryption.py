@@ -289,8 +289,8 @@ class test(unittest.TestCase):
             writer.close()
         agutil.security.console.main([
             'encrypt',
-            *source,
-            *list(chain.from_iterable(zip(['-o']*5, encrypted))),
+            ]+source+[
+            ]+list(chain.from_iterable(zip(['-o']*5, encrypted)))+[
             '-p',
             "\"%s\""%password
         ])
@@ -298,8 +298,8 @@ class test(unittest.TestCase):
             self.assertFalse(cmp(sourcefile, encryptedfile))
         agutil.security.console.main([
             'decrypt',
-            *encrypted,
-            *list(chain.from_iterable(zip(['-o']*5, decrypted))),
+            ]+encrypted+[
+            ]+list(chain.from_iterable(zip(['-o']*5, decrypted)))+[
             '-p',
             "\"%s\""%password
         ])
@@ -329,14 +329,14 @@ class test(unittest.TestCase):
             writer.close()
             hashes.append(hasher.digest())
         agutil.security.console.main([
-            'encrypt',
-            *source,
+            'encrypt'
+            ]+source+[
             '-p',
             "\"%s\""%password
         ])
         agutil.security.console.main([
             'decrypt',
-            *source,
+            ]+source+[
             '-p',
             "\"%s\""%password
         ])
