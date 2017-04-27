@@ -39,6 +39,37 @@ This package requires PyCrypto, which typically has issues compiling on windows.
 
 ## Features in development:
 
+## agutil (main module)
+The following changes have been made to the `agutil` module:
+* Added a `agutil.byteSize()` method to convert a number of bytes to a human-readable string
+* Added a new convenience method, `agutil.hashfile()`, to simplify hashing files
+
+##### API
+* agutil.hashfile(_filepath_, _algorithm_='sha1', _length_=None):
+
+  Opens the file at the requested _filepath_ and generates a hash using the specified
+  _algorithm_.  If _filepath_ cannot be found, it raises a `FileNotFoundError`.
+  If _algorithm_ is not available on the current platform, it raises a `ValueError`.
+  If _length_ is provided and is not None, it is passed to `algorithm.digest()`
+  for variable length digest algorithms (**shake_128** and **shake_256**)
+
+* byteSize(_n_):
+
+  Returns a string with _n_ converted to the highest unit of Bytes where _n_ would
+  be at least 1 (caps at ZiB), rounded to 1 decimal place.  Examples:
+
+  * byteSize(1) = `1B`
+  * byteSize(1023) = `1023B`
+  * byteSize(1024) = `1KiB`
+  * byteSize(856633344) = `816.9MiB`
+  * byteSize(12379856472314232739172) = `10.5ZiB`
+
+## agutil.security.SECURECONNECTION
+The following change has been made to the `agutil.security.SecureConnection` class:
+* `savefile()` timeout now applies to each chunk of the file.  The operation will
+block so long as the remote socket sends at least one chunk per timeout period.
+(API unchanged)
+
 ## agutil-secure
 The following change has been made to the `agutil-secure` console script:
 * The multiple _input_ files can now be provided.  This allows `agutil-secure` to
