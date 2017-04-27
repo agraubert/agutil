@@ -2,7 +2,9 @@ import unittest
 import os
 from py_compile import compile
 import sys
+import hashlib
 import random
+import tempfile
 
 def make_random_string(length=25, lower=0, upper=255):
     return "".join(chr(random.randint(lower,upper)) for i in range(length))
@@ -83,6 +85,30 @@ class test(unittest.TestCase):
             else:
                 self.assertEqual(len(converted), bytelen)
                 self.assertEqual(hash(converted), hash(bytestring))
+
+    def test_hashfile(self):
+        from agutil import hashfile
+        temp_dir = tempfile.TemporaryDirectory()
+        #Test shake algorithms later
+        for algo in hashlib.algorithms_available:
+            for trial in range(2):
+                filename = os.path.join(
+                    temp_dir.name,
+                    '%s-trial-%d'%(algo, trial)
+                )
+                writer = open(filename, mode='w')
+                hasher = hashlib.new(algo)
+                for line in range(32):
+                    content = make_random_string(length=1024)
+                    writer.write(content)
+                    hasher.update(content.encode())
+                writer.close()
+                if algo.startswith('shake'):
+                    length = int(2**random.randint(4,10))
+                    self.assertEqual(hashfile(filename, algo, length), hasher.digest(length))
+                else:
+                    self.assertEqual(hashfile(filename, algo), hasher.digest())
+        temp_dir.cleanup()
 
     def test_byte_size(self):
         from agutil import byteSize
