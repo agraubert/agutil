@@ -1,6 +1,17 @@
 import sys
-from shutil import get_terminal_size
+from shutil import get_terminal_size as _get_terminal_size
 from math import log10
+
+def get_terminal_size():
+    import os
+    import subprocess
+    _shutil = _get_terminal_size()
+    _os = os.get_terminal_size()
+    _subprocess = subprocess.run(['stty', 'size'], stdout=subprocess.PIPE).stdout.decode()
+    print("Shutil:", _shutil)
+    print("OS:", _os)
+    print("Subprocess:", _subprocess)
+    return max(_os[0], _shutil[0])
 
 class status_bar:
     def __init__(self, maximum, show_percent = False, init=True,  prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False):
