@@ -1,5 +1,6 @@
 from itertools import chain, islice, zip_longest
 import hashlib
+from math import log
 
 def intToBytes(num, padding_length=0):
     s = format(num, 'x')
@@ -41,3 +42,9 @@ def hashfile(filepath, algorithm='sha1', length=None):
     if isinstance(length, int):
         return hasher.digest(length)
     return hasher.digest()
+
+def byteSize(n):
+    index = min(7, int(log(abs(n), 1024)))
+    suffix = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB'][index]
+    output = '%.1f'%(n / 1024**index)
+    return output.rstrip('.0')+suffix

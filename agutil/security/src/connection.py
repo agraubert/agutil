@@ -1,5 +1,5 @@
 from .securesocket import SecureSocket
-from ... import io, Logger, DummyLog
+from ... import io, Logger, DummyLog, byteSize
 from . import protocols
 from socket import timeout as socketTimeout
 import threading
@@ -33,7 +33,7 @@ class SecureConnection:
         self.pending_tasks = threading.Event()
         self.intakeEvent = threading.Event()
         self.pendingRequest = threading.Event()
-        self.transferComplete = threading.Event()
+        self.transferTracking = {}
         self.killedtask = threading.Event()
         self.completed_transfers = set()
         self.queuedmessages = [] #Queue of decrypted received text messages
@@ -167,9 +167,10 @@ class SecureConnection:
             if not result:
                 raise socketTimeout("No file transfer requests recieved within the specified timeout")
             self.pendingRequest.clear()
-        (filename, auth) = self.authqueue.pop(0)
+        (filename, auth, size) = self.authqueue.pop(0)
         if not force:
             print("The remote socket is attempting to send the file '%s'"%filename)
+            print("Size:", byteSize(size))
             accepted = False
             choice = ""
             while not accepted:
@@ -189,19 +190,20 @@ class SecureConnection:
                 self.pending_tasks.set()
                 return
         self.log("Accepted transfer of file '%s'"%filename)
+        transferKey = '%s-%d'%(auth, hash(destination))
+        self.transferTracking[transferKey] = threading.Event()
         self.schedulingqueue.append({
             'cmd': protocols.lookupcmd('fti'),
             'auth': auth,
-            'filepath': destination
+            'filepath': destination,
+            'key': transferKey,
+            'timeout':timeout
         })
         self.pending_tasks.set()
         self.log("Waiting for transfer to complete...", "INFO")
-        while destination not in self.completed_transfers:
-            result = self.transferComplete.wait(timeout)
-            if not result:
-                raise socketTimeout("File transfer did not complete in the specified timeout")
-            self.transferComplete.clear()
-        self.completed_transfers.remove(destination)
+        self.transferTracking[transferKey].wait()
+        if destination not in self.completed_transfers:
+            raise socketTimeout("File transfer did not complete in the specified timeout")
         self.log("File transfer complete", "INFO")
         return destination
 
