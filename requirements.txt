@@ -1,2 +1,2 @@
-pycrypto
-rsa
+pycrypto==2.6.1
+rsa==3.4.2
