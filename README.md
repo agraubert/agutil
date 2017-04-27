@@ -37,7 +37,7 @@ Detailed documentation of these packages can be found on the [agutil Github wiki
 ## Installation note:
 This package requires PyCrypto, which typically has issues compiling on windows.  If you are on windows and `pip install agutil` fails during the installation of PyCrypto, then follow the instructions [here](https://github.com/sfbahr/PyCrypto-Wheels) for installing PyCrypto from a precompiled wheel, and then run `pip install agutil` again.
 
-## Features in development
+## Features in development:
 
 ## agutil (main module)
 The following changes have been made to the `agutil` module:
@@ -69,3 +69,35 @@ The following change has been made to the `agutil.security.SecureConnection` cla
 * `savefile()` timeout now applies to each chunk of the file.  The operation will
 block so long as the remote socket sends at least one chunk per timeout period.
 (API unchanged)
+
+## agutil-secure
+The following change has been made to the `agutil-secure` console script:
+* The multiple _input_ files can now be provided.  This allows `agutil-secure` to
+handle globs
+
+##### COMMAND USAGE
+* `agutil-secure [-h] [-p PASSWORD] [-o OUTPUT] [--py33] [-f] [-v] {encrypt,decrypt}
+input [input...]`
+
+  positional arguments:
+    * _{encrypt,decrypt}_:     Sets the mode to either encryption or decryption
+    * _input_:                 Input file(s) to encrypt or decrypt
+
+  optional arguments:
+    * _-h, --help_:            show this help message and exit
+    * _-p PASSWORD, --password PASSWORD_:
+                          The password to encrypt or decrypt with. Note:
+                          passwords containing (spaces) must be encapsulated
+                          with quotations ("")
+    * _-o OUTPUT, --output OUTPUT_:
+                          Where to save the encrypted or decrypted file(s). If
+                          omitted, agutil-secure will replace the input file(s).
+                          If any output files are provided, you must provide the
+                          same number of outputs as inputs, by providing the -o
+                          argument multiple times
+    * _--py33_:                Forces encryption or decryption to use the simplified,
+                          3.3 compatable pbkdf2_hmac
+    * _-f, --force_:           Attempts to decrypt the file without verifying the
+                          password. Files encrypted with agutil version 1.1.3
+                          and earlier MUST be decrypted with this option
+    * _-v, --verbose_:         Display the progress of the operation
