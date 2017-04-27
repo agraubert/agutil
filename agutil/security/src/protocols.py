@@ -1,6 +1,7 @@
 import rsa
 import os
 import random
+from socket import timeout as socketTimeout
 
 _COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fto', 'fti', '_NULL', 'dci',]
 _CMD_LOOKUP = {}
@@ -150,7 +151,12 @@ def _file_request_out(sock,cmd,name):
     sock.filemap[auth_key] = cmd['filepath']
     sock.sock.sendAES(packcmd(
         'fri',
-        {'auth':auth_key, 'filename':os.path.basename(cmd['filepath']), 'name':name}
+        {
+            'auth':auth_key,
+            'filename':os.path.basename(cmd['filepath']),
+            'name':name,
+            'size': str(os.path.getsize(cmd['filepath']))
+        }
     ), '__cmd__')
     tasklog("Sent file transfer request to remote socket", "DETAIL")
     sock.schedulingqueue.append({
@@ -162,7 +168,7 @@ def _file_request_out(sock,cmd,name):
 def _file_request_in(sock,cmd,name):
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
     tasklog("Received new file request.  Queueing authorization", "DETAIL")
-    sock.authqueue.append((cmd['filename'], cmd['auth']))
+    sock.authqueue.append((cmd['filename'], cmd['auth'], int(cmd['size'])))
     sock.pendingRequest.set()
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
@@ -196,12 +202,17 @@ def _file_transfer_in(sock,cmd,name):
         {'name':name, 'auth':cmd['auth'], 'reject':'reject' in cmd}
     ), '__cmd__')
     if 'reject' not in cmd:
-        sock.sock.recvRAW(name, timeout=None)
-        tasklog("File transfer initiated", "DEBUG")
-        sock.sock.recvAES(name, output_file=cmd['filepath'])
-        sock.completed_transfers.add(cmd['filepath'])
-        sock.transferComplete.set()
-        tasklog("Transfer complete", "DEBUG")
+        try:
+            sock.sock.recvRAW(name, timeout=cmd['timeout'])
+            tasklog("File transfer initiated", "DEBUG")
+            sock.sock.recvAES(name, output_file=cmd['filepath'], timeout=cmd['timeout'])
+        except socketTimeout:
+            tasklog("Transfer timed out", "ERROR")
+        else:
+            tasklog("Transfer complete", "DEBUG")
+            sock.completed_transfers.add(cmd['filepath'])
+        finally:
+            sock.transferTracking[cmd['key']].set()
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
         'name': name

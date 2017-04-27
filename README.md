@@ -34,5 +34,29 @@ The __security__ package:
 ## Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)
 
+## Features in development
+
+## agutil (main module)
+The following change has been made to the `agutil` module:
+* Added a `byteSize()` method to convert a number of bytes to a human-readable string
+
+##### API
+* byteSize(n):
+
+  Returns a string with _n_ converted to the highest unit of Bytes where _n_ would
+  be at least 1 (caps at ZiB), rounded to 1 decimal place.  Examples:
+
+  * byteSize(1) = `1B`
+  * byteSize(1023) = `1023B`
+  * byteSize(1024) = `1KiB`
+  * byteSize(856633344) = `816.9MiB`
+  * byteSize(12379856472314232739172) = `10.5ZiB`
+
+## agutil.security.SECURECONNECTION
+The following change has been made to the `agutil.security.SecureConnection` class:
+* `savefile()` timeout now applies to each chunk of the file.  The operation will
+block so long as the remote socket sends at least one chunk per timeout period.
+(API unchanged)
+
 ## Installation note:
 This package requires PyCrypto, which typically has issues compiling on windows.  If you are on windows and `pip install agutil` fails during the installation of PyCrypto, then follow the instructions [here](https://github.com/sfbahr/PyCrypto-Wheels) for installing PyCrypto from a precompiled wheel, and then run `pip install agutil` again.

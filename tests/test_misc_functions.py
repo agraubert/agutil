@@ -83,3 +83,14 @@ class test(unittest.TestCase):
             else:
                 self.assertEqual(len(converted), bytelen)
                 self.assertEqual(hash(converted), hash(bytestring))
+
+    def test_byte_size(self):
+        from agutil import byteSize
+        from math import log
+        import re
+        pattern = re.compile(r'(\d+(\.\d)?)([A-Z]i)?B')
+        for trial in range(25):
+            num = random.randint(0, sys.maxsize)
+            formatted = byteSize(num)
+            self.assertRegex(formatted, pattern)
+            self.assertLess(float(pattern.match(formatted).group(1)), 1024.0)

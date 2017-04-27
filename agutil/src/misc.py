@@ -1,4 +1,5 @@
 from itertools import chain, islice, zip_longest
+from math import log
 
 def intToBytes(num, padding_length=0):
     s = format(num, 'x')
@@ -28,3 +29,9 @@ def split_iterable(seq, length):
 
 def byte_xor(b1, b2):
     return intToBytes(bytesToInt(b1)^bytesToInt(b2), max(len(b1), len(b2)))
+
+def byteSize(n):
+    index = min(7, int(log(abs(n), 1024)))
+    suffix = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB'][index]
+    output = '%.1f'%(n / 1024**index)
+    return output.rstrip('.0')+suffix
