@@ -44,6 +44,8 @@ def hashfile(filepath, algorithm='sha1', length=None):
     return hasher.digest()
 
 def byteSize(n):
+    if n == 0:
+        return '0B'
     index = min(7, int(log(abs(n), 1024)))
     suffix = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB'][index]
     output = '%.1f'%(n / 1024**index)
