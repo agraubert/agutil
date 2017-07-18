@@ -43,6 +43,8 @@ This package requires PyCrypto, which typically has issues compiling on windows.
 The following changes have been made to the `agutil` module:
 * Added a `agutil.byteSize()` method to convert a number of bytes to a human-readable string
 * Added a new convenience method, `agutil.hashfile()`, to simplify hashing files
+* Added two classes for simple shell interaction: `agutil.ShellReturnObject` and `agutil.StdOutAdapter`, which hold shell command output and capture live output, respectively.
+* Added a new convenience method, `agutil.cmd`, to simplify executing shell commands programatically.
 
 ##### API
 * agutil.hashfile(_filepath_, _algorithm_='sha1', _length_=None):
@@ -53,7 +55,7 @@ The following changes have been made to the `agutil` module:
   If _length_ is provided and is not None, it is passed to `algorithm.digest()`
   for variable length digest algorithms (**shake_128** and **shake_256**)
 
-* byteSize(_n_):
+* agutil.byteSize(_n_):
 
   Returns a string with _n_ converted to the highest unit of Bytes where _n_ would
   be at least 1 (caps at ZiB), rounded to 1 decimal place.  Examples:
@@ -63,6 +65,52 @@ The following changes have been made to the `agutil` module:
   * byteSize(1024) = `1KiB`
   * byteSize(856633344) = `816.9MiB`
   * byteSize(12379856472314232739172) = `10.5ZiB`
+  
+
+* agutil.cmd(_expr_, _display_=True):
+
+  Executes _expr_ in a background shell and returns a `agutil.ShellReturnObject` afterwards.
+  _expr_ can either be a single command string, or a list/tuple of command arguments
+  (which will be quoted and escaped if necessary).
+  If _display_ is True, the stdout and stderr from the background shell will be
+  displayed live in the interpreter in addition to being captured in the
+  returned `agutil.ShellReturnObject`
+
+## agutil.STDOUTADAPTER
+This class acts to record any data written to its file descriptor.
+After constructing a new `StdOutAdapter` instance, other programs may write to `StdOutAdapter.writeFD`.
+
+##### API
+* StdOutAdapter(_display_) _(constructor)_
+
+  Constructs a new `StdOutAdapter` instance.  Write data to the instance's
+  `writeFD` attribute to have the instance record it.  If _display_ is True,
+  any data written to `writeFD` will be copied to StdOut in addition to being recorded.
+
+* StdOutAdapter.kill()
+
+  Closes the internal duplexed file descriptors. No further data can be
+  written to `writeFD` and the adapter will no longer read any data.
+  This must be called before calling `StdOutAdapter.readBuffer()`
+
+* StdOutAdapter.readBuffer()
+
+  Returns a Bytes object representing the exact sequence of Bytes written
+  to `writeFD` before the descriptor was closed. You must call `kill()` before calling this method.
+  If the `StdOutAdapter` is still alive, this method returns an empty string.
+
+## agutil.SHELLRETURNOBJECT
+This class represents the results of executing a command from the shell using `agutil.cmd()`.
+
+##### API
+
+* agutil.ShellReturnObject(_command_, _stdoutAdapter_, _returncode_) _(constructor)_
+
+  **Calling this method directly is not recommended**.
+  The prefered method of creating a `ShellReturnObject` is to call `agutil.cmd()` with a shell command.
+
+  Returns a new `ShellReturnObject` instance.  _command_ and _returncode_ simply set the _command_ and _returncode_ attributes of the `ShellReturnObject`.
+  The `rawbuffer` attribute will contain the exact byte buffer of the provided _stdoutAdapter_, and the `buffer` attribute will contain the same, but with backspace characters parsed out (and the associated prior characters removed)
 
 ## agutil.security.SECURECONNECTION
 The following change has been made to the `agutil.security.SecureConnection` class:
