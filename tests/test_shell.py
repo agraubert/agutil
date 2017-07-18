@@ -31,15 +31,12 @@ class test(unittest.TestCase):
             'ls',
             'pwd',
             'echo hi',
-            'ps -o pid,command'
+            'ps -o command'
         ]
         for command in commands:
-            expected = subprocess.run(
+            expected = subprocess.check_output(
                 command,
                 shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT
             )
             observed = cmd(command, display=False)
-            self.assertEqual(expected.returncode, observed.returncode)
-            self.assertEqual(expected.stdout, observed.rawbuffer)
+            self.assertEqual(expected, observed.rawbuffer)
