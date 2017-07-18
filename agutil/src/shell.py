@@ -11,7 +11,7 @@ class ShellReturnObject:
         self.rawbuffer = stdoutAdapter.readBuffer()
         for char in self.rawbuffer:
             if char == 8:#backspace
-                self.buffer = self.buffer[:-1]
+                self.buffer.pop()
             else:
                 self.buffer += bytes.fromhex('%02x'%char)
         self.command = ""+command
