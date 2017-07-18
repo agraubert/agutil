@@ -65,7 +65,7 @@ The following changes have been made to the `agutil` module:
   * byteSize(1024) = `1KiB`
   * byteSize(856633344) = `816.9MiB`
   * byteSize(12379856472314232739172) = `10.5ZiB`
-  
+
 
 * agutil.cmd(_expr_, _display_=True):
 
@@ -109,7 +109,7 @@ This class represents the results of executing a command from the shell using `a
   **Calling this method directly is not recommended**.
   The prefered method of creating a `ShellReturnObject` is to call `agutil.cmd()` with a shell command.
 
-  Returns a new `ShellReturnObject` instance.  _command_ and _returncode_ simply set the _command_ and _returncode_ attributes of the `ShellReturnObject`.
+  Returns a new `ShellReturnObject` instance.  _command_ and _returncode_ simply set the `command` and `returncode` attributes of the `ShellReturnObject`.
   The `rawbuffer` attribute will contain the exact byte buffer of the provided _stdoutAdapter_, and the `buffer` attribute will contain the same, but with backspace characters parsed out (and the associated prior characters removed)
 
 ## agutil.security.SECURECONNECTION
