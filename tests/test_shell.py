@@ -31,12 +31,19 @@ class test(unittest.TestCase):
             'ls',
             'pwd',
             'echo hi',
-            'ps -o command'
+            'ps -o command',
+            'df',
+            'which python',
+            'whoami'
         ]
         for command in commands:
-            expected = subprocess.check_output(
+            expected = subprocess.Popen(
                 command,
                 shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT
             )
+            expected.wait()
             observed = cmd(command, display=False)
-            self.assertEqual(expected, observed.rawbuffer)
+            self.assertEqual(expected.stdout.read(), observed.rawbuffer)
+            expected.stdout.close()

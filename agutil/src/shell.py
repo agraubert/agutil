@@ -25,7 +25,6 @@ class ShellReturnObject:
 class StdOutAdapter:
     def __init__(self, display:bool):
         (self.readFD, self.writeFD) = os.pipe()
-        os.set_inheritable(self.writeFD, True)
         self.buffer = b''
         self.display = bool(display)
         self._thread = threading.Thread(
@@ -65,7 +64,7 @@ def cmd(expr, display=True):
         expr = " ".join([quote(token) for token in expr])
     adapter = StdOutAdapter(display)
     stdinFD = os.dup(sys.stdin.fileno())
-    proc = subprocess.run(
+    proc = subprocess.Popen(
         expr,
         shell=True,
         stdout = adapter.writeFD,
@@ -73,6 +72,7 @@ def cmd(expr, display=True):
         stdin = stdinFD,
         universal_newlines = False
     )
+    proc.wait()
     adapter.kill()
     os.close(stdinFD)
     return ShellReturnObject(expr, adapter, proc.returncode)
