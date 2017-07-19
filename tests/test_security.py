@@ -9,6 +9,7 @@ import tempfile
 import os
 import time
 import io
+import port_for as pf
 
 TRAVIS = 'CI' in os.environ
 
@@ -173,15 +174,15 @@ class test(unittest.TestCase):
         warnings.simplefilter('ignore', ResourceWarning)
         server_thread = None
         found_port = -1
-        for port in range(6000, 7000):
-            server_thread = threading.Thread(target=server_comms, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
+        for attempt in range(10):
+            found_port = pf.select_random()
+            server_thread = threading.Thread(target=server_comms, args=(SecureServer, found_port, server_payload), name='Server thread', daemon=True)
             server_thread.start()
             server_thread.join(1)
             if server_thread.is_alive():
-                found_port = port
                 break
         warnings.resetwarnings()
-        self.assertGreater(found_port, 5999, "Failed to bind to any ports on [6000, 7000]")
+        self.assertTrue(server_thread.is_alive(), "Failed to bind to any ports after 10 attempts")
         client_payload = lambda x:None
         client_thread = threading.Thread(target=client_comms, args=(SecureConnection, found_port, client_payload), daemon=True)
         client_thread.start()
@@ -211,15 +212,15 @@ class test(unittest.TestCase):
         warnings.simplefilter('ignore', ResourceWarning)
         server_thread = None
         found_port = -1
-        for port in range(7000, 8000):
-            server_thread = threading.Thread(target=server_comms_files, args=(SecureServer, port, server_payload), name='Server thread', daemon=True)
+        for attempt in range(10):
+            found_port = pf.select_random()
+            server_thread = threading.Thread(target=server_comms_files, args=(SecureServer, found_port, server_payload), name='Server thread', daemon=True)
             server_thread.start()
             server_thread.join(1)
             if server_thread.is_alive():
-                found_port = port
                 break
         warnings.resetwarnings()
-        self.assertGreater(found_port, 6999, "Failed to bind to any ports on [7000, 8000]")
+        self.assertTrue(server_thread.is_alive(), "Failed to bind to any ports after 10 attempts")
         client_payload = lambda x:None
         client_thread = threading.Thread(target=client_comms_files, args=(SecureConnection, found_port, client_payload), daemon=True)
         client_thread.start()

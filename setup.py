@@ -51,6 +51,13 @@ setup(
             session=''
         )
     ],
+    tests_require=[
+        str(package.req) for package in parse_requirements(
+            'tests/requirements.txt',
+            session=''
+        )
+    ],
+    test_suite='tests',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
 
