@@ -1,6 +1,6 @@
 import sys
-from shutil import get_terminal_size
 from math import log10
+from shutil import get_terminal_size
 
 class status_bar:
     def __init__(self, maximum, show_percent = False, init=True,  prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False):

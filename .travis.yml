@@ -3,7 +3,13 @@ branches:
   - master
   - dev
   - staging
-sudo: required
+env:
+  - COLUMNS=80
+addons:
+  apt:
+    packages:
+      - pandoc
+dist: trusty
 notifications:
   email:
     on_success: always
@@ -23,8 +29,6 @@ script:
 after_success:
   - coveralls
 before_deploy:
-  - wget http://github.com/jgm/pandoc/releases/download/1.17.1/pandoc-1.17.1-2-amd64.deb
-  - sudo dpkg -i pandoc-1.17.1-2-amd64.deb
   - pandoc --from markdown --to rst README.md -o README.rst
 deploy:
   skip_cleanup: true
