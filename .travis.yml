@@ -3,6 +3,8 @@ branches:
   - master
   - dev
   - staging
+env:
+  - COLUMNS=80
 addons:
   apt:
     packages:

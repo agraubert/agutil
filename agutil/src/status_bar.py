@@ -1,14 +1,6 @@
 import sys
 from math import log10
-
-def get_terminal_size():
-    # Fix for a possible bug in travis trusty builds
-    # Terminal size is reported as 0 via shutil, os, and stty
-    from shutil import get_terminal_size as _get_terminal_size
-    from os import environ
-    if 'TRAVIS' in environ:
-        return [20]
-    return _get_terminal_size()
+from shutil import get_terminal_size
 
 class status_bar:
     def __init__(self, maximum, show_percent = False, init=True,  prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False):
