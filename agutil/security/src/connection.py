@@ -98,13 +98,14 @@ class SecureConnection:
         self.log("SecureConnection Remote Command thread active")
         while not self._init_shutdown:
             try:
-                # self.sock.recvRAW('__cmd__', timeout=.1)
                 cmd = self.sock.recvAES('__cmd__', timeout=.1, _logInit=False)
-                self.log("Remote command received", "DETAIL")
+                self.log("Remote command received: %s"%cmd, "DETAIl")
                 self.schedulingqueue.append(protocols.unpackcmd(cmd))
                 self.pending_tasks.set()
             except socketTimeout:
                 pass
+            except Exception as e:
+                self.log("Encountered an unexpected error: "+e.msg, "ERROR")
         self.log("SecureConnection Remote Command thread inactive")
 
     def send(self, msg, retries=1):
@@ -131,9 +132,10 @@ class SecureConnection:
         if timeout == -1:
             timeout = self.sock.timeout
         self.log("Waiting to receive incoming text message", "INFO")
-        self.intakeEvent.wait(timeout)
         if not len(self.queuedmessages):
-            raise socketTimeout("No message recieved within the specified timeout")
+            self.intakeEvent.wait(timeout)
+            if not len(self.queuedmessages):
+                raise socketTimeout("No message recieved within the specified timeout")
         msg = self.queuedmessages.pop(0)
         self.intakeEvent.clear()
         self.log("Text message received", "INFO")
@@ -217,7 +219,7 @@ class SecureConnection:
         if timeout == -1:
             timeout = self.sock.timeout
         self._init_shutdown = True
-        self.log("Initiating "+("remote " if _remote else "")+"shutdown of SecureConnection")
+        self.log("Initiating "+("remote " if _remote else "")+"shutdown of SecureConnection", "INFO")
         self._listener.join(.2)
         self.killedtask.wait(timeout)
         self._shutdown = True
