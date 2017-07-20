@@ -75,7 +75,14 @@ def maf2bed(args):
         bar.clear(True)
 
 def main(args_input=sys.argv[1:]):
+    from pkg_resources import get_distribution
     parser = argparse.ArgumentParser("maf2bed")
+    parser.add_argument(
+        '--version',
+        action='version',
+        version="%(prog)s (agutil) verion "+get_distribution('agutil').version,
+        help="Display the current version and exit"
+    )
     subparsers = parser.add_subparsers()
 
     maf2bed_parser = subparsers.add_parser("convert", help="Converts a .maf file to .bed")
