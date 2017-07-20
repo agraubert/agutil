@@ -9,6 +9,7 @@ from filecmp import cmp
 import rsa.randnum
 from hashlib import md5
 import Crypto.Cipher.AES as AES
+import warnings
 from itertools import chain
 
 def make_random_string():
@@ -72,6 +73,7 @@ class test(unittest.TestCase):
     # @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
     def test_commands(self):
         import agutil.security.console
+        warnings.simplefilter('ignore', DeprecationWarning)
         for trial in range(5):
             source = tempname()
             encrypted = tempname()
@@ -112,6 +114,7 @@ class test(unittest.TestCase):
             os.remove(source)
             os.remove(encrypted)
             os.remove(decrypted)
+        warnings.resetwarnings()
 
     @unittest.skipIf(sys.version_info<(3,4), "This test is for python 3.4 and newer")
     def test_compatibility(self):

@@ -4,7 +4,14 @@ import re
 from sys import argv
 
 def main(args_input = argv[1:]):
+    from pkg_resources import get_distribution
     parser = argparse.ArgumentParser("tsvManip")
+    parser.add_argument(
+        '--version',
+        action='version',
+        version="%(prog)s (agutil) verion "+get_distribution('agutil').version,
+        help="Display the current version and exit"
+    )
     parser.add_argument(
         'input',
         type=argparse.FileType('r'),

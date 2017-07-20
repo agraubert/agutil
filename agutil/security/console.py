@@ -20,7 +20,14 @@ def simple_pbkdf2_hmac(_, password, salt, iterations):
     return current
 
 def main(args_input = sys.argv[1:]):
+    from pkg_resources import get_distribution
     parser = argparse.ArgumentParser("agutil-secure")
+    parser.add_argument(
+        '--version',
+        action='version',
+        version="%(prog)s (agutil) verion "+get_distribution('agutil').version,
+        help="Display the current version and exit"
+    )
     parser.add_argument(
         'action',
         choices=['encrypt', 'decrypt'],
