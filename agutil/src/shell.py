@@ -9,11 +9,13 @@ class ShellReturnObject:
         self.returncode = int(returncode)
         self.buffer = b''
         self.rawbuffer = stdoutAdapter.readBuffer()
+        tmp = []
         for char in self.rawbuffer:
             if char == 8:#backspace
-                self.buffer.pop()
+                tmp.pop()
             else:
-                self.buffer += bytes.fromhex('%02x'%char)
+                tmp.append(char)
+        self.buffer = b''.join(bytes.fromhex('%02x'%c) for c in tmp)
         self.command = ""+command
 
     def __repr__(self):
