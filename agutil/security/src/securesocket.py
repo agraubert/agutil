@@ -5,8 +5,12 @@ import os
 import Crypto.Cipher.AES as AES
 from io import BytesIO, BufferedReader, BufferedWriter
 from . import protocols, files
+from threading import Lock
+import random
 
-_SECURESOCKET_IDENTIFIER_ = '<agutil.security.securesocket:2.0.0>'
+from socket import timeout as socketTimeout ###
+
+_SECURESOCKET_IDENTIFIER_ = '<agutil.security.securesocket:3.0.0>'
 
 RSA_CPU = None
 try:
@@ -76,7 +80,7 @@ class SecureSocket(io.QueuedSocket):
         self.sLog("Receiving remote RSA keysize", "DETAIL")
         self.remote_rsabits = int(self._baseDecrypt(self._recvq('__control__', timeout=timeout)).decode(), 16)
         self.maxsize = int((self.remote_rsabits / 8)) - 16
-        self.sLog("Generation RSA keypair", "DEBUG")
+        self.sLog("Generating RSA keypair", "DEBUG")
         (self.pub, self.priv) = rsa.newkeys(rsabits, True, RSA_CPU)
         self.sLog("Sending RSA pubkey", "DETAIL")
         self._sendq(self._baseEncrypt(intToBytes(self.pub.n)), '__control__')
@@ -99,6 +103,14 @@ class SecureSocket(io.QueuedSocket):
                 self.sLog("Unable to confirm RSA encryption with the remote socket.", "WARN")
                 self.close()
                 raise ValueError("Unable to confirm RSA encryption with the remote socket.")
+        random.seed()
+        syncSeed = random.random()
+        self._sendq(str(syncSeed), '__control__')
+        tmp = float(self._recvq('__control__', decode=True))
+        self.sync_tail = '-' if syncSeed > tmp else '+'
+        self.synced_channels = set()
+        #self.syncLock = Lock()
+        self.syncLock = self.datalock
 
 
     def _sendq(self, msg, channel='__orphan__'):
@@ -117,6 +129,28 @@ class SecureSocket(io.QueuedSocket):
             self.baseCipher.decrypt(msg)
         )
 
+    def _sync_channel(self, channel):
+        self.syncLock.acquire()
+        name = channel+"::"+"".join(str(random.randint(0,9)) for _ in range(10)) + self.sync_tail
+        while name in self.synced_channels:
+            name = channel+"::"+"".join(str(random.randint(0,9)) for _ in range(10)) + self.sync_tail
+        self.synced_channels.add(name)
+        self._sendq(name, 'sync//%s'%channel)
+        self.syncLock.release()
+        return name
+
+    def _desync_channel(self, channel):
+        self.syncLock.acquire()
+        self.synced_channels.remove(channel)
+        self.syncLock.release()
+
+    def _rsync_channel(self, channel, timeout, _logInit=True):
+        name = self._recvq('sync//%s'%channel, decode=True, timeout=timeout, _logInit=_logInit)
+        self.syncLock.acquire()
+        self.synced_channels.add(name)
+        self.syncLock.release()
+        return name
+
     def send(self, msg, channel='__rsa__'):
         self.sendRSA(msg, channel)
 
@@ -131,14 +165,17 @@ class SecureSocket(io.QueuedSocket):
         if chunks < len(msg)/self.maxsize:
             chunks += 1
         self.sLog("Sending message chunk size", "DETAIL")
+        channel = self._sync_channel(channel)
+        self.sLog("Reserved channel %s for this communication"%channel, "DEBUG")
         self._sendq(self._baseEncrypt('%x'%chunks), channel)
         for i in range(chunks):
-            self.sLog("Sending chunk %d"%i, "DETAIL")
+            self.sLog("Sending chunk %d/%d"%(i,chunks), "DETAIL")
             self._sendq(rsa.encrypt(
                 msg[self.maxsize*i:self.maxsize*(i+1)],
                 self.rpub
             ), channel)
         self.sLog("Message sent", "DEBUG")
+        self._desync_channel(channel)
 
     def recv(self, channel='__rsa__', decode=False, timeout=-1):
         return self.recvRSA(channel, decode, timeout)
@@ -147,6 +184,8 @@ class SecureSocket(io.QueuedSocket):
         if timeout == -1:
             timeout = self.timeout
         self.sLog("Waiting to receive an RSA encrypted message", "DEBUG")
+        channel = self._rsync_channel(channel, timeout)
+        self.sLog("Reserved channel %s for this communication"%channel, "DEBUG")
         chunks = int(self._baseDecrypt(self._recvq(channel, timeout=timeout)).decode(), 16)
         msg = b""
         for i in range(chunks):
@@ -158,6 +197,7 @@ class SecureSocket(io.QueuedSocket):
         self.sLog("Message received", "DEBUG")
         if decode:
             msg = msg.decode()
+        self._desync_channel(channel)
         return msg
 
     def sendAES(self, msg, channel='__aes__', key=False, iv=False):
@@ -187,6 +227,8 @@ class SecureSocket(io.QueuedSocket):
             mode = 'CBC'
             cipher = AES.new(key, AES.MODE_CBC, iv)
         self.sLog("Informing the remote socket to use AES encryption mode: "+mode, "DETAIL")
+        channel = self._sync_channel(channel)
+        self.sLog("Reserved channel %s for this communication"%channel, "DEBUG")
         self._sendq(self._baseEncrypt(mode), channel)
         if key:
             self.sLog("Sending cipher key", "DETAIL")
@@ -211,47 +253,56 @@ class SecureSocket(io.QueuedSocket):
             self._sendq(files._encrypt_chunk(msg, cipher), channel)
             self._sendq(self._baseEncrypt('-'), channel)
         self.sLog("Message sent", "DEBUG")
+        self._desync_channel(channel)
 
     def recvAES(self, channel='__aes__', decode=False, timeout=-1, output_file=None, _logInit=True):
         if _logInit:
             self.sLog("Attempting to receive AES encrypted message", "DEBUG")
         if timeout == -1:
             timeout = self.timeout
-        mode = self._baseDecrypt(self._recvq(channel, timeout=timeout, _logInit=_logInit)).decode()
-        self.sLog("AES encryption using mode: "+mode, "DETAIL")
-        if mode == 'BASE':
-            cipher = self.baseCipher
-        elif mode == 'ECB':
-            self.sLog("Receiving cipher key", "DETAIL")
-            cipher = AES.new(self.recvRSA(channel, timeout=timeout))
-        else:
-            self.sLog("Receiving cipher key", "DETAIL")
-            cipher = AES.new(self.recvRSA(channel, timeout=timeout), AES.MODE_CBC,rsa.randnum.read_random_bits(128))
-            cipher.decrypt(self._recvq(channel, timeout=timeout))
-        writer = None
-        if type(output_file) == str:
-            self.sLog("Output will be written to file", "DEBUG")
-            writer = open(output_file, mode='wb')
-        elif isinstance(output_file, (BytesIO, BufferedWriter)):
-            self.sLog("Output will be written to file", "DEBUG")
-            writer = output_file
-        command = self._baseDecrypt(self._recvq(channel, timeout=timeout))
-        msg = b""
-        while command == b'+':
-            self.sLog("Receiving chunk", "DETAIL")
-            intake = files._decrypt_chunk(self._recvq(channel, timeout=timeout), cipher)
-            if writer != None:
-                writer.write(intake)
+        channel = self._rsync_channel(channel, timeout, _logInit=_logInit)
+        self.sLog("Reserved channel %s for this communication"%channel, "DEBUG")
+        if not _logInit:
+            timeout = 0.5
+        try:
+            mode = self._baseDecrypt(self._recvq(channel, timeout=timeout, _logInit=_logInit)).decode()
+            self.sLog("AES encryption using mode: "+mode, "DETAIL")
+            if mode == 'BASE':
+                cipher = self.baseCipher
+            elif mode == 'ECB':
+                self.sLog("Receiving cipher key", "DETAIL")
+                cipher = AES.new(self.recvRSA(channel, timeout=timeout))
             else:
-                msg += intake
+                self.sLog("Receiving cipher key", "DETAIL")
+                cipher = AES.new(self.recvRSA(channel, timeout=timeout), AES.MODE_CBC,rsa.randnum.read_random_bits(128))
+                cipher.decrypt(self._recvq(channel, timeout=timeout))
+            writer = None
+            if type(output_file) == str:
+                self.sLog("Output will be written to file", "DEBUG")
+                writer = open(output_file, mode='wb')
+            elif isinstance(output_file, (BytesIO, BufferedWriter)):
+                self.sLog("Output will be written to file", "DEBUG")
+                writer = output_file
             command = self._baseDecrypt(self._recvq(channel, timeout=timeout))
-        self.sLog("Payload received", "DEBUG")
-        if writer != None:
-            writer.close()
-            return writer.name
-        if decode:
-            msg = msg.decode()
-        return msg
+            msg = b""
+            while command == b'+':
+                self.sLog("Receiving chunk", "DETAIL")
+                intake = files._decrypt_chunk(self._recvq(channel, timeout=timeout), cipher)
+                if writer != None:
+                    writer.write(intake)
+                else:
+                    msg += intake
+                command = self._baseDecrypt(self._recvq(channel, timeout=timeout))
+            self.sLog("Payload received", "DEBUG")
+            self._desync_channel(channel)
+            if writer != None:
+                writer.close()
+                return writer.name
+            if decode:
+                msg = msg.decode()
+            return msg
+        except socketTimeout:
+            raise socketTimeout()
 
     def sendRAW(self, msg, channel='__raw__'):
         if type(msg)==str:

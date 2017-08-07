@@ -97,6 +97,7 @@ def main(args_input = argv[1:]):
         help="Provide verbose output"
     )
     args = parser.parse_args(args_input)
+    print("Deprecation warning: This tsvmanip is now considered deprecated and will be removed in 2.0.0")
 
     if len(args.cols) == 0:
         tmp_reader = open(args.input.name, mode='r')
