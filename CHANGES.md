@@ -3,10 +3,20 @@
 ## 1.2.1
 
 #### security.SecureConnection
-The following change has been made to `agutil.security.SecureConnection`:
+The following changes have been made to `agutil.security.SecureConnection`:
 * Fixed the listener thread crashing when receiving commands rapidly
 * Sped up reading messages with `SecureConnection.read()`. The function will immediately
 return if there is already a message waiting
+
+#### security.SecureSocket
+The following change has been made to `agutil.security.SecureSocket`:
+* AES and RSA methods now reserve temporary channels for communications.
+This change improves thread safety by making AES/RSA methods appear to be atomic
+network operations (ie: `sendAES()` now sends exactly one message over the provided
+channel).
+
+**Deprecation Warning**:
+* `tsvmanip` is now considered deprecated and will be removed in `2.0.0`
 
 ## 1.2.0
 
