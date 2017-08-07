@@ -2,6 +2,7 @@ import argparse
 import csv
 import re
 from sys import argv
+import warnings
 
 def main(args_input = argv[1:]):
     from pkg_resources import get_distribution
@@ -96,8 +97,9 @@ def main(args_input = argv[1:]):
         action='store_true',
         help="Provide verbose output"
     )
+    warnings.simplefilter('default', DeprecationWarning)
+    warnings.warn("This tool is considered deprecated and will be removed in 2.0.0", DeprecationWarning, stacklevel=2)
     args = parser.parse_args(args_input)
-    print("Deprecation warning: This tsvmanip is now considered deprecated and will be removed in 2.0.0")
 
     if len(args.cols) == 0:
         tmp_reader = open(args.input.name, mode='r')
