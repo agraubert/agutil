@@ -15,7 +15,7 @@ __Version:__ 1.2.1
 The __bio__ package:
 
 * maf2bed (A command line utility for parsing a .maf file and converting coordinates from 1-based (maf standard) to 0-based (bed standard))
-* tsvmanip (A command line utility for filtering, rearranging, and modifying tsv files)
+* tsvmanip **(Deprecated)** (A command line utility for filtering, rearranging, and modifying tsv files)
 
 The __io__ package:
 
