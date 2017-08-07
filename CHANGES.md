@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 1.2.1
+
+#### security.SecureConnection
+The following change has been made to `agutil.security.SecureConnection`:
+* Fixed the listener thread crashing when receiving commands rapidly
+* Sped up reading messages with `SecureConnection.read()`. The function will immediately
+return if there is already a message waiting
+
 ## 1.2.0
 
 #### agutil-secure
