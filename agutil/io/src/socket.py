@@ -2,11 +2,20 @@ import socket
 from . import _PROTOCOL_IDENTIFIER_
 
 _SOCKET_IDENTIFIER_ = '<agutil.io.socket:2.0.0>'
+
+
 class Socket:
-    def __init__(self, address, port, _socket=None, _skipIdentifier=False, _useIdentifier=_PROTOCOL_IDENTIFIER_+_SOCKET_IDENTIFIER_):
+    def __init__(
+        self,
+        address,
+        port,
+        _socket=None,
+        _skipIdentifier=False,
+        _useIdentifier=_PROTOCOL_IDENTIFIER_+_SOCKET_IDENTIFIER_
+    ):
         self.addr = address
         self.port = port
-        if _socket!=None:
+        if _socket is not None:
             self.sock = _socket
         else:
             self.sock = socket.socket()
@@ -17,15 +26,18 @@ class Socket:
             remoteID = self.recv(True)
             if remoteID != _useIdentifier:
                 self.close()
-                raise ValueError("The remote socket provided an invalid identifier at the Socket level")
+                raise ValueError(
+                    "The remote socket provided an invalid identifier at "
+                    "the Socket level"
+                )
 
     def send(self, msg):
-        if type(msg)==str:
-            msg=msg.encode()
-        elif type(msg)!=bytes:
+        if type(msg) == str:
+            msg = msg.encode()
+        elif type(msg) != bytes:
             raise TypeError("msg argument must be str or bytes")
-        weight = sum(msg)%256
-        msg += bytes.fromhex('%02x'%weight)
+        weight = sum(msg) % 256
+        msg += bytes.fromhex('%02x' % weight)
         msg += b'\x00\x02'
         payload_size = len(msg)
         # print("Sending: <", payload_size, ">",msg)
@@ -53,14 +65,14 @@ class Socket:
                     found_size = True
                     break
                 else:
-                    size+=current.decode()
+                    size += current.decode()
 
         while len(msg) < size:
             msg += self.sock.recv(min(4096, size-len(msg)))
 
         if not msg.endswith(b'\x00\x02'):
             raise IOError("Received message with invalid padding bytes")
-        if msg[-3]!=(sum(msg[:-3])%256):
+        if msg[-3] != (sum(msg[:-3]) % 256):
             raise IOError("Unable to validate message integrity")
         if decode:
             return msg[:-3].decode()
