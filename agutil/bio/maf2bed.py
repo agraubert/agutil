@@ -143,9 +143,9 @@ def main(args_input=sys.argv[1:]):
     maf2bed_parser.add_argument(
         '--skip-keyfile',
         action='store_true',
-        help="Don't generate a keyfile.  The output will be a single file \
-        which is identical to the original maf, except coordinates have been \
-        0-indexed."
+        help="Don't generate a keyfile.  The output will be a single file "
+        "which is identical to the original maf, except coordinates have been "
+        "0-indexed."
     )
     maf2bed_parser.add_argument(
         '-v',
@@ -171,8 +171,8 @@ def main(args_input=sys.argv[1:]):
     bedkey_parser.add_argument(
         '--suppress',
         action='store_true',
-        help="Suppress printing to stdout.  Return the keys instead (for \
-        using lookup within other python scripts)"
+        help="Suppress printing to stdout.  Return the keys instead (for "
+        "using lookup within other python scripts)"
     )
     args = parser.parse_args(args_input)
 

@@ -1,5 +1,5 @@
 import socket
-from .. import _PROTOCOL_IDENTIFIER_
+from . import _PROTOCOL_IDENTIFIER_
 
 _SOCKET_IDENTIFIER_ = '<agutil.io.socket:2.0.0>'
 class Socket:
