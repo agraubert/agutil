@@ -47,7 +47,7 @@ class SecureSocket(io.QueuedSocket):
             self.sLog = logmethod.bindToSender("SecureSocket")
         else:
             self.sLog = logmethod
-        if isinstance(socket, (io.QueuedSocket, io.Socket)):
+        if not isinstance(socket, io.Socket):
             raise TypeError("socket argument must be of type agutil.io.Socket")
         super().__init__(
             socket,
@@ -58,7 +58,7 @@ class SecureSocket(io.QueuedSocket):
             "Exchanging encryption data now"
         )
         self.rsabits = rsabits
-        if not (timeout is None or ty pe(timeout) == int):
+        if not (timeout is None or type(timeout) == int):
             raise TypeError("Timeout parameter must be an integer or None")
         if type(timeout) == int and timeout < 0:
             raise ValueError("Timeout cannot be negative")
