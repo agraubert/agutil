@@ -2,7 +2,13 @@ from . import protocols
 from os import urandom
 
 
-def encryptFile(input_filename, output_filename, cipher, validate=False, _prechunk=False):
+def encryptFile(
+    input_filename,
+    output_filename,
+    cipher,
+    validate=False,
+    _prechunk=False
+):
     reader = open(input_filename, mode='rb')
     writer = open(output_filename, mode='wb')
     if _prechunk:
@@ -17,7 +23,14 @@ def encryptFile(input_filename, output_filename, cipher, validate=False, _prechu
     reader.close()
     writer.close()
 
-def decryptFile(input_filename, output_filename, cipher, validate=False, _prechunk=False):
+
+def decryptFile(
+    input_filename,
+    output_filename,
+    cipher,
+    validate=False,
+    _prechunk=False
+):
     reader = open(input_filename, mode='rb')
     writer = open(output_filename, mode='wb')
     if _prechunk:
@@ -26,7 +39,9 @@ def decryptFile(input_filename, output_filename, cipher, validate=False, _prechu
         if cipher.decrypt(reader.read(16)) != b'\x00'*16:
             reader.close()
             writer.close()
-            raise KeyError("Decryption Failed! The cipher used may be incorrect")
+            raise KeyError(
+                "Decryption Failed! The cipher used may be incorrect"
+            )
     intake = reader.read(4096)
     while len(intake):
         writer.write(_decrypt_chunk(intake, cipher))
@@ -35,8 +50,10 @@ def decryptFile(input_filename, output_filename, cipher, validate=False, _prechu
     reader.close()
     writer.close()
 
+
 def _encrypt_chunk(chunk, cipher):
     return cipher.encrypt(protocols.padstring(chunk))
+
 
 def _decrypt_chunk(chunk, cipher):
     return protocols.unpadstring(cipher.decrypt(chunk))
