@@ -7,7 +7,7 @@ class status_bar:
     def __init__(
         self,
         maximum,
-        show_percent=False,
+        show_percent=True,
         init=True,
         prepend="",
         append="",

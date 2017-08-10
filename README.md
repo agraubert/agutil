@@ -112,6 +112,28 @@ This class represents the results of executing a command from the shell using `a
   Returns a new `ShellReturnObject` instance.  _command_ and _returncode_ simply set the `command` and `returncode` attributes of the `ShellReturnObject`.
   The `rawbuffer` attribute will contain the exact byte buffer of the provided _stdoutAdapter_, and the `buffer` attribute will contain the same, but with backspace characters parsed out (and the associated prior characters removed)
 
+## agutil.status_bar
+THe following change has been made to the `agutil.status_bar` class:
+* The _show_percent_ parameter to the constructor now defaults to `True`
+
+##### API
+
+* status_bar(maximum, show_percent = True, init=True, prepend="", append="", cols=int(get_terminal_size()[0]/2), update_threshold=.00005, debugging=False) _(constructor)_
+  Creates a new status_bar instance ranging from 0 to _maximum_
+
+  _show\_percent_ toggles whether or not a percentage meter should be displayed to the right of the bar
+
+  _init_ sets whether or not the status_bar should immediately display.  If set to false, the bar is displayed at the first update
+
+  _prepend_ is text to be prepended to the left of the bar.  It will always remain to the left of the bar as the display updates.  **WARNING** Prepended text offsets the bar.  If any part of the bar (including prepended or appended text) extends beyond a single line on the console, the status bar will not display properly.  Prepended text should be kept short
+
+  _append_ is text to be appended to the right of the bar.  It will always remain to the right of the bar as the display updates.  **WARNING** Appended text extends the display.  If any part of the bar (including prepended or appended text) extends beyond a single line of the console, the status bar will not display properly.  Appended text should be kept short
+
+  _cols_ sets how long the bar should be.  It defaults to half the terminal size
+
+  _update\_threshold_ sets the minimum change in percentage to trigger an update to the percentage meter
+
+  _debugging_ triggers the status_bar to never print to stdout.  If set true, no output will be produced, but exact string of what *would* be displayed is maintained at all times in the _display_ attribute
 ## agutil.security.SECURECONNECTION
 The following change has been made to the `agutil.security.SecureConnection` class:
 * `savefile()` timeout now applies to each chunk of the file.  The operation will
