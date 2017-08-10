@@ -41,7 +41,6 @@ setup(
     entry_points={
         "console_scripts":[
             "maf2bed = agutil.bio.maf2bed:main",
-            "tsvmanip = agutil.bio.tsvmanip:main",
             "agutil-secure = agutil.security.console:main"
         ]
     },
