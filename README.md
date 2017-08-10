@@ -4,7 +4,7 @@
 
 A collection of python utilities
 
-__Version:__ 1.2.1
+__Version:__ 2.0.0
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
@@ -15,7 +15,6 @@ __Version:__ 1.2.1
 The __bio__ package:
 
 * maf2bed (A command line utility for parsing a .maf file and converting coordinates from 1-based (maf standard) to 0-based (bed standard))
-* tsvmanip **(Deprecated)** (A command line utility for filtering, rearranging, and modifying tsv files)
 
 The __io__ package:
 
@@ -113,7 +112,7 @@ This class represents the results of executing a command from the shell using `a
   The `rawbuffer` attribute will contain the exact byte buffer of the provided _stdoutAdapter_, and the `buffer` attribute will contain the same, but with backspace characters parsed out (and the associated prior characters removed)
 
 ## agutil.status_bar
-THe following change has been made to the `agutil.status_bar` class:
+The following change has been made to the `agutil.status_bar` class:
 * The _show_percent_ parameter to the constructor now defaults to `True`
 
 ##### API
@@ -134,6 +133,7 @@ THe following change has been made to the `agutil.status_bar` class:
   _update\_threshold_ sets the minimum change in percentage to trigger an update to the percentage meter
 
   _debugging_ triggers the status_bar to never print to stdout.  If set true, no output will be produced, but exact string of what *would* be displayed is maintained at all times in the _display_ attribute
+
 ## agutil.security.SECURECONNECTION
 The following change has been made to the `agutil.security.SecureConnection` class:
 * `savefile()` timeout now applies to each chunk of the file.  The operation will
