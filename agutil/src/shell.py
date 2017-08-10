@@ -4,6 +4,7 @@ import subprocess
 import threading
 from shlex import quote
 
+
 class ShellReturnObject:
     def __init__(self, command, stdoutAdapter, returncode):
         self.returncode = int(returncode)
@@ -11,26 +12,27 @@ class ShellReturnObject:
         self.rawbuffer = stdoutAdapter.readBuffer()
         tmp = []
         for char in self.rawbuffer:
-            if char == 8:#backspace
+            if char == 8:  # backspace
                 tmp.pop()
             else:
                 tmp.append(char)
-        self.buffer = b''.join(bytes.fromhex('%02x'%c) for c in tmp)
+        self.buffer = b''.join(bytes.fromhex('%02x' % c) for c in tmp)
         self.command = ""+command
 
     def __repr__(self):
-        return "<ShellReturnObject returncode=%d command=\"%s\">"%(
+        return "<ShellReturnObject returncode=%d command=\"%s\">" % (
             self.returncode,
             self.command
         )
 
+
 class StdOutAdapter:
-    def __init__(self, display:bool):
+    def __init__(self, display: bool):
         (self.readFD, self.writeFD) = os.pipe()
         self.buffer = b''
         self.display = bool(display)
         self._thread = threading.Thread(
-            target = StdOutAdapter._threadWorker,
+            target=StdOutAdapter._threadWorker,
             args=(self,),
             daemon=True
         )
@@ -69,10 +71,10 @@ def cmd(expr, display=True):
     proc = subprocess.Popen(
         expr,
         shell=True,
-        stdout = adapter.writeFD,
-        stderr = adapter.writeFD,
-        stdin = stdinFD,
-        universal_newlines = False
+        stdout=adapter.writeFD,
+        stderr=adapter.writeFD,
+        stdin=stdinFD,
+        universal_newlines=False
     )
     proc.wait()
     adapter.kill()
