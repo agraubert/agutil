@@ -1,5 +1,44 @@
 # CHANGELOG
 
+## 2.0.0
+
+**Feature Removal**:
+* `tsvmanip` has been dropped from `agutil`
+
+## agutil (main module)
+The following changes have been made to the `agutil` module:
+* Added a `agutil.byteSize()` method to convert a number of bytes to a human-readable string
+* Added a new convenience method, `agutil.hashfile()`, to simplify hashing files
+* Added a new convenience method, `agutil.cmd()`, to simplify executing shell commands programatically.
+* Added two classes for simple shell interaction: `agutil.ShellReturnObject` and `agutil.StdOutAdapter`, which hold shell command output and capture live output, respectively.  These classes are designed to work together to support `agutil.cmd()` but may also be used independently
+
+## agutil.StdOutAdapter (new class)
+This class acts to record any data written to its file descriptor.
+After constructing a new `StdOutAdapter` instance, other programs may write to `StdOutAdapter.writeFD`.
+
+## agutil.ShellReturnObject (new class)
+This class represents the results of executing a command from the shell using `agutil.cmd()`.
+
+## agutil.status_bar
+The following change has been made to the `agutil.status_bar` class:
+* The _show_percent_ parameter to the constructor now defaults to `True`
+
+## agutil.security.SecureConnection
+The following change has been made to the `agutil.security.SecureConnection` class:
+* `savefile()` timeout now applies to each chunk of the file.  The operation will block so long as the remote socket sends at least one chunk per timeout period.
+
+## agutil-secure
+The following changes have been made to the `agutil-secure` console script:
+* The multiple _input_ files can now be provided.  This allows `agutil-secure` to handle globs
+* Added a `--version` argument to print the current version and exit
+
+## maf2bed
+The following change has been made to the `maf2bed` console script:
+* Added a `--version` argument to print the current version and exit
+
+## tsvmanip
+`tsvmanip` and its associated code has been removed from the `agutil.bio` package
+
 ## 1.2.1
 
 #### security.SecureConnection

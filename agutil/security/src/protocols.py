@@ -1,11 +1,14 @@
 import rsa
 import os
 import random
+from socket import timeout as socketTimeout
 
-_COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fto', 'fti', '_NULL', 'dci',]
+_COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fto', 'fti', '_NULL', 'dci', ]
 _CMD_LOOKUP = {}
-#commands: {command code byte}{item name}{colon ':'}{item size (hex bytes)}{bar '|'}{item bytes}...
+# commands: {command code byte}
+# {item name}{colon ':'}{item size (hex bytes)}{bar '|'}{item bytes}...
 _CONSOLE = False
+
 
 def lookupcmd(cmd):
     if cmd not in _CMD_LOOKUP:
@@ -13,13 +16,14 @@ def lookupcmd(cmd):
             index = _COMMANDS.index(cmd)
             _CMD_LOOKUP[cmd] = index
         except ValueError:
-            raise ValueError("Command \'%s\' not supported" %cmd)
+            raise ValueError("Command \'%s\' not supported" % cmd)
     return _CMD_LOOKUP[cmd]
+
 
 def unpackcmd(cmd):
     _cmd_raw = b''+cmd
     data = {
-        'cmd' : cmd[0]
+        'cmd': cmd[0]
     }
     cmd = cmd[1:]
     index = cmd.find(b':')
@@ -38,38 +42,48 @@ def unpackcmd(cmd):
     # print("UNPACK:", _cmd_raw,'-->', data)
     return data
 
+
 def packcmd(cmd, data={}):
     cmd_index = lookupcmd(cmd)
     if cmd_index == -1:
         raise ValueError("Command \'%s\' not supported" % cmd)
-    cmd_string = bytes.fromhex('%02x'%cmd_index)
+    cmd_string = bytes.fromhex('%02x' % cmd_index)
     for key in data:
-        if data[key] == True:
+        if data[key] is True:
             data[key] = ''
-        elif data[key] == False:
+        elif data[key] is False:
             continue
         if ':' in key:
-            raise ValueError("Command keys cannot contain ':' characters (ascii 58)")
-        cmd_string += key.encode()+b":"+format(len(data[key].encode()), 'x').encode()+b"|"+data[key].encode()
+            raise ValueError(
+                "Command keys cannot contain ':' characters (ascii 58)"
+            )
+        cmd_string += ('%s:%x|%s' % (
+            key,
+            len(data[key].encode()),
+            data[key]
+        )).encode()
     # print("PACK:", cmd,":",data,'-->', cmd_string)
     return cmd_string
 
+
 def padstring(msg):
-    if type(msg)==str:
+    if type(msg) == str:
         msg = msg.encode()
-    if type(msg)!=bytes:
+    if type(msg) != bytes:
         raise TypeError("msg must be type str or bytes")
-    padding_length = 16 - (len(msg)%16)
-    return msg + bytes.fromhex('%02x'%padding_length)*padding_length
+    padding_length = 16 - (len(msg) % 16)
+    return msg + bytes.fromhex('%02x' % padding_length)*padding_length
+
 
 def unpadstring(msg):
     return msg[:-1*msg[-1]]
+
 
 def _assign_task(cmd):
     return _WORKERS[cmd]
 
 
-def _text_in(sock,cmd,name):
+def _text_in(sock, cmd, name):
     sock.sock.sendRAW('+', name)
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
     tasklog("Initiated Text:in task", "DEBUG")
@@ -104,14 +118,21 @@ def _text_in(sock,cmd,name):
         'name': name
     })
     sock.pending_tasks.set()
-    raise IOError("Background worker %s was unable to receive and decrypt the message in %d retries" % (name, retries))
+    raise IOError(
+        "Background worker %s was unable to receive and "
+        "decrypt the message in %d retries" % (
+            name,
+            retries
+        )
+    )
 
-def _text_out(sock,cmd,name):
+
+def _text_out(sock, cmd, name):
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
     tasklog("Scheduling Text:in on remote socket", "DEBUG")
     sock.sock.sendAES(packcmd(
         'ti',
-        {'name':name}
+        {'name': name}
     ), '__cmd__')
     sock.sock.recvRAW(name, timeout=None)
     tasklog("Initiated Text:out task", "DEBUG")
@@ -140,9 +161,16 @@ def _text_out(sock,cmd,name):
         'name': name
     })
     sock.pending_tasks.set()
-    raise IOError("Background worker %s was unable to encrypt and send the message in %d retries" % (name, int(cmd['retries'])))
+    raise IOError(
+        "Background worker %s was unable to encrypt and "
+        "send the message in %d retries" % (
+            name,
+            int(cmd['retries'])
+        )
+    )
 
-def _file_request_out(sock,cmd,name):
+
+def _file_request_out(sock, cmd, name):
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
     auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
     while auth_key in sock.filemap:
@@ -150,7 +178,12 @@ def _file_request_out(sock,cmd,name):
     sock.filemap[auth_key] = cmd['filepath']
     sock.sock.sendAES(packcmd(
         'fri',
-        {'auth':auth_key, 'filename':os.path.basename(cmd['filepath']), 'name':name}
+        {
+            'auth': auth_key,
+            'filename': os.path.basename(cmd['filepath']),
+            'name': name,
+            'size': str(os.path.getsize(cmd['filepath']))
+        }
     ), '__cmd__')
     tasklog("Sent file transfer request to remote socket", "DETAIL")
     sock.schedulingqueue.append({
@@ -159,10 +192,11 @@ def _file_request_out(sock,cmd,name):
     })
     sock.pending_tasks.set()
 
-def _file_request_in(sock,cmd,name):
+
+def _file_request_in(sock, cmd, name):
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
     tasklog("Received new file request.  Queueing authorization", "DETAIL")
-    sock.authqueue.append((cmd['filename'], cmd['auth']))
+    sock.authqueue.append((cmd['filename'], cmd['auth'], int(cmd['size'])))
     sock.pendingRequest.set()
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
@@ -170,7 +204,8 @@ def _file_request_in(sock,cmd,name):
     })
     sock.pending_tasks.set()
 
-def _file_transfer_out(sock,cmd,name):
+
+def _file_transfer_out(sock, cmd, name):
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
     tasklog("Initiating File:out task", "DEBUG")
     filepath = sock.filemap[cmd['auth']]
@@ -188,41 +223,58 @@ def _file_transfer_out(sock,cmd,name):
     })
     sock.pending_tasks.set()
 
-def _file_transfer_in(sock,cmd,name):
+
+def _file_transfer_in(sock, cmd, name):
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
     tasklog("Initiating File:in task", "DEBUG")
     sock.sock.sendAES(packcmd(
         'fto',
-        {'name':name, 'auth':cmd['auth'], 'reject':'reject' in cmd}
+        {'name': name, 'auth': cmd['auth'], 'reject': 'reject' in cmd}
     ), '__cmd__')
     if 'reject' not in cmd:
-        sock.sock.recvRAW(name, timeout=None)
-        tasklog("File transfer initiated", "DEBUG")
-        sock.sock.recvAES(name, output_file=cmd['filepath'])
-        sock.completed_transfers.add(cmd['filepath'])
-        sock.transferComplete.set()
-        tasklog("Transfer complete", "DEBUG")
+        try:
+            sock.sock.recvRAW(name, timeout=cmd['timeout'])
+            tasklog("File transfer initiated", "DEBUG")
+            sock.sock.recvAES(
+                name,
+                output_file=cmd['filepath'],
+                timeout=cmd['timeout']
+            )
+        except socketTimeout:
+            tasklog("Transfer timed out", "ERROR")
+        else:
+            tasklog("Transfer complete", "DEBUG")
+            sock.completed_transfers.add(cmd['filepath'])
+        finally:
+            sock.transferTracking[cmd['key']].set()
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
         'name': name
     })
     sock.pending_tasks.set()
+
 
 def _disconnect_in(sock, cmd, name):
     from threading import Thread
-    Thread(target=sock.close, args=(3, True), name="SecureConnection Shutdown Thread", daemon=True).start()
+    Thread(
+        target=sock.close,
+        args=(3, True),
+        name="SecureConnection Shutdown Thread",
+        daemon=True
+    ).start()
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
         'name': name
     })
     sock.pending_tasks.set()
 
+
 _WORKERS = {
-    'ti' : _text_in,
-    'to' : _text_out,
-    'fri' : _file_request_in,
-    'fro' : _file_request_out,
-    'fti' : _file_transfer_in,
-    'fto' : _file_transfer_out,
-    'dci' : _disconnect_in
+    'ti': _text_in,
+    'to': _text_out,
+    'fri': _file_request_in,
+    'fro': _file_request_out,
+    'fti': _file_transfer_in,
+    'fto': _file_transfer_out,
+    'dci': _disconnect_in
 }

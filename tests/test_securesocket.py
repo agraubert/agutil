@@ -6,6 +6,7 @@ import random
 import threading
 import warnings
 import os
+import port_for as pf
 startup_lock = threading.Lock()
 
 TRAVIS = 'CI' in os.environ
@@ -98,16 +99,16 @@ class test(unittest.TestCase):
         from agutil.security import SecureSocket
         ss = None
         warnings.simplefilter('ignore', ResourceWarning)
-        for port in range(5000, 6000):
+        for attempt in range(10):
             try:
-                ss = SocketServer(port)
+                ss = SocketServer(pf.select_random())
             except OSError:
                 if ss!=None:
                     ss.close()
             if ss!=None:
                 break
         warnings.resetwarnings()
-        self.assertIsInstance(ss, SocketServer, "Failed to bind to any ports on [5000, 6000]")
+        self.assertIsInstance(ss, SocketServer, "Failed to bind to any ports after 10 attempts")
         startup_lock.acquire()
         server_payload = lambda x:None
         client_payload = lambda x:None

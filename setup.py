@@ -41,7 +41,6 @@ setup(
     entry_points={
         "console_scripts":[
             "maf2bed = agutil.bio.maf2bed:main",
-            "tsvmanip = agutil.bio.tsvmanip:main",
             "agutil-secure = agutil.security.console:main"
         ]
     },
@@ -51,6 +50,13 @@ setup(
             session=''
         )
     ],
+    tests_require=[
+        str(package.req) for package in parse_requirements(
+            'tests/requirements.txt',
+            session=''
+        )
+    ],
+    test_suite='tests',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
 
