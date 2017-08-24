@@ -6,8 +6,8 @@ def _func(i):
     return i
 
 def parallelize(func, maximum=15):
-    def call(args=None, kwargs=None):
-        yield from Dispatcher(func, args, kwargs, maximum)
+    def call(*args, **kwargs):
+        yield from Dispatcher(func, *args, maximum=15, **kwargs)
     return call
 
 # given a function, and an args/kwargs iterable
