@@ -1,14 +1,15 @@
 import threading
 import time
 
-def _func(i):
-    time.sleep(i)
-    return i
-
-def parallelize(func, maximum=15):
-    def call(*args, **kwargs):
-        yield from Dispatcher(func, *args, maximum=15, **kwargs)
-    return call
+def parallelize(arg=15):
+    def wrap(func, parallel_max=15):
+        def call(*args, **kwargs):
+            yield from Dispatcher(func, *args, maximum=parallel_max, **kwargs)
+        return call
+    if callable(arg):
+        return wrap(arg)
+    else:
+        return lambda x: wrap(x, arg)
 
 # given a function, and an args/kwargs iterable
 # return a generator
@@ -105,3 +106,84 @@ class Dispatcher:
             else:
                 self.finishedEvent.wait()
                 self.finishedEvent.clear()
+
+
+class counter:
+    def __init__(self):
+        self.val = 0
+
+    def incr(self):
+        self.val += 1
+
+    def decr(self):
+        self.val -= 1
+
+#dispatches a thread and returns callback object
+#threads wait for capacity, then executes
+#must call the callback object to unpack value
+def par2(*_args, **_kwargs):
+    parallel_max = 15
+    throttled=False
+    def _par2(func):
+        cache = {}
+        slot = counter()
+        count = counter()
+        condition = threading.Condition()
+        def wrap(n, func):
+            event = threading.Event()
+            def work(*args, **kwargs):
+                with condition:
+                    if not throttled:
+                        condition.wait_for(lambda :count.val < parallel_max)
+                        count.incr()
+                try:
+                    result = func(*args, **kwargs)
+                    cache[n] = result
+                except BaseException as e:
+                    cache[n] = e
+                finally:
+                    with condition:
+                        count.decr()
+                        condition.notify()
+                    event.set()
+            return (work, event)
+        def call(*args, **kwargs):
+            with condition:
+                if throttled:
+                    condition.wait_for(lambda :count.val < parallel_max)
+                    count.incr()
+                n = slot.val
+                slot.incr()
+                (targ, evt) = wrap(n, func)
+                threading.Thread(
+                    target= targ,
+                    args= args,
+                    kwargs= kwargs,
+                    daemon= True
+                ).start()
+            def unpack():
+                evt.wait()
+                return cache[n]
+            return unpack
+        return call
+    if len(_args) == 1 and callable(_args[0]):
+        return _par2(_args[0])
+    else:
+        if 'throttled' in _kwargs:
+            thottled = _kwargs['throttled']
+        elif len(_args) == 2:
+            throttled = _args[1]
+        elif len(_args) == 1 and 'maximum' in _kwargs:
+            throttled = _args[1]
+        if 'maximum' in _kwargs:
+            parallel_max = _kwargs['maximum']
+        elif len(_args) == 1:
+            parallel_max = _args[0]
+        return _par2
+
+
+import random
+@par2
+def foo(n):
+    time.sleep(random.random()*10)
+    return n
