@@ -89,7 +89,9 @@ class Dispatcher:
                     self.threads.append(
                         threading.Thread(
                             target=work,
-                            args=(i,) if args is None else (i, *args),
+                            args=(i,) if args is None else [i]+[
+                                arg for arg in args
+                            ],
                             kwargs=kwargs if kwargs is not None else {},
                             daemon=True
                         )

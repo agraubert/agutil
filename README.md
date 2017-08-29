@@ -80,6 +80,8 @@ to benefit from thread-based parallelization
   value (or the exception raised in _func_). You may optionally call parallelize2
   with a _maximum_ argument (ie: `@parallelize2(17)` vs `@parallelize2`)
   to change the maximum number of concurrent executions of _func_ (default is 15).
+  **Note:** `parallelize2` may encounter a substantially larger system overhead
+  than `parallelize` or `dispatcher` when calling _func_ many (>100) times
 
 ### Example: parallelize vs parallelize2
 These two decorators provide essentially the same system of parallelization, with
