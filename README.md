@@ -49,6 +49,8 @@ Added a new `agutil.parallel` module which includes the following:
 returned by background threads executing tasks in parallel.
 * `agutil.parallel.parallelize`, a decorator function to wrap a function with an
 `agutil.parallel.Dispatcher` and yield from the Dispatcher's results
+* `agutil.parallel.parallelize2`, a decorator function to dispatch calls on background
+threads and return a callback to get the value.
 
 **Note:** Due to
 [inherent issues with cpython](https://wiki.python.org/moin/GlobalInterpreterLock),
@@ -66,6 +68,47 @@ to benefit from thread-based parallelization
   will call _func_ until the one of the argument iterables is exhausted. You may
   optionally call parallelize with a _maximum_ argument (ie: `@parallelize(10)` vs `@parallelize`)
   to change the maximum number of allowed threads.
+
+* agutil.parallel.parallelize2(_func_):
+
+  Decorates _func_ and returns a function which dispatches calls on background threads.
+  `parallelize2` is provided as a similar system with a slightly different flavor.
+  Instead of providing all arguments up front (`parallelize` and `Dispatcher`)
+  the decorated function can be called whenever needed with whatever arguments.
+  The decorated function will return a callable object that, when called, waits
+  for the result from the associated call to _func_ to return, then returns that
+  value (or the exception raised in _func_). You may optionally call parallelize2
+  with a _maximum_ argument (ie: `@parallelize2(17)` vs `@parallelize2`)
+  to change the maximum number of concurrent executions of _func_ (default is 15).
+
+### Example: parallelize vs parallelize2
+These two decorators provide essentially the same system of parallelization, with
+slightly different flavors.  Given two functions `foo` and `bar`:
+```python
+@parallelize
+def foo(n):
+  #Do some work
+  return results
+
+@parallelize2
+def bar(n):
+  #Do the same work
+  return results
+```
+
+Both `foo` and `bar` will perform the same tasks in roughly the same amount of time,
+the only difference being how the functions are invoked.
+
+```python
+#get a list of results from foo, using parallelize
+results_1 = [x for x in foo(range(100))]
+
+#Start all the threads for bar, using parallelize2
+tmp = [bar(x) for x in range(100)]
+#Now wait for and retrieve the results
+results_2 = [callback() for callback in tmp]
+```
+
 
 ## agutil.parallel.Dispatcher
 This class takes a function and iterables of arguments to dispatch calls to the function

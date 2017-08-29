@@ -19,7 +19,7 @@ class test(unittest.TestCase):
             "agutil",
             "parallel",
             "src",
-            "dispatcher.py"
+            "parallelize.py"
         )
         sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.script_path))))
         random.seed()
@@ -28,21 +28,24 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    def test_dispatch(self):
-        from agutil.parallel import Dispatcher
+    def test_parallelize(self):
+        from agutil.parallel import parallelize as par
 
-        def test(i):
+        @par(14)
+        def test(n):
             time.sleep(random.random() * 5)
-            return i
+            return n
 
-        disp = Dispatcher(
-            test,
-            i=range(100)
-        )
-        t0 = time.monotonic()
-        for x,y in zip(disp, range(100)):
+        for x,y in zip(test(range(100)), range(100)):
             self.assertEqual(x,y)
-        t1 = time.monotonic()
-        for x,y in zip(disp, range(100)):
-            self.assertEqual(x,y)
-        self.assertLess(time.monotonic()-t1, t1-t0)
+
+    def test_parallelize2(self):
+        from agutil.parallel import parallelize2 as par2
+
+        @par2(17)
+        def test(n):
+            time.sleep(random.random() * 5)
+            return n
+
+        for x,y in [(test(i),i) for i in range(100)]:
+            self.assertEqual(x(),y)
