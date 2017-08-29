@@ -64,13 +64,16 @@ to benefit from thread-based parallelization
   The decorated function will return a **generator** which yields values **in order**
   (see the dispatcher return guarantee, below) from the background calls. The generator
   will call _func_ until the one of the argument iterables is exhausted. You may
-  optionally call parallelize with a _maximum_ argument (`@parallelize(10)` vs `@parallelize`)
-  to change the maximum number of allowed threads
+  optionally call parallelize with a _maximum_ argument (ie: `@parallelize(10)` vs `@parallelize`)
+  to change the maximum number of allowed threads.
 
 ## agutil.parallel.Dispatcher
 This class takes a function and iterables of arguments to dispatch calls to the function
 on background threads. The Dispatcher will execute calls the function using arguments
 extracted from the iterables provided until one or more of the iterables is empty.
+Multiple threads may concurrently iterate over the Dispatcher, or iterate over it
+after it finishes running, but the Dispatcher cannot be restarted.  Re-iterating
+over the Dispatcher will yield the same results
 
 ### Example:
 * If you have a function _foo(n)_ which takes a single argument _n_ and you need
@@ -92,9 +95,17 @@ _foo(2)_, and _foo(3)_, respectively.
 * Dispatcher.run():
 
   Begins execution of the `Dispatcher` and returns a **generator**. Once this method
-  is called, the `Dispatcher` will begin pulling arguments out of the iterables and
-  starting background threads up to the maximum allowed number.  `Dispatcher` makes
-  the following guarantee about threads and return values:
+  is called for the first time, the `Dispatcher` will begin pulling arguments out
+  of the iterables and start background threads up to the maximum allowed number.
+  On subsequent calls to `run()`, the `Dispatcher` will immediately yield the same
+  results out of its cache. If an exception is raised in one of the background threads,
+  the thread will return the exception (the `Dispatcher` will yield this exception
+  as this thread's return value) and halt , but the `Dispatcher` will continue to
+  iterate and create new threads. If an exception is raised in `run()` during iteration,
+  it will stop the `Dispatcher`; no more threads will be started, but threads which
+  were already started will continue until they exit normally.
+  `Dispatcher` makes the following guarantee about
+  threads and return values:
 
   **Dispatcher return guarantee:** `Dispatcher` guarantees that threads will be started
   in the same order that arguments appear, and that data is returned by the generator
@@ -113,3 +124,7 @@ _foo(2)_, and _foo(3)_, respectively.
 
   Yields results from `Dispatcher.run()`.  This allows you to construct and immediately
   iterate over a `Dispatcher`.
+
+* Dispatcher.isAlive():
+
+  Returns True if the `Dispatcher` is still running

@@ -37,7 +37,18 @@ class test(unittest.TestCase):
 
         disp = Dispatcher(
             test,
-            range(100)
+            i=range(100)
         )
         for x,y in zip(disp, range(100)):
+            self.assertEqual(x,y)
+
+    def test_parallelize(self):
+        from agutil.parallel import parallelize
+
+        @parallelize(14)
+        def test(n):
+            time.sleep(random.random() * 5)
+            return n
+
+        for x,y in zip(test(range(100)), range(100)):
             self.assertEqual(x,y)
