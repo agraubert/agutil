@@ -77,7 +77,7 @@ to benefit from thread-based parallelization
   the decorated function can be called whenever needed with whatever arguments.
   The decorated function will return a callable object that, when called, waits
   for the result from the associated call to _func_ to return, then returns that
-  value (or the exception raised in _func_). You may optionally call parallelize2
+  value (or raises the exception raised in _func_). You may optionally call parallelize2
   with a _maximum_ argument (ie: `@parallelize2(17)` vs `@parallelize2`)
   to change the maximum number of concurrent executions of _func_ (default is 15).
   **Note:** `parallelize2` may encounter a substantially larger system overhead
@@ -144,9 +144,10 @@ _foo(2)_, and _foo(3)_, respectively.
   of the iterables and start background threads up to the maximum allowed number.
   On subsequent calls to `run()`, the `Dispatcher` will immediately yield the same
   results out of its cache. If an exception is raised in one of the background threads,
-  the thread will return the exception (the `Dispatcher` will yield this exception
-  as this thread's return value) and halt , but the `Dispatcher` will continue to
-  iterate and create new threads. If an exception is raised in `run()` during iteration,
+  the thread will return the exception (the `Dispatcher` will raise this exception
+  when it encounters it during iteration) and halt. Note that if the raised exception
+  is not caught, the `Dispatcher` will halt (just as if you would expect if a function
+  raised an exception in a loop). If an exception is raised in `run()` during iteration,
   it will stop the `Dispatcher`; no more threads will be started, but threads which
   were already started will continue until they exit normally.
   `Dispatcher` makes the following guarantee about

@@ -49,3 +49,47 @@ class test(unittest.TestCase):
 
         for x,y in [(test(i),i) for i in range(100)]:
             self.assertEqual(x(),y)
+
+    def test_exceptions(self):
+        from agutil.parallel import parallelize as par
+
+        @par
+        def test(i):
+            time.sleep(random.random() * 5)
+            if i == 7:
+                raise SystemExit()
+            return i
+
+        with self.assertRaises(SystemExit):
+            for x,y in zip(test(range(15)), range(15)):
+                self.assertEqual(x,y)
+
+        @par
+        def test2(i):
+            time.sleep(random.random() * 5)
+            return SystemExit()
+
+        for exc in test2(range(10)):
+            self.assertIsInstance(exc, SystemExit)
+
+    def test_exceptions2(self):
+        from agutil.parallel import parallelize2 as par2
+
+        @par2
+        def test(i):
+            time.sleep(random.random() * 5)
+            if i == 7:
+                raise SystemExit()
+            return i
+
+        with self.assertRaises(SystemExit):
+            for x,y in [(test(i),i) for i in range(15)]:
+                self.assertEqual(x(),y)
+
+        @par2
+        def test2(i):
+            time.sleep(random.random() * 5)
+            return SystemExit()
+
+        for exc in [test2(i) for i in range(10)]:
+            self.assertIsInstance(exc(), SystemExit)

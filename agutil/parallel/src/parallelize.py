@@ -1,4 +1,4 @@
-from .dispatcher import Dispatcher
+from .dispatcher import Dispatcher, _ParallelBackgroundException
 import threading
 
 
@@ -58,7 +58,7 @@ def parallelize2(_arg=15):
                     result = func(*args, **kwargs)
                     cache[n] = result
                 except BaseException as e:
-                    cache[n] = e
+                    cache[n] = _ParallelBackgroundException(e)
                 finally:
                     with condition:
                         count.decr()
@@ -81,7 +81,10 @@ def parallelize2(_arg=15):
 
             def unpack():
                 evt.wait()
-                return cache[n]
+                x = cache[n]
+                if isinstance(x, _ParallelBackgroundException):
+                    raise x.exc
+                return x
 
             return unpack
 

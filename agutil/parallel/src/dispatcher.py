@@ -1,5 +1,8 @@
 import threading
 
+class _ParallelBackgroundException(Exception):
+    def __init__(self, exc):
+        self.exc = exc
 
 class Dispatcher:
     def __init__(self, func, *args, maximum=15, **kwargs):
@@ -31,7 +34,10 @@ class Dispatcher:
             while self.isAlive() or i < len(self.output_cache):
                 if i in self.output_cache:
                     self.outputEvent.clear()
-                    yield self.output_cache[i]
+                    x = self.output_cache[i]
+                    if isinstance(x, _ParallelBackgroundException):
+                        raise x.exc
+                    yield x
                     i += 1
                 else:
                     self.outputEvent.wait()
@@ -74,7 +80,7 @@ class Dispatcher:
                 result = self.func(*args, **kwargs)
                 self.output_cache[_parallel_id] = result
             except BaseException as e:
-                self.output_cache[_parallel_id] = e
+                self.output_cache[_parallel_id] = _ParallelBackgroundException(e)
                 raise e
             finally:
                 self.lock.acquire()

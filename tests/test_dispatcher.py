@@ -46,3 +46,31 @@ class test(unittest.TestCase):
         for x,y in zip(disp, range(100)):
             self.assertEqual(x,y)
         self.assertLess(time.monotonic()-t1, t1-t0)
+
+    def test_exceptions(self):
+        from agutil.parallel import Dispatcher
+
+        def test(i):
+            time.sleep(random.random() * 5)
+            if i == 7:
+                raise SystemExit()
+            return i
+
+        with self.assertRaises(SystemExit):
+            disp = Dispatcher(
+                test,
+                i=range(15)
+            )
+            for x,y in zip(disp, range(15)):
+                self.assertEqual(x,y)
+
+        def test2(i):
+            time.sleep(random.random() * 5)
+            return SystemExit()
+
+        disp = Dispatcher(
+            test2,
+            range(10)
+        )
+        for exc in disp:
+            self.assertIsInstance(exc, SystemExit)
