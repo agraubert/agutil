@@ -26,6 +26,7 @@ The __parallel__ package:
 
 * Dispatcher (A class for managing background threads for running tasks in parallel)
 * parallelize (A decorator to easily convert a regular function into a parallelized version)
+* parallelize2 (A similar parallelization decorator with a slightly different flavor)
 
 The __security__ package:
 
@@ -53,9 +54,9 @@ returned by background threads executing tasks in parallel.
 threads and return a callback to get the value.
 
 **Note:** Due to
-[inherent issues with cpython](https://wiki.python.org/moin/GlobalInterpreterLock),
+[inherent issues with CPython](https://wiki.python.org/moin/GlobalInterpreterLock),
 this system is not suited for CPU bound tasks. I/O bound tasks will, however, be able
-to benefit from thread-based parallelization
+to benefit from thread-based parallelization.
 
 ##### API
 * agutil.parallel.parallelize(_func_):
