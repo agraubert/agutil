@@ -32,11 +32,13 @@ setup(
     packages=[
         "agutil",
         "agutil.bio",
-        "agutil.src",
         "agutil.io",
         "agutil.io.src",
+        "agutil.parallel",
+        "agutil.parallel.src",
         "agutil.security",
-        "agutil.security.src"
+        "agutil.security.src",
+        "agutil.src",
     ],
     entry_points={
         "console_scripts":[
