@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 2.1.0
+
+#### agutil.parallel (new module)
+Added a new `agutil.parallel` module which includes the following:
+* `agutil.parallel.Dispatcher`, a class which produces generators to yield values
+returned by background threads executing tasks in parallel.
+* `agutil.parallel.parallelize`, a decorator function to wrap a function with an
+`agutil.parallel.Dispatcher` and yield from the Dispatcher's results
+* `agutil.parallel.parallelize2`, a decorator function to dispatch calls on background
+threads and return a callback to get the value.
+
+**Note:** Due to
+[inherent issues with CPython](https://wiki.python.org/moin/GlobalInterpreterLock),
+this system is not suited for CPU bound tasks. I/O bound tasks will, however, be able
+to benefit from thread-based parallelization.
+
 ## 2.0.0
 
 **Feature Removal**:

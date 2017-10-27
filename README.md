@@ -4,7 +4,7 @@
 
 A collection of python utilities
 
-__Version:__ 2.0.0
+__Version:__ 2.1.0
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
@@ -21,6 +21,12 @@ The __io__ package:
 * Socket (A low-level network IO class built on top of the standard socket class)
 * SocketServer (A low-level listen server to accept connections and return Socket classes)
 * QueuedSocket (A low-level network IO class built to manage input across multiple channels)
+
+The __parallel__ package:
+
+* Dispatcher (A class for managing background threads for running tasks in parallel)
+* parallelize (A decorator to easily convert a regular function into a parallelized version)
+* parallelize2 (A similar parallelization decorator with a slightly different flavor)
 
 The __security__ package:
 
