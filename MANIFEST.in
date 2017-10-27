@@ -1,0 +1,3 @@
+include requirements.txt
+include tests/requirements.txt
+include tests/data/**/*
