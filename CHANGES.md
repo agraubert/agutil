@@ -2,6 +2,10 @@
 
 ## 2.1.0
 
+* Fixed an issue with the packaged distribution
+
+## 2.1.0
+
 #### agutil.parallel (new module)
 Added a new `agutil.parallel` module which includes the following:
 * `agutil.parallel.Dispatcher`, a class which produces generators to yield values
