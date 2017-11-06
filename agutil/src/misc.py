@@ -3,6 +3,8 @@ import hashlib
 from math import log
 import re
 
+replacement = re.compile(r'\.0+$')
+
 
 def intToBytes(num, padding_length=0):
     s = format(num, 'x')
@@ -49,7 +51,6 @@ def hashfile(filepath, algorithm='sha1', length=None):
         return hasher.digest(length)
     return hasher.digest()
 
-replacement = re.compile(r'\.0+$')
 
 def byteSize(n):
     if n == 0:
