@@ -3,6 +3,7 @@ branches:
   - master
   - dev
   - staging
+  - hotfix
 env:
   - COLUMNS=80
 addons:
