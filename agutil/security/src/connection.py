@@ -314,6 +314,7 @@ class SecureConnection:
             raise socketTimeout(
                 "File transfer did not complete in the specified timeout"
             )
+        del self.transferTracking[transferKey]
         self.log("File transfer complete", "INFO")
         return destination
 
