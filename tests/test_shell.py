@@ -41,7 +41,8 @@ class test(unittest.TestCase):
                 command,
                 shell=True,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT
+                stderr=subprocess.STDOUT,
+                executable=os.environ['SHELL'] if 'SHELL' in os.environ else None
             )
             expected.wait()
             observed = cmd(command, display=False)
