@@ -7,7 +7,7 @@ import sys
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        sys.stdout = open(os.devnull, 'w')
+        # sys.stdout = open(os.devnull, 'w')
         random.seed()
         cls.script_path = os.path.join(
             os.path.dirname(
@@ -21,10 +21,10 @@ class test(unittest.TestCase):
         )
         sys.path.append(os.path.dirname(os.path.dirname(cls.script_path)))
 
-    @classmethod
-    def tearDownClass(cls):
-        sys.stdout.close()
-        sys.stdout = sys.__stdout__
+    # @classmethod
+    # def tearDownClass(cls):
+    #     sys.stdout.close()
+    #     sys.stdout = sys.__stdout__
 
     def test_compilation(self):
         compiled_path = compile(self.script_path)
@@ -32,7 +32,7 @@ class test(unittest.TestCase):
 
     def test_rolling(self):
         from agutil import status_bar
-        with status_bar(10000, True) as q:
+        with status_bar(10000, True, debugging=True) as q:
             self.assertEqual(q.display, '['+(' '*q.cols)+'] 0.000%')
             q.prepend("PRE ")
             self.assertEqual(q.display, 'PRE ['+(' '*q.cols)+'] 0.000%')
@@ -63,3 +63,17 @@ class test(unittest.TestCase):
                 self.assertLessEqual(abs(float(q.display.split()[-2].strip('% '))- (100*i/10000)), q.update_threshold)
         self.assertEqual(q.display, ' '*len(q.display))
         q.update(0)
+
+    def test_iter(self):
+        from agutil import status_bar
+        bar = None
+        first = True
+        for i in status_bar.iter(range(1,1001), iter_debug=True, debugging=True):
+            if first:
+                self.assertIsInstance(i, status_bar)
+                bar = i
+                first = False
+                continue
+            self.assertIsInstance(i,int)
+            self.assertEqual(bar.current, i)
+            self.assertEqual(bar.progress, int(i*bar.cols/1000.0))

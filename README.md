@@ -41,3 +41,30 @@ Detailed documentation of these packages can be found on the [agutil Github wiki
 
 ## Installation note:
 This package requires PyCrypto, which typically has issues compiling on windows.  If you are on windows and `pip install agutil` fails during the installation of PyCrypto, then follow the instructions [here](https://github.com/sfbahr/PyCrypto-Wheels) for installing PyCrypto from a precompiled wheel, and then run `pip install agutil` again.
+
+## Features in Development:
+
+#### agutil.status_bar
+
+The following changes have been made to `agutil.status_bar`:
+* The _value_ argument to `status_bar.update()` is now optional. If omitted, the
+status bar will be incremented by one
+* Added a `status_bar.iter()` class method. The goal of this function is to serve
+as a wrapper for iterables to add a status bar to any loop
+
+##### API
+
+* status_bar.iter(cls, iterable, maximum=None, iter_debug=False,\*\*kwargs) _(class method, generator)_
+
+  Takes an _iterable_ and yields elements from it while updating a status bar automatically.
+  The _maximum_ argument is used to set the maximum of the created status bar.
+  If _maximum_ is omitted or None, `len()` will be called on the iterable to determine
+  its size. If _iter\_debug_ is True, this method will first yield the status bar
+  before iterating over elements of the provided iterable (for debugging purposes).
+  _kwargs_ are passed to the `status_bar` constructor.
+
+* status_bar.update(value=None)
+
+  updates the display iff _value_ would require a change in the length of the progress
+  bar, or if it changes the percentage readout by at least _update\_threshold_.
+  If _value_ is None, the bar's current value will be incremented by one.
