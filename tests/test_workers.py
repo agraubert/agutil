@@ -7,6 +7,14 @@ import subprocess
 import threading
 import time
 
+def exception_test_function(i):
+    time.sleep(random.random() * 5)
+    raise IndexError()
+
+def standard_test_function(i):
+    time.sleep(random.random() * 5)
+    return i
+
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -45,13 +53,9 @@ class test(unittest.TestCase):
     def test_processes(self):
         from agutil.parallel import ProcessWorker
 
-        def test(n):
-            time.sleep(random.random() * 5)
-            return n
-
         worker = ProcessWorker(15)
 
-        for x,y in [(worker.dispatch(test,i),i) for i in range(100)]:
+        for x,y in [(worker.dispatch(standard_test_function,i),i) for i in range(100)]:
             self.assertEqual(x(),y)
 
         worker.close()
@@ -59,18 +63,14 @@ class test(unittest.TestCase):
     def test_exceptions(self):
         from agutil.parallel import ThreadWorker, ProcessWorker
 
-        def test(i):
-            time.sleep(random.random() * 5)
-            raise SystemExit()
-
         tworker = ThreadWorker(1)
         pworker = ProcessWorker(1)
 
-        with self.assertRaises(SystemExit):
-            tworker.dispatch(test,1)()
+        with self.assertRaises(IndexError):
+            tworker.dispatch(exception_test_function,1)()
 
-        with self.assertRaises(SystemExit):
-            pworker.dispatch(test,1)()
+        with self.assertRaises(IndexError):
+            pworker.dispatch(exception_test_function,1)(5)
 
         tworker.close()
         pworker.close()

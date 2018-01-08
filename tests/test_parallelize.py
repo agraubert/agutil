@@ -7,6 +7,11 @@ import subprocess
 import threading
 import time
 
+
+def standard_test_function(n):
+    time.sleep(random.random() * 5)
+    return n
+
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -53,19 +58,11 @@ class test(unittest.TestCase):
     def test_multiprocessing(self):
         from agutil.parallel import parallelize as par, parallelize2 as par2, WORKERTYPE_PROCESS
 
-        @par(workertype=WORKERTYPE_PROCESS)
-        def test(n):
-            time.sleep(random.random() * 5)
-            return n
-
+        test = par(workertype=WORKERTYPE_PROCESS)(standard_test_function)
         for x,y in zip(test(range(100)), range(100)):
             self.assertEqual(x,y)
 
-        @par2(workertype=WORKERTYPE_PROCESS)
-        def test2(n):
-            time.sleep(random.random() * 5)
-            return n
-
+        test2 = par2(workertype=WORKERTYPE_PROCESS)(standard_test_function)
         for x,y in [(test2(i),i) for i in range(100)]:
             self.assertEqual(x(),y)
 

@@ -1,6 +1,12 @@
-from .dispatcher import IterDispatcher, DemandDispatcher, WORKERTYPE_THREAD, WORKERTYPE_PROCESS
+from .dispatcher import (
+    IterDispatcher,
+    DemandDispatcher,
+    WORKERTYPE_THREAD,
+    WORKERTYPE_PROCESS
+)
 from .exceptions import _ParallelBackgroundException
 import threading
+from functools import wraps
 
 
 class Counter:
@@ -26,10 +32,11 @@ class Counter:
         self.val -= int(other)
 
 
-def parallelize(maxmimum=15, workertype=WORKERTYPE_THREAD):
+def parallelize(maximum=15, workertype=WORKERTYPE_THREAD):
 
     def wrap(func):
 
+        @wraps(func)
         def call(*args, **kwargs):
             yield from IterDispatcher(
                 func,
@@ -53,10 +60,11 @@ def parallelize2(maximum=15, workertype=WORKERTYPE_THREAD):
             workertype=workertype
         )
 
+        @wraps(func)
         def call(*args, **kwargs):
             return dispatcher.dispatch(*args, **kwargs)
 
-        func._close_dispatcher=lambda :dispatcher.close()
+        call._close_dispatcher = lambda: dispatcher.close()
         return call
 
     return wrap

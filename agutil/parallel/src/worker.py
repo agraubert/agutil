@@ -2,6 +2,7 @@ from .exceptions import _ParallelBackgroundException
 import threading
 import multiprocessing as mp
 
+
 class ThreadWorker:
     def __init__(self, maximum):
         self.maximum = maximum
@@ -23,7 +24,7 @@ class ThreadWorker:
     def dispatch(self, func, *args, **kwargs):
         evt = threading.Event()
         with self.lock:
-            key = len(self.output_cache)
+            key = id(evt)
             self.queue.append([func, args, kwargs, evt, key])
 
         def unpack():
@@ -50,8 +51,9 @@ class ThreadWorker:
             self.output_cache[key] = (
                 _ParallelBackgroundException(e)
             )
-            raise e
+            # raise e
         finally:
+            evt.set()
             self.output_event.set()
 
     def _worker(self):
@@ -85,7 +87,7 @@ class ProcessWorker:
 
     def dispatch(self, func, *args, **kwargs):
         callback = self.pool.apply_async(func, args, kwargs)
-        return lambda :callback.get()
+        return lambda x=None: callback.get(x)
 
     def close(self):
         self.pool.close()
