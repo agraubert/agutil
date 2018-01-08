@@ -1,4 +1,5 @@
-from .dispatcher import Dispatcher, _ParallelBackgroundException
+from .dispatcher import IterDispatcher, DemandDispatcher, WORKERTYPE_THREAD, WORKERTYPE_PROCESS
+from .exceptions import _ParallelBackgroundException
 import threading
 
 
@@ -25,72 +26,37 @@ class Counter:
         self.val -= int(other)
 
 
-def parallelize(arg=15):
+def parallelize(maxmimum=15, workertype=WORKERTYPE_THREAD):
 
-    def wrap(func, parallel_max=15):
+    def wrap(func):
 
         def call(*args, **kwargs):
-            yield from Dispatcher(func, *args, maximum=parallel_max, **kwargs)
+            yield from IterDispatcher(
+                func,
+                *args,
+                maximum=maximum,
+                workertype=workertype,
+                **kwargs
+            )
 
         return call
 
-    if callable(arg):
-        return wrap(arg)
-    else:
-        return lambda x: wrap(x, arg)
+    return wrap
 
 
-def parallelize2(_arg=15):
-    def _par2(func, parallel_max=15):
-        cache = {}
-        slot = Counter()
-        count = Counter()
-        condition = threading.Condition()
+def parallelize2(maximum=15, workertype=WORKERTYPE_THREAD):
 
-        def wrap(n, func):
-            event = threading.Event()
-
-            def work(*args, **kwargs):
-                with condition:
-                    condition.wait_for(lambda: count.val < parallel_max)
-                    count.incr()
-                try:
-                    result = func(*args, **kwargs)
-                    cache[n] = result
-                except BaseException as e:
-                    cache[n] = _ParallelBackgroundException(e)
-                finally:
-                    with condition:
-                        count.decr()
-                        condition.notify()
-                    event.set()
-
-            return (work, event)
+    def wrap(func):
+        dispatcher = DemandDispatcher(
+            func,
+            maximum=maximum,
+            workertype=workertype
+        )
 
         def call(*args, **kwargs):
-            with condition:
-                n = slot.val
-                slot.incr()
-                (targ, evt) = wrap(n, func)
-                threading.Thread(
-                    target=targ,
-                    args=args,
-                    kwargs=kwargs,
-                    daemon=True
-                ).start()
+            return dispatcher.dispatch(*args, **kwargs)
 
-            def unpack():
-                evt.wait()
-                x = cache[n]
-                if isinstance(x, _ParallelBackgroundException):
-                    raise x.exc
-                return x
-
-            return unpack
-
+        func._close_dispatcher=lambda :dispatcher.close()
         return call
 
-    if callable(_arg):
-        return _par2(_arg)
-    else:
-        return lambda x: _par2(x, _arg)
+    return wrap

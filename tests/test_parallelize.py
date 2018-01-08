@@ -50,10 +50,29 @@ class test(unittest.TestCase):
         for x,y in [(test(i),i) for i in range(100)]:
             self.assertEqual(x(),y)
 
+    def test_multiprocessing(self):
+        from agutil.parallel import parallelize as par, parallelize2 as par2, WORKERTYPE_PROCESS
+
+        @par(workertype=WORKERTYPE_PROCESS)
+        def test(n):
+            time.sleep(random.random() * 5)
+            return n
+
+        for x,y in zip(test(range(100)), range(100)):
+            self.assertEqual(x,y)
+
+        @par2(workertype=WORKERTYPE_PROCESS)
+        def test2(n):
+            time.sleep(random.random() * 5)
+            return n
+
+        for x,y in [(test2(i),i) for i in range(100)]:
+            self.assertEqual(x(),y)
+
     def test_exceptions(self):
         from agutil.parallel import parallelize as par
 
-        @par
+        @par()
         def test(i):
             time.sleep(random.random() * 5)
             if i == 7:
@@ -64,7 +83,7 @@ class test(unittest.TestCase):
             for x,y in zip(test(range(15)), range(15)):
                 self.assertEqual(x,y)
 
-        @par
+        @par()
         def test2(i):
             time.sleep(random.random() * 5)
             return SystemExit()
@@ -75,7 +94,7 @@ class test(unittest.TestCase):
     def test_exceptions2(self):
         from agutil.parallel import parallelize2 as par2
 
-        @par2
+        @par2()
         def test(i):
             time.sleep(random.random() * 5)
             if i == 7:
@@ -86,7 +105,7 @@ class test(unittest.TestCase):
             for x,y in [(test(i),i) for i in range(15)]:
                 self.assertEqual(x(),y)
 
-        @par2
+        @par2()
         def test2(i):
             time.sleep(random.random() * 5)
             return SystemExit()
