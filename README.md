@@ -47,6 +47,23 @@ This package requires PyCrypto, which typically has issues compiling on windows.
 
 ## Features in Development:
 
+### agutil (main module)
+
+The following change has been made to the `agutil` module:
+* Added `first()` function to return the first element of an iterable matching a
+given predicate
+
+##### API
+
+* first(iterable, predicate)
+
+  Takes an _iterable_ and returns the first item for which _predicate_(item) is True.
+  If _predicate_ is callable, it must be a function which takes a single argument
+  (if the result of the function is 'Truthly' the item in the iterable will be returned).
+  Alternatively, _predicate_ may be an object, in which case `first()` will return
+  the first item in the _iterable_ which compares equal to the given _predicate_
+  object
+
 ### agutil.status_bar
 
 The following changes have been made to `agutil.status_bar`:

@@ -120,3 +120,11 @@ class test(unittest.TestCase):
             formatted = byteSize(num)
             self.assertRegex(formatted, pattern)
             self.assertLess(float(pattern.match(formatted).group(1)), 1024.0)
+
+    def test_first(self):
+        from agutil import first
+        for trial in range(25):
+            data = [random.randint(0,100000) for i in range(1000)]
+            target = data[random.randint(0,1000)]
+            self.assertEqual(target, first(data, target))
+            self.assertEqual(target, first(data, lambda x:x==target))
