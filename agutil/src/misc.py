@@ -60,9 +60,11 @@ def byteSize(n):
     output = '%.1f' % (n / 1024**index)
     return replacement.sub('', output)+suffix
 
-def first(iterable, predicate=lambda x:True):
+
+def first(iterable, predicate=lambda x: True):
     if not callable(predicate):
-        func = lambda x:x==predicate
+        def func(item):
+            return item == predicate
     else:
         func = predicate
     for item in iterable:
