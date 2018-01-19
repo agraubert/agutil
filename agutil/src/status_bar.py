@@ -13,9 +13,8 @@ class status_bar:
             if iter_debug:
                 yield bar
             for obj in iterable:
-                bar.update()
                 yield obj
-            # bar.update()
+                bar.update()
 
     def __init__(
         self,

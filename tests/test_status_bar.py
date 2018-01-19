@@ -68,7 +68,7 @@ class test(unittest.TestCase):
         from agutil import status_bar
         bar = None
         first = True
-        for i in status_bar.iter(range(1,1001), iter_debug=True, debugging=True):
+        for i in status_bar.iter(range(0,1000), iter_debug=True, debugging=True):
             if first:
                 self.assertIsInstance(i, status_bar)
                 bar = i
