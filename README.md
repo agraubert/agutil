@@ -47,6 +47,21 @@ This package requires PyCrypto, which typically has issues compiling on windows.
 
 ## Features in Development:
 
+### agutil.security
+
+The following change has been made to the `agutil.security` module:
+* The padding scheme has been changed to be more cryptographically secure:
+  * Formerly, the padding scheme would append 1-16 bytes all with the same value
+  (equaling the padding length)
+  * Now, the padding scheme still appends the same number of bytes, but only the
+  last byte of the string will have a value set to equal the padding length. The
+  first n-1 bytes of padding are random bytes. A padded message will look like this:
+  `Original Message` + `n-1 random bytes` + `literal [n] byte`
+  * The new and old padding schemes are forwards and backwards compatible. The
+  unpadding methods only examine the final byte of a message to determine the
+  padding length, so old versions of `agutil` will still recognize new-padded strings
+  (and visa-versa)
+
 ### agutil (main module)
 
 The following change has been made to the `agutil` module:
