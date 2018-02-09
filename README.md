@@ -4,7 +4,7 @@
 
 A collection of python utilities
 
-__Version:__ 2.1.2
+__Version:__ 3.0.0
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
@@ -24,9 +24,12 @@ The __io__ package:
 
 The __parallel__ package:
 
-* Dispatcher (A class for managing background threads for running tasks in parallel)
 * parallelize (A decorator to easily convert a regular function into a parallelized version)
 * parallelize2 (A similar parallelization decorator with a slightly different flavor)
+* IterDispatcher (Logical backend for dispatching calls with parallelize)
+* DemandDispatcher (Logical backend for dispatching calls with parallelize2)
+* ThreadWorker (Task management backend for dispatching parallel calls to threads)
+* ProcessWorker (Task management backend for dispatching parallel calls to processes)
 
 The __security__ package:
 

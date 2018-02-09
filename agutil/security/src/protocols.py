@@ -72,7 +72,11 @@ def padstring(msg):
     if type(msg) != bytes:
         raise TypeError("msg must be type str or bytes")
     padding_length = 16 - (len(msg) % 16)
-    return msg + bytes.fromhex('%02x' % padding_length)*padding_length
+    return (
+        msg +
+        os.urandom(padding_length-1) +
+        bytes.fromhex('%02x' % padding_length)
+    )
 
 
 def unpadstring(msg):

@@ -59,3 +59,14 @@ def byteSize(n):
     suffix = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB'][index]
     output = '%.1f' % (n / 1024**index)
     return replacement.sub('', output)+suffix
+
+
+def first(iterable, predicate=lambda x: True):
+    if not callable(predicate):
+        def func(item):
+            return item == predicate
+    else:
+        func = predicate
+    for item in iterable:
+        if func(item):
+            return item

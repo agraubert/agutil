@@ -4,6 +4,18 @@ from shutil import get_terminal_size
 
 
 class status_bar:
+
+    @classmethod
+    def iter(cls, iterable, maximum=None, *_, iter_debug=False, **kwargs):
+        if maximum is None:
+            maximum = len(iterable)
+        with status_bar(maximum, **kwargs) as bar:
+            if iter_debug:
+                yield bar
+            for obj in iterable:
+                yield obj
+                bar.update()
+
     def __init__(
         self,
         maximum,
@@ -76,9 +88,11 @@ class status_bar:
                 sys.stdout.write('\b'*(self.cursor-index))
             self.cursor = index
 
-    def update(self, value):
+    def update(self, value=None):
         if self.pending_text_update or not self.initialized:
             self._initialize()
+        if value is None:
+            value = self.current + 1
         if value < 0:
             value = 0
         elif value > self.maximum:

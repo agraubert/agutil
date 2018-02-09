@@ -1,114 +1,92 @@
-import threading
+from .exceptions import _ParallelBackgroundException
+from .worker import ThreadWorker, ProcessWorker
+from itertools import zip_longest
+
+WORKERTYPE_THREAD = 0
+WORKERTYPE_PROCESS = 1
 
 
-class _ParallelBackgroundException(Exception):
-    def __init__(self, exc):
-        self.exc = exc
-
-
-class Dispatcher:
-    def __init__(self, func, *args, maximum=15, **kwargs):
+class IterDispatcher:
+    def __init__(
+        self,
+        func,
+        *args,
+        maximum=15,
+        workertype=WORKERTYPE_THREAD,
+        **kwargs
+    ):
         self.func = func
         self.maximum = maximum
         self.args = [iter(arg) for arg in args]
         self.kwargs = {key: iter(v) for (key, v) in kwargs.items()}
-        self.output_cache = {}
-        self.threads = []
-        self.count = 0
-        self.lock = threading.Lock()
-        self.outputEvent = threading.Event()
-        self.finishedEvent = threading.Event()
-        self.shutdown = False
-        self.dispatcher = None
+        self.worker = (
+            ThreadWorker if workertype == WORKERTYPE_THREAD
+            else ProcessWorker
+        )
 
     def run(self):
+        self.worker = self.worker(self.maximum)
         try:
-            with self.lock:
-                if self.dispatcher is None:
-                    self.dispatcher = threading.Thread(
-                        target=Dispatcher._dispatcher,
-                        args=(self,),
-                        daemon=True,
-                        name="Dispatcher Background Thread"
-                    )
-                    self.dispatcher.start()
-            i = 0
-            while self.isAlive() or i < len(self.output_cache):
-                if i in self.output_cache:
-                    self.outputEvent.clear()
-                    x = self.output_cache[i]
-                    if isinstance(x, _ParallelBackgroundException):
-                        raise x.exc
-                    yield x
-                    i += 1
-                else:
-                    self.outputEvent.wait()
+            output = []
+            for args, kwargs in self._iterargs():
+                # _args = args if args is not None else []
+                # _kwargs = kwargs if kwargs is not None else {}
+                output.append(self.worker.dispatch(
+                    self.func,
+                    *args,
+                    **kwargs
+                ))
+            for callback in output:
+                result = callback()
+                if isinstance(result, _ParallelBackgroundException):
+                    raise result.exc
+                yield result
         finally:
-            self.shutdown = True
+            self.worker.close()
+
+    def _iterargs(self):
+        while True:
+            args = []
+            had_arg = False
+            for src in self.args:
+                try:
+                    args.append(next(src))
+                    had_arg = True
+                except StopIteration:
+                    return  # args.append(None)
+            kwargs = {}
+            for key, src in self.kwargs.items():
+                try:
+                    kwargs[key] = next(src)
+                    had_arg = True
+                except StopIteration:
+                    return  # kwargs[key] = None
+            if not had_arg:
+                return
+            yield args, kwargs
 
     def __iter__(self):
         yield from self.run()
 
-    def _extract_args(self):
+    def is_alive(self):
+        return self.worker.is_alive()
+
+
+class DemandDispatcher:
+    def __init__(self, func, maximum=15, workertype=WORKERTYPE_THREAD):
+        self.maximum = maximum
+        self.func = func
+        self.worker = (
+            ThreadWorker(self.maximum) if workertype == WORKERTYPE_THREAD
+            else ProcessWorker(self.maximum)
+        )
+
+    def dispatch(self, *args, **kwargs):
         try:
-            args = [next(arg) for arg in self.args] if len(self.args) else None
-        except StopIteration:
-            args = None
-        try:
-            kwargs = {
-                key: next(source) for (key, source) in self.kwargs.items()
-                } if len(self.kwargs) else None
-        except StopIteration:
-            kwargs = None
-        return (args, kwargs)
+            return self.worker.dispatch(self.func, *args, **kwargs)
+        except BaseException:
+            self.worker.close()
+            raise
 
-    def isAlive(self):
-        if self.dispatcher.isAlive():
-            return True
-        for i in range(len(self.threads)):
-            if self.threads[i].isAlive():
-                return True
-        return False
-
-    def _dispatcher(self):
-        (args, kwargs) = self._extract_args()
-        i = 0
-
-        def work(_parallel_id, *args, **kwargs):
-            self.lock.acquire()
-            self.count += 1
-            self.lock.release()
-            try:
-                result = self.func(*args, **kwargs)
-                self.output_cache[_parallel_id] = result
-            except BaseException as e:
-                self.output_cache[_parallel_id] = (
-                    _ParallelBackgroundException(e)
-                )
-                raise e
-            finally:
-                self.lock.acquire()
-                self.count -= 1
-                self.lock.release()
-                self.outputEvent.set()
-                self.finishedEvent.set()
-
-        while (args is not None or kwargs is not None) and not self.shutdown:
-            if self.count < self.maximum:
-                with self.lock:
-                    self.threads.append(
-                        threading.Thread(
-                            target=work,
-                            args=(i,) if args is None else [i]+[
-                                arg for arg in args
-                            ],
-                            kwargs=kwargs if kwargs is not None else {},
-                            daemon=True
-                        )
-                    )
-                    self.threads[-1].start()
-                    i += 1
-                (args, kwargs) = self._extract_args()
-            else:
-                self.finishedEvent.wait()
-                self.finishedEvent.clear()
+    def close(self):
+        self.worker.close()

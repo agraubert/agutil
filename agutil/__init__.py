@@ -8,5 +8,6 @@ from .src.misc import (
     bytesToInt,
     hashfile,
     byteSize,
+    first,
 )
 from .src.shell import cmd, StdOutAdapter, ShellReturnObject
