@@ -1,5 +1,71 @@
 # CHANGELOG
 
+## 3.0.0
+
+### agutil (main module)
+
+The following change has been made to the `agutil` module:
+* Added `first()` function to return the first element of an iterable matching a
+given predicate
+
+### agutil.security
+
+The following change has been made to the `agutil.security` module:
+* The padding scheme has been changed to be more cryptographically secure while
+maintaining compatibility with the old padding scheme
+
+### agutil.status_bar
+
+The following changes have been made to `agutil.status_bar`:
+* The _value_ argument to `status_bar.update()` is now optional. If omitted, the
+status bar will be incremented by one
+* Added a `status_bar.iter()` class method. The goal of this function is to serve
+as a wrapper for iterables to add a status bar to any loop
+
+### agutil.parallel
+The following changes have been made to `agutil.parallel`:
+* `parallelize` and `parallelize2` must now be called when used as decorators
+
+  Example: `@parallelize()` or `@parallelize(12)`
+
+* `parallelize` and `parallelize2` now take a _workertype_ argument to set if
+parallelization will be thread or process based.
+    * `agutil.parallel.WORKERTYPE_THREAD`: Use for thread-based parallelization
+    (default)
+    * `agutil.parallel.WORKERTYPE_PROCESS`: Use for process-based parallelization.
+    **Note: Processed-based parallelization has several limitations**; see note
+    below
+* `agutil.parallel.Dispatcher` has been refactored and renamed to
+`agutil.parallel.IterDispatcher`, but mostly follows the same syntax
+* Added `agutil.parallel.DemandDispatcher` to be the dispatching backend for
+`agutil.parallel.parallelize2` instead of relying on heavy logic within the function
+* Added `agutil.parallel.ThreadWorker` to manage worker threads for thread-based
+parallelization
+* Added `agutil.parallel.ProcessWorker` to manage worker processes for process-based
+parallelization
+
+#### Multiprocessing note
+Process-based parallelization has several limitations due to the implementation
+of the builtin `pickle` module:
+* You **CANNOT** use `paralellize` or `parallelize2` as decorators. You must call
+them on a pre-defined function and assign the result to a function **with a different
+name**.
+* You **CANNOT** use `parallelize` or `parallelize2` on a function created within
+another function's closure. You must call them on **globally accessible** functions
+
+Example usage:
+```python
+def foo(arg):
+  return arg + 1
+
+bar = parallelize(workertype=WORKERTYPE_PROCESS)(foo)
+```
+
+Thread-based parallelization does not suffer these limitations and therefore
+both `parallelize` and `parallelize2` can be used as decorators and on function-local
+objects when using WORKERTYPE_THREAD (default)
+
+
 ## 2.1.0
 
 * Fixed an issue with the packaged distribution
@@ -25,38 +91,38 @@ to benefit from thread-based parallelization.
 **Feature Removal**:
 * `tsvmanip` has been dropped from `agutil`
 
-## agutil (main module)
+### agutil (main module)
 The following changes have been made to the `agutil` module:
 * Added a `agutil.byteSize()` method to convert a number of bytes to a human-readable string
 * Added a new convenience method, `agutil.hashfile()`, to simplify hashing files
 * Added a new convenience method, `agutil.cmd()`, to simplify executing shell commands programatically.
 * Added two classes for simple shell interaction: `agutil.ShellReturnObject` and `agutil.StdOutAdapter`, which hold shell command output and capture live output, respectively.  These classes are designed to work together to support `agutil.cmd()` but may also be used independently
 
-## agutil.StdOutAdapter (new class)
+### agutil.StdOutAdapter (new class)
 This class acts to record any data written to its file descriptor.
 After constructing a new `StdOutAdapter` instance, other programs may write to `StdOutAdapter.writeFD`.
 
-## agutil.ShellReturnObject (new class)
+### agutil.ShellReturnObject (new class)
 This class represents the results of executing a command from the shell using `agutil.cmd()`.
 
-## agutil.status_bar
+### agutil.status_bar
 The following change has been made to the `agutil.status_bar` class:
 * The _show_percent_ parameter to the constructor now defaults to `True`
 
-## agutil.security.SecureConnection
+### agutil.security.SecureConnection
 The following change has been made to the `agutil.security.SecureConnection` class:
 * `savefile()` timeout now applies to each chunk of the file.  The operation will block so long as the remote socket sends at least one chunk per timeout period.
 
-## agutil-secure
+### agutil-secure
 The following changes have been made to the `agutil-secure` console script:
 * The multiple _input_ files can now be provided.  This allows `agutil-secure` to handle globs
 * Added a `--version` argument to print the current version and exit
 
-## maf2bed
+### maf2bed
 The following change has been made to the `maf2bed` console script:
 * Added a `--version` argument to print the current version and exit
 
-## tsvmanip
+### tsvmanip
 `tsvmanip` and its associated code has been removed from the `agutil.bio` package
 
 ## 1.2.1
