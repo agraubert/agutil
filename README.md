@@ -61,8 +61,10 @@ to returning `agutil.io.Socket` instances
   returned socket.
 
 ### agutil.io.QueuedSocket
-The following change has been made to `agutil.io.QueuedSocket`:
+The following changes have been made to `agutil.io.QueuedSocket`:
 * The constructor no longer takes an `agutil.io.Socket` as argument, but instead takes an address and port, like `agutil.io.Socket`
+* Outgoing messages are no longer sent in a FIFO order. The socket will continuously rotate
+through all channels waiting to send messages, sending one message from each (in FIFO).
 
 
 ##### API
