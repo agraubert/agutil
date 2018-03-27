@@ -20,8 +20,7 @@ class SecureConnection:
         rsabits=4096,
         timeout=3,
         logmethod=DummyLog,
-        _skipIdentifier=False,
-        _useIdentifier=_SECURECONNECTION_IDENTIFIER_
+        _socket=None
     ):
         if isinstance(logmethod, Logger):
             self.log = logmethod.bindToSender("SecureConnection")
@@ -29,25 +28,21 @@ class SecureConnection:
             self.log = logmethod
         if address == '' or address == 'listen':
             ss = io.SocketServer(port, queue=0)
-            self.sock = SecureSocket(
-                ss.accept(),
-                password,
-                rsabits,
-                timeout,
-                self.log.bindToSender(self.log.name+"->SecureSocket")
+            self.sock = ss.accept(
+                SecureSocket,
+                password=password,
+                rsabits=rsabits,
+                timeout=timeout,
+                logmethod=self.log.bindToSender(self.log.name+"->SecureSocket")
             )
             ss.close()
-        elif not isinstance(address, io.Socket):
-            self.sock = SecureSocket(
-                io.Socket(address, port),
-                password,
-                rsabits,
-                timeout,
-                self.log.bindToSender(self.log.name+"->SecureSocket")
-            )
+        elif _socket is not None:
+            self.sock = _socket
+            self.sock.log = self.log.bindToSender(self.log.name+'->SecureSocket')
         else:
             self.sock = SecureSocket(
                 address,
+                port,
                 password,
                 rsabits,
                 timeout,
@@ -98,23 +93,22 @@ class SecureConnection:
         )
         self._listener.start()
 
-        if not _skipIdentifier:
-            self.sock.sendRAW(_useIdentifier, '__protocol__')
-            remoteID = self.sock.recvRAW('__protocol__', True)
-            if remoteID != _useIdentifier:
-                self.log(
-                    "The remote socket provided an invalid SecureConnection "
-                    "protocol identifier. (Theirs: %s) (Ours: %s)" % (
-                        remoteID,
-                        _useIdentifier
-                    ),
-                    "WARN"
-                )
-                self.close(_remote=True)
-                raise ValueError(
-                    "The remote socket provided an invalid identifier "
-                    "at the SecureConnection level"
-                )
+        self.sock.sendRAW(_SECURECONNECTION_IDENTIFIER_, '__protocol__')
+        remoteID = self.sock.recvRAW('__protocol__', True)
+        if remoteID != _SECURECONNECTION_IDENTIFIER_:
+            self.log(
+                "The remote socket provided an invalid SecureConnection "
+                "protocol identifier. (Theirs: %s) (Ours: %s)" % (
+                    remoteID,
+                    _SECURECONNECTION_IDENTIFIER_
+                ),
+                "WARN"
+            )
+            self.close(_remote=True)
+            raise ValueError(
+                "The remote socket provided an invalid identifier "
+                "at the SecureConnection level"
+            )
 
     def _reserve_task(self, prefix):
         taskname = prefix+"_"+"".join(
