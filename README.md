@@ -44,3 +44,48 @@ Detailed documentation of these packages can be found on the [agutil Github wiki
 
 ## Installation note:
 This package requires PyCrypto, which typically has issues compiling on windows.  If you are on windows and `pip install agutil` fails during the installation of PyCrypto, then follow the instructions [here](https://github.com/sfbahr/PyCrypto-Wheels) for installing PyCrypto from a precompiled wheel, and then run `pip install agutil` again.
+
+## Features in Development:
+
+### agutil.io.SocketServer
+The following change has been made to `agutil.io.SocketServer`:
+* The `accept()` method now takes a `socket_type` argument to determine which type of Socket in the `agutil` socket class tree will be returned.
+The method also takes a variable number of keyword arguments which will be passed to the returned socket's constructor. The method defaults
+to returning `agutil.io.Socket` instances
+
+##### API
+* agutil.io.SocketServer(_socket\_type_=agutil.io.Socket, \*\*_kwargs_):
+
+  Blocks until an incoming connection is established, then returns an object for the incoming connection of type
+  _socket\_type_. The type defaults to `agutil.io.Socket`. Any _kwargs_ are sent to the constructor of the
+  returned socket.
+
+### agutil.io.QueuedSocket
+The following change has been made to `agutil.io.QueuedSocket`:
+* The constructor no longer takes an `agutil.io.Socket` as argument, but instead takes an address and port, like `agutil.io.Socket`
+
+
+##### API
+* agutil.io.QueuedSocket(_address_, _port_, _logmethod_=agutil.DummyLog) _(Constructor)_
+
+  _address_ and _port_ are used to establish a connection to a remote socket.
+  _logmethod_ specifies a logging object to use (it defaults to `agutil.DummyLog`),
+  but may also be an `agutil.Logger` instance or a bound method returned by
+  `agutil.Logger.bindToSender()`.
+
+### agutil.security.SecureSocket
+The following change has been made to `agutil.security.SecureSocket`:
+* The constructor no longer takes an `agutil.io.Socket` as an argument, but instead takes an address and port, like `agutil.io.Socket`
+
+##### API
+* agutil.security.SecureSocket(_address_, _port_, _password_=None, _rsabits_=4096, _timeout_=3, _logmethod_=agutil.DummyLog) _(Constructor)_
+
+  _address_ and _port_ are used to establish a connection to a remote socket.
+  If _password_ is set and not None, it is used to generate a new AES ECB cipher
+  which provides the lowest level of encryption for the socket (used for basic
+  communications between the sockets). Both sockets must use the same _password_.
+  _rsabits_ sets the size of the RSA keypair used for exchanging RSA messages with
+  the remote socket.  _timeout_ sets the default timeout for receiving incoming
+  messages (must be None, or a non-negative integer). _logmethod_ specifies a
+  logging object to use (it defaults to `agutil.DummyLog`), but may also be an
+  `agutil.Logger` instance or a bound method returned by `agutil.Logger.bindToSender()`.

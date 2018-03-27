@@ -99,9 +99,9 @@ class SocketServer:
         self.sock.bind((address, port))
         self.sock.listen(queue)
 
-    def accept(self, socket_type=Socket, *args, **kwargs):
+    def accept(self, socket_type=Socket, **kwargs):
         (sock, addr) = self.sock.accept()
-        return socket_type(addr, self.port, *args, _socket=sock, **kwargs)
+        return socket_type(addr, self.port, _socket=sock, **kwargs)
 
     def close(self):
         self.sock.close()
