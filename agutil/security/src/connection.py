@@ -38,7 +38,9 @@ class SecureConnection:
             ss.close()
         elif _socket is not None:
             self.sock = _socket
-            self.sock.log = self.log.bindToSender(self.log.name+'->SecureSocket')
+            self.sock.log = self.log.bindToSender(
+                self.log.name+'->SecureSocket'
+            )
         else:
             self.sock = SecureSocket(
                 address,

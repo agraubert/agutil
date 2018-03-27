@@ -50,7 +50,9 @@ class SecureSocket(io.QueuedSocket):
         super().__init__(
             address,
             port,
-            logmethod=self._ss_log.bindToSender(self._ss_log.name+"->QueuedSocket"),
+            logmethod=self._ss_log.bindToSender(
+                self._ss_log.name+"->QueuedSocket"
+            ),
             _socket=_socket
         )
         self._ss_log(
@@ -348,7 +350,10 @@ class SecureSocket(io.QueuedSocket):
         _logInit=True
     ):
         if _logInit:
-            self._ss_log("Attempting to receive AES encrypted message", "DEBUG")
+            self._ss_log(
+                "Attempting to receive AES encrypted message",
+                "DEBUG"
+            )
         if timeout == -1:
             timeout = self.timeout
         channel = self._rsync_channel(channel, timeout, _logInit=_logInit)

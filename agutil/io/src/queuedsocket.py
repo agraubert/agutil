@@ -69,7 +69,10 @@ class QueuedSocket(Socket):
 
     def send(self, msg, channel='__orphan__'):
         if self._shutdown:
-            self._qs_log("Attempt to use the QueuedSocket after shutdown", "WARN")
+            self._qs_log(
+                "Attempt to use the QueuedSocket after shutdown",
+                "WARN"
+            )
             raise IOError("This QueuedSocket has already been closed")
         if '^' in channel:
             self._qs_log(
@@ -113,7 +116,10 @@ class QueuedSocket(Socket):
         _logInit=True
     ):
         if self._shutdown:
-            self._qs_log("Attempt to use the QueuedSocket after shutdown", "WARN")
+            self._qs_log(
+                "Attempt to use the QueuedSocket after shutdown",
+                "WARN"
+            )
             raise IOError("This QueuedSocket has already been closed")
         if not self._thread.is_alive():
             self._qs_log(
@@ -134,7 +140,10 @@ class QueuedSocket(Socket):
             self.incoming[channel] = []
         self.datalock.release()
         if _logInit:
-            self._qs_log("Waiting for input on channel '%s'" % channel, "DEBUG")
+            self._qs_log(
+                "Waiting for input on channel '%s'" % channel,
+                "DEBUG"
+            )
         while not self._check_channel(channel):
             result = self.new_messages.wait(timeout)
             if not result:
@@ -181,7 +190,10 @@ class QueuedSocket(Socket):
             if outqueue:
                 target = self.outgoing_channels.pop(0)
                 payload = self.outgoing[target].pop(0)
-                self._qs_log("Outgoing payload on channel '%s'" % target, "DEBUG")
+                self._qs_log(
+                    "Outgoing payload on channel '%s'" % target,
+                    "DEBUG"
+                )
                 try:
                     self._sends(payload, target)
                     self.message_sent.set()
