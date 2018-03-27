@@ -9,9 +9,7 @@ class Socket:
         self,
         address,
         port,
-        _socket=None,
-        _skipIdentifier=False,
-        _useIdentifier=_PROTOCOL_IDENTIFIER_+_SOCKET_IDENTIFIER_
+        _socket=None
     ):
         self.addr = address
         self.port = port
@@ -21,15 +19,14 @@ class Socket:
             self.sock = socket.socket()
             self.sock.connect((address, port))
         self.rollover = b""
-        if not _skipIdentifier:
-            self.send(_useIdentifier)
-            remoteID = self.recv(True)
-            if remoteID != _useIdentifier:
-                self.close()
-                raise ValueError(
-                    "The remote socket provided an invalid identifier at "
-                    "the Socket level"
-                )
+        Socket.send(self, _PROTOCOL_IDENTIFIER_+_SOCKET_IDENTIFIER_)
+        remoteID = Socket.recv(self, True)
+        if remoteID != _PROTOCOL_IDENTIFIER_+_SOCKET_IDENTIFIER_:
+            Socket.close(self)
+            raise ValueError(
+                "The remote socket provided an invalid identifier at "
+                "the Socket level"
+            )
 
     def send(self, msg):
         if type(msg) == str:
@@ -102,9 +99,9 @@ class SocketServer:
         self.sock.bind((address, port))
         self.sock.listen(queue)
 
-    def accept(self):
+    def accept(self, socket_type=Socket, **kwargs):
         (sock, addr) = self.sock.accept()
-        return Socket(addr, self.port, sock)
+        return socket_type(addr, self.port, _socket=sock, **kwargs)
 
     def close(self):
         self.sock.close()
