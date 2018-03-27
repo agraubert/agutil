@@ -125,6 +125,6 @@ class test(unittest.TestCase):
         from agutil import first
         for trial in range(25):
             data = [random.randint(0,100000) for i in range(1000)]
-            target = data[random.randint(0,1000)]
+            target = data[random.randint(0,999)]
             self.assertEqual(target, first(data, target))
             self.assertEqual(target, first(data, lambda x:x==target))

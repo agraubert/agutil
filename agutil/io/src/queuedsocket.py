@@ -17,7 +17,7 @@ class QueuedSocket(Socket):
         super().__init__(address, port, _socket)
         self.incoming = {'__orphan__': []}
         self.outgoing = {}
-        self.outgoing_channels = []
+        self.outgoing_index = 0
         self._shutdown = False
         self.datalock = threading.Condition()
         self.new_messages = threading.Event()
@@ -58,11 +58,10 @@ class QueuedSocket(Socket):
             return
         self._qs_log(
             "Shutdown initiated.  Waiting for background thread to "
-            "send remaining messages (%d queued)" % len(self.outgoing_channels)
+            "send remaining messages (%d channels queued)" % len(self.outgoing)
         )
-        self.datalock.acquire()
-        self._shutdown = True
-        self.datalock.release()
+        with self.datalock:
+            self._shutdown = True
         self._thread.join(timeout)
         super().close()
         self._qs_log.close()
@@ -100,13 +99,11 @@ class QueuedSocket(Socket):
             )
             self._thread.start()
             self._qs_log("The background thread has been restarted", "INFO")
-        self.datalock.acquire()
-        if channel not in self.outgoing:
-            self.outgoing[channel] = []
-        self.datalock.release()
-        self.outgoing[channel].append(msg)
+        with self.datalock:
+            if channel not in self.outgoing:
+                self.outgoing[channel] = []
+            self.outgoing[channel].append(msg)
         self._qs_log("Message Queued on channel '%s'" % channel, "DEBUG")
-        self.outgoing_channels.append(""+channel)
 
     def recv(
         self,
@@ -135,10 +132,9 @@ class QueuedSocket(Socket):
             )
             self._thread.start()
             self._qs_log("The background thread has been restarted", "INFO")
-        self.datalock.acquire()
-        if channel not in self.incoming:
-            self.incoming[channel] = []
-        self.datalock.release()
+        with self.datalock:
+            if channel not in self.incoming:
+                self.incoming[channel] = []
         if _logInit:
             self._qs_log(
                 "Waiting for input on channel '%s'" % channel,
@@ -156,7 +152,7 @@ class QueuedSocket(Socket):
         return msg
 
     def flush(self):
-        while len(self.outgoing_channels):
+        while len(self.outgoing):
             self.message_sent.wait()
             self.message_sent.clear()
 
@@ -185,11 +181,16 @@ class QueuedSocket(Socket):
 
     def _worker(self):
         self._qs_log("QueuedSocket background thread initialized")
-        outqueue = len(self.outgoing_channels)
+        outqueue = len(self.outgoing)
         while outqueue or not self._shutdown:
             if outqueue:
-                target = self.outgoing_channels.pop(0)
-                payload = self.outgoing[target].pop(0)
+                with self.datalock:
+                    self.outgoing_index = (self.outgoing_index + 1) % outqueue
+                    target = list(self.outgoing)[self.outgoing_index]
+                    payload = self.outgoing[target].pop(0)
+                    self.outgoing = {
+                        k: v for k, v in self.outgoing.items() if len(v)
+                    }
                 self._qs_log(
                     "Outgoing payload on channel '%s'" % target,
                     "DEBUG"
@@ -218,10 +219,9 @@ class QueuedSocket(Socket):
                         "Incoming payload on channel '%s'" % channel,
                         "DEBUG"
                     )
-                    self.datalock.acquire()
-                    if channel not in self.incoming:
-                        self.incoming[channel] = []
-                    self.datalock.release()
+                    with self.datalock:
+                        if channel not in self.incoming:
+                            self.incoming[channel] = []
                     self.incoming[channel].append(payload)
                     self.new_messages.set()
                     self._qs_log(
@@ -240,4 +240,4 @@ class QueuedSocket(Socket):
                             "ERROR"
                         )
                         raise e
-            outqueue = len(self.outgoing_channels)
+            outqueue = len(self.outgoing)
