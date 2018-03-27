@@ -18,11 +18,11 @@ def server_comms(queueclass, ss, payload, CHANNELS):
     global startup_lock
     startup_lock.release()
     try:
-        sock = queueclass(ss.accept())
+        sock = ss.accept(queueclass)
         payload.exception = False
     except ValueError:
         payload.exception = True
-    sock = queueclass(ss.accept())
+    sock = ss.accept(queueclass)
     ss.close()
     payload.intake=[]
     payload.output=[]
@@ -44,12 +44,10 @@ def client_comms(queueclass, _sockClass, port, payload, CHANNELS):
     global startup_lock
     startup_lock.acquire()
     startup_lock.release()
-    try:
-        sock = queueclass(_sockClass('localhost', port), _useIdentifier="<potato>")
-        payload.exception = False
-    except ValueError:
-        payload.exception = True
-    sock = queueclass(_sockClass('localhost', port))
+    sock = _sockClass('localhost', port)
+    sock.send(":ch#__protocol__^<potato>")
+    sock.close()
+    sock = queueclass('localhost', port)
     payload.intake=[]
     payload.output=[]
     raw_output = {}
@@ -125,7 +123,7 @@ class test(unittest.TestCase):
         server_payload.sock.close()
         client_payload.sock.close()
         self.assertTrue(server_payload.exception)
-        self.assertTrue(client_payload.exception)
+        # self.assertTrue(client_payload.exception)
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)

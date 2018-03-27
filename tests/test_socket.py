@@ -7,6 +7,7 @@ import threading
 import warnings
 import os
 import port_for as pf
+from socket import socket as _socket_
 startup_lock = threading.Lock()
 
 TRAVIS = 'CI' in os.environ
@@ -35,11 +36,16 @@ def client_comms(_sockClass, port, payload):
     global startup_lock
     startup_lock.acquire()
     startup_lock.release()
-    try:
-        sock = _sockClass('localhost', port, _useIdentifier='<potato>')
-        payload.exception = False
-    except ValueError:
-        payload.exception = True
+    #Replicate socket handshake with invalid identifier
+    sock = _socket_()
+    sock.connect(('localhost', port))
+    msg = b'<potato>'
+    weight = sum(msg) % 256
+    msg += bytes.fromhex('%02x' % weight)
+    msg += b'\x00\x02'
+    msg_size = len(msg)
+    sock.send(format(msg_size, 'x').encode()+b'|'+msg)
+    sock.close()
     sock = _sockClass('localhost', port)
     payload.intake=[]
     payload.output=[]
@@ -102,7 +108,6 @@ class test(unittest.TestCase):
         self.assertFalse(client_thread.is_alive(), "Client thread still running")
         ss.close()
         self.assertTrue(server_payload.exception)
-        self.assertTrue(client_payload.exception)
         self.assertRaises(TypeError, client_payload.sock.send, 13)
         client_payload.sock.close()
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
