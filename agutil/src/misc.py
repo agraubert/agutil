@@ -34,11 +34,14 @@ def clump(seq, length):
         except StopIteration:
             return
 
-split_iterable = clump # for compatability
+
+split_iterable = clump  # for compatability
+
 
 def _getelem(iterator, elem):
     for row in iterator:
         yield row[elem]
+
 
 def splice(seq):
     """
@@ -56,6 +59,7 @@ def splice(seq):
             range(len(first))
         )
     ]
+
 
 def byte_xor(b1, b2):
     return intToBytes(bytesToInt(b1) ^ bytesToInt(b2), max(len(b1), len(b2)))
