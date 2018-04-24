@@ -91,3 +91,31 @@ The following change has been made to `agutil.security.SecureSocket`:
   messages (must be None, or a non-negative integer). _logmethod_ specifies a
   logging object to use (it defaults to `agutil.DummyLog`), but may also be an
   `agutil.Logger` instance or a bound method returned by `agutil.Logger.bindToSender()`.
+
+### agutil (Main Module)
+The following changes have been made to the main `agutil` module:
+* `agutil.split_iterable` is now also available as `agutil.clump` which was chosen
+as it more clearly describes the function. `agutil.split_iterable` _may_ be removed
+in a future release, but this is not yet planned
+* Added a function `agutil.splice` which takes a iterable of at least 2 dimensions (M rows by N columns)
+and returns an iterable for each column (N iterables of length M).
+
+##### API
+* agutil.clump(_seq_, _length_):
+* agutil.split_iterable(_seq_, _length_):
+
+  Yields iterables which take from _seq_ in chunks up to _length_.  Each iterable returned will yield up to _length_ items.  If chained together, the iterables returned would iterate the same sequence as _seq_. **Note:** You
+  should not use the returned iterables out of order. Each iterable will always
+  yield the correct number of elements, but elements will be out of order if you
+  do not completely exhaust one iterable before moving to the next
+
+### agutil.status_bar
+The following change has been made to `agutil.status_bar`:
+* Added a `passthrough()` method which takes one argument and returns it unchanged
+while incrementing the bar by 1.
+
+##### API
+* agutil.status_bar.passthrough(_value_):
+
+  Returns _value_ unchaged, but increments the `status_bar` by 1. Useful for updating
+  a bar in list certain comprehensions where `status_bar.iter` is infeasible.

@@ -1,4 +1,4 @@
-from itertools import chain, islice, zip_longest
+from itertools import tee, chain, islice, zip_longest
 import hashlib
 from math import log
 import re
@@ -25,7 +25,7 @@ def bytesToInt(num):
     return result
 
 
-def split_iterable(seq, length):
+def clump(seq, length):
     getter = iter(seq)
     while True:
         try:
@@ -34,6 +34,28 @@ def split_iterable(seq, length):
         except StopIteration:
             return
 
+split_iterable = clump # for compatability
+
+def _getelem(iterator, elem):
+    for row in iterator:
+        yield row[elem]
+
+def splice(seq):
+    """
+    Takes an iterable (which must iterate over a rectangular dataset)
+    For an iterator which yields m rows of n elements each
+    return n elements of length m, each yielding a different
+    column of the original sequence
+    """
+    getter = iter(seq)
+    first = next(getter)
+    return [
+        _getelem(iterator, i)
+        for iterator, i in zip(
+            tee(chain([first], getter), len(first)),
+            range(len(first))
+        )
+    ]
 
 def byte_xor(b1, b2):
     return intToBytes(bytesToInt(b1) ^ bytesToInt(b2), max(len(b1), len(b2)))

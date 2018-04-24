@@ -128,3 +128,20 @@ class test(unittest.TestCase):
             target = data[random.randint(0,999)]
             self.assertEqual(target, first(data, target))
             self.assertEqual(target, first(data, lambda x:x==target))
+
+    def test_splicing(self):
+        from agutil import splice
+        for trial in range(25):
+            width = random.randint(1, 100)
+            data = [
+                [random.random() for c in range(width)]
+                for r in range(random.randint(1,10000))
+            ]
+            column_iters = splice(data)
+            self.assertEqual(len(column_iters), width)
+            i = 0
+            for r in range(len(data)):
+                for c in range(width):
+                    self.assertEqual(next(column_iters[c]), data[r][c])
+                i += 1
+            self.assertEqual(i,len(data))

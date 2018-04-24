@@ -88,6 +88,10 @@ class status_bar:
                 sys.stdout.write('\b'*(self.cursor-index))
             self.cursor = index
 
+    def passthrough(self, value):
+        self.update()
+        return value
+
     def update(self, value=None):
         if self.pending_text_update or not self.initialized:
             self._initialize()
