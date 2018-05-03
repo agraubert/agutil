@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 3.0.1
+
+* Fixed `setup.py` to allow source builds on pip 10
+
 ## 3.0.0
 
 ### agutil (main module)

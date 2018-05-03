@@ -1,5 +1,8 @@
 from setuptools import setup
-from pip.req import parse_requirements
+try:
+    from pip.req import parse_requirements
+except ModuleNotFoundError:
+    from pip._internal.req import parse_requirements
 
 import sys
 if sys.version_info<(3,3):
