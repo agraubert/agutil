@@ -22,6 +22,9 @@ class ThreadWorker:
         self.worker.start()
 
     def dispatch(self, func, *args, **kwargs):
+        return self.work(func, *args, **kwargs)
+
+    def work(self, func, *args, **kwargs):
         evt = threading.Event()
         with self.lock:
             key = id(evt)
@@ -86,6 +89,9 @@ class ProcessWorker:
         self.closed = False
 
     def dispatch(self, func, *args, **kwargs):
+        return self.work(func, *args, **kwargs)
+
+    def work(self, func, *args, **kwargs):
         callback = self.pool.apply_async(func, args, kwargs)
         return lambda x=None: callback.get(x)
 

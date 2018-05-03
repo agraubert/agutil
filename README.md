@@ -119,3 +119,92 @@ while incrementing the bar by 1.
 
   Returns _value_ unchaged, but increments the `status_bar` by 1. Useful for updating
   a bar in list certain comprehensions where `status_bar.iter` is infeasible.
+
+### agutil.parallel (module)
+The following change has been made to the `agutil.parallel` module:
+* The WORKERTYPE constants, `WORKERTYPE_THREAD` and `WORKERTYPE_PROCESS`, have been
+updated to reference the actual worker classes, `ThreadWorker` and `ProcessWorker`,
+instead of being enumerations for the types. The consequence is that the parallelization
+decorators and dispatchers can now be given any class which follows the worker interface
+(see changes to dispatchers below for details)
+
+##### Worker Interface
+The following is a generic specification for any class which aims to provide a worker
+backend for the parallelization system
+
+* Worker(_maximum_) _(constructor)_
+
+  The constructor should take a _maximum_ argument which sets the maximum number
+  of jobs which may be run at a time. The Worker is expected to enforce this policy
+  and not to actively execute more jobs than the _maximum_
+
+* Worker.work(_func_, _\*args_, _\*\*kwargs_)
+
+  Queues a call to `func(*args, **kwargs)`. The worker is expected to handle jobs
+  on its own in such a way that there are never more than the set _maximum_ number
+  of active jobs. This method should return a callable which, when called, returns
+  the value of `func(*args, **kwargs)` or raises the exception encountered during
+  the execution of that call.
+
+* Worker.close()
+
+  It is expected that after calling this function, the worker should no longer accept
+  new jobs via `work()`. It is up to the implementation on how this is accomplished
+  and whether or not subsequent calls to `work()` raise an exception or return some
+  other value. The worker _may_, but is not required to, call this function in `__del__()`
+
+* Worker.is_alive()
+
+  This function should return `True` before `close()` has been called, and `False`
+  after.
+
+### agutil.parallel.IterDispatcher
+The following changes have been made to the `agutil.parallel.IterDispatcher` class:
+* The _workertype_ argument to the constructor may now be any object which follows the
+worker interface above. It still defaults to a `ThreadWorker`
+* Added `Iterdispatcher.dispatch` as the preferred method for operating the dispatcher,
+but operates identically to `IterDispatcher.run`
+
+##### API
+* IterDispatcher(_func_, \*_args_, _maximum_=15, _workertype_=WORKERTYPE_THREAD, \*\*_kwargs_): _(constructor)_
+
+  Constructs a new `IterDispatcher` (similar to the old `Dispatcher` object).
+  _func_ is the function to be run in the background. _maximum_ is the maximum
+  number of background workers that will be allowed to run at once. _workertype_
+  sets the type of workers that will be used (threads or processes) and can be any
+  class which follows the Worker interface, but it is recommended that you use
+  `ThreadWorker` or `ProcessWorker` (provide the class name as the parameter, do not
+  provide a class instance).
+  The remaining _args_ and _kwargs_ should match the call signature of _func_,
+  except that instead of providing single arguments, you should provide **iterables**
+  of arguments (and keyword arguments). The iterables will be used to dispatch workers
+  in the background, in the order that arguments appear in the iterables
+
+* IterDispatcher.run()
+* IterDispatcher.dispatch()
+
+  Begins the execution of the function and returns a **generator**. Once this method
+  is called, the `IterDispatcher` will begin pulling arguments out of the argument
+  iterables provided in the constructor and start dispatching workers up to the
+  maximum allowed number. The generator will yield results from the background
+  workers **in the order calls were dispatched**, not in the order that workers
+  finish. If an exception is raised during one of the background calls to the function,
+  the `IterDispatcher` will raise that exception when it is time to yield the result
+  from that particular execution. If an exception is raised (either by a background
+  worker, or by the `IterDispatcher` itself) the `IterDispatcher` will halt, and
+  no more work will be completed.
+
+### agutil.parallel.DemandDispatcher
+The following change has been made to the `agutil.parallel.DemandDispatcher` class:
+* The _workertype_ argument to the constructor may now be any object which follows the
+worker interface above. It still defaults to a `ThreadWorker`
+
+##### API
+* DemandDispatcher(_func_, _maximum_=15, _workertype_=WORKERTYPE_THREAD): _(constructor)_
+
+  Constructs a new `DemandDispatcher`. _func_ is the function to be executed and
+  _maximum_ is the maximum number of background workers which can be executed at
+  one time. _workertype_ sets the type of workers that will be used (threads or
+  processes) and can be any class which follows the Worker interface, but it is
+  recommended that you use `ThreadWorker` or `ProcessWorker` (provide the class
+  name as the parameter, do not provide a class instance).
