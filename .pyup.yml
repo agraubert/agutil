@@ -3,6 +3,7 @@ branch: dev
 label_prs: dependencies
 
 requirements:
-  - tests/requirements.txt:
-    updates: all
-    pin: True
+  - tests/requirements.txt
+
+updates: all
+pin: True
