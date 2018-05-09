@@ -29,7 +29,13 @@ def encryptFile(
 ):
     reader = open(input_filename, mode='rb')
     writer = open(output_filename, mode='wb')
-    encryptFileObj(reader, writer, cipher, validate=validate, _prechunk=_prechunk)
+    encryptFileObj(
+        reader,
+        writer,
+        cipher,
+        validate=validate,
+        _prechunk=_prechunk
+    )
     reader.close()
     writer.close()
 
@@ -66,7 +72,13 @@ def decryptFile(
 ):
     reader = open(input_filename, mode='rb')
     writer = open(output_filename, mode='wb')
-    decryptFileObj(reader, writer, cipher, validate=validate, _prechunk=_prechunk)
+    decryptFileObj(
+        reader,
+        writer,
+        cipher,
+        validate=validate,
+        _prechunk=_prechunk
+    )
     reader.close()
     writer.close()
 
