@@ -208,3 +208,30 @@ worker interface above. It still defaults to a `ThreadWorker`
   processes) and can be any class which follows the Worker interface, but it is
   recommended that you use `ThreadWorker` or `ProcessWorker` (provide the class
   name as the parameter, do not provide a class instance).
+
+### agutil.security (module)
+The following change has been made to the `agutil.security` module:
+* Added `agutil.security.encryptFileObj` and `agutil.security.decryptFileObj`
+methods. These methods take the same arguments as `agutil.security.encryptFile`
+and `agutil.security.decryptFile` methods except that they take _file-like_ objects
+instead of filenames
+
+##### API
+* encryptFileObj(_reader_, _writer_, _cipher_, _validate_=False):
+
+  Encrypts the data read from _reader_ using _cipher_ and writes it to _writer_.
+  The cipher is not required to be any class, but it must support an `encrypt()`
+  method, which takes a chunk of text, and returns a ciphered chunk.  Padding is
+  handled internally (chunks are padded to 16-byte intervals).
+  If _validate_ is `True`, encrypt and prepend 16 known bytes to the beginning of the output file.
+  This enables file decryption to check the key immediately without decrypting the entire file
+
+* decryptFileObj(_reader_, _writer_, _cipher_, _validate_=False):
+
+  Decrypts the data read from _reader_ using _cipher_ and writes it to _writer_.
+  The cipher is not required to be any class, but it must support an `decrypt()`
+  method, which takes a chunk of ciphertext, and returns a deciphered chunk.
+  Unpadding is handled internally (chunks are padded to 16-byte intervals).
+  If _validate_ is `True`, decrypt the first 16 bytes of the file and check against the expected value.
+  If the bytes match the expectation, discard them and continue decryption as normal.
+  If the bytes do not match, raise a `KeyError`
