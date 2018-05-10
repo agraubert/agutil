@@ -36,8 +36,8 @@ The __security__ package:
 * SecureSocket (A mid-level network IO class built to manage encrypted network communications)
 * SecureConnection (A high-level, multithreaded class for sending and receiving encrypted files and messages)
 * SecureServer (A low-level listen server to accept connections and return SecureConnection instances)
-* encryptFile and decryptFile (Simple methods for encrypting and decrypting local files)
 * agutil-secure (A command line utility for encrypting and decrypting files)
+* Several utility methods for encrypting and decrypting files or file objects
 
 ## Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)
