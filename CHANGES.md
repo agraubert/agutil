@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 3.1.0
+
+**Deprecation Warning:**
+
+* The `maf2bed` utility, and its associated code, are now deprecated and will be
+removed in a future release
+
 ## 3.0.1
 
 * Fixed `setup.py` to allow source builds on pip 10
