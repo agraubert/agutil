@@ -5,6 +5,10 @@ import csv
 
 
 def bedkey(args):
+    print(
+        "Deprecation Warning: maf2bed is now deprecated and will be removed in"
+        " a future release"
+    )
     args.keys = set(args.keys)
     output = []
     reader = csv.DictReader(args.input, delimiter='\t')
@@ -20,6 +24,10 @@ def bedkey(args):
 
 
 def maf2bed(args):
+    print(
+        "Deprecation Warning: maf2bed is now deprecated and will be removed in"
+        " a future release"
+    )
     if args.v and sys.platform == "win32":
         reader = open(args.input.name, mode='r')
         args.v = len([False for row in reader])
