@@ -4,7 +4,7 @@
 
 A collection of python utilities
 
-__Version:__ 3.0.1
+__Version:__ 3.1.0
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
@@ -14,7 +14,9 @@ __Version:__ 3.0.1
 
 The __bio__ package:
 
-* maf2bed (A command line utility for parsing a .maf file and converting coordinates from 1-based (maf standard) to 0-based (bed standard))
+* ~~maf2bed (A command line utility for parsing a .maf file and converting coordinates from 1-based (maf standard) to 0-based (bed standard))~~
+
+  **Deprecated: Will be removed in a future release**
 
 The __io__ package:
 
