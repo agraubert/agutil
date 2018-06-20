@@ -4,7 +4,7 @@
 
 **Deprecation Warning:**
 
-* The `maf2bed` utility, and its associated code, are now deprecated and will be
+* The `maf2bed` utility, and its associated code, is now deprecated and will be
 removed in a future release
 
 ## 3.0.1

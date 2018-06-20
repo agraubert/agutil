@@ -34,7 +34,6 @@ setup(
     version=version,
     packages=[
         "agutil",
-        "agutil.bio",
         "agutil.io",
         "agutil.io.src",
         "agutil.parallel",
@@ -45,7 +44,6 @@ setup(
     ],
     entry_points={
         "console_scripts":[
-            "maf2bed = agutil.bio.maf2bed:main",
             "agutil-secure = agutil.security.console:main"
         ]
     },
