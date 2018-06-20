@@ -44,6 +44,7 @@ class test(unittest.TestCase):
         self.assertTrue(compiled_path)
 
     # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    @unittest.skip("maf2bed is now deprecated")
     def test_output(self):
         import agutil.bio.maf2bed
         output_dir = tempfile.TemporaryDirectory()
@@ -103,6 +104,7 @@ class test(unittest.TestCase):
         output_dir.cleanup()
 
     # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    @unittest.skip("maf2bed is now deprecated")
     def test_output_noSilents(self):
         import agutil.bio.maf2bed
         output_dir = tempfile.TemporaryDirectory()
@@ -163,6 +165,7 @@ class test(unittest.TestCase):
         output_dir.cleanup()
 
     # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    @unittest.skip("maf2bed is now deprecated")
     def test_output_noKeyfile(self):
         import agutil.bio.maf2bed
         output_file = tempname()
@@ -186,6 +189,7 @@ class test(unittest.TestCase):
         os.remove(output_file)
 
     # @unittest.skipIf(sys.platform.startswith("win"), "Tempfile doesn't work in this manner on windows")
+    @unittest.skip("maf2bed is now deprecated")
     def test_output_noSilents_noKeyfile(self):
         import agutil.bio.maf2bed
         output_file = tempname()
