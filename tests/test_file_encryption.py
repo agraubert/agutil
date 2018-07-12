@@ -8,7 +8,7 @@ import tempfile
 from filecmp import cmp
 import rsa.randnum
 from hashlib import md5
-import Crypto.Cipher.AES as AES
+import Cryptodome.Cipher.AES as AES
 import warnings
 from itertools import chain
 
@@ -55,8 +55,8 @@ class test(unittest.TestCase):
             decrypted = tempname()
             aes_key = rsa.randnum.read_random_bits(256)
             aes_iv = rsa.randnum.read_random_bits(128)
-            encryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
-            decryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
+            encryptionCipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
+            decryptionCipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
             writer = open(source, mode='w')
             for line in range(15):
                 writer.write(make_random_string())
