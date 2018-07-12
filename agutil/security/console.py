@@ -2,7 +2,7 @@ import argparse
 import hashlib
 import sys
 import os
-import Crypto.Cipher.AES as AES
+import Cryptodome.Cipher.AES as AES
 from getpass import getpass
 from itertools import chain
 from contextlib import ExitStack
@@ -123,7 +123,7 @@ def main(args_input=sys.argv[1:]):
                 250000
             )).digest()
             iv = os.urandom(16)
-            cipher = AES.new(key, AES.MODE_CBC, iv)
+            cipher = AES.new(key, AES.MODE_CBC, iv=iv)
             if args.verbose:
                 # this is definitely a hacky solution, but it looks better from
                 # the user's perspective.  I have no way of reporting the
