@@ -99,6 +99,7 @@ as it more clearly describes the function. `agutil.split_iterable` _may_ be remo
 in a future release, but this is not yet planned
 * Added a function `agutil.splice` which takes a iterable of at least 2 dimensions (M rows by N columns)
 and returns an iterable for each column (N iterables of length M).
+* `agutil.byteSize` now supports yottabytes
 
 ##### API
 * agutil.clump(_seq_, _length_):
@@ -256,3 +257,9 @@ instead of filenames
   If _validate_ is `True`, decrypt the first 16 bytes of the file and check against the expected value.
   If the bytes match the expectation, discard them and continue decryption as normal.
   If the bytes do not match, raise a `KeyError`
+
+### agutil.security.SecureConnection
+The following change has been made to `agutil.security.SecureConnection`:
+* The _retries_ argument of the `send()` function now refers to the number of additional
+attempts to send **after** the first fails. Essentially, the maximum number of
+attempts to send a message is now _retries_+1 instead of simply _retries_

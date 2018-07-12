@@ -92,7 +92,7 @@ def _text_in(sock, cmd, name):
     tasklog = sock.log.bindToSender(sock.log.name+":"+name)
     tasklog("Initiated Text:in task", "DEBUG")
     retries = int(sock.sock.recvAES(name, True), 16)
-    for attempt in range(retries):
+    for attempt in range(1+retries):
         tasklog("Receving message and signature", "DEBUG")
         msg = sock.sock.recvRSA(name)
         signature = sock.sock.recvRAW(name)
@@ -141,7 +141,7 @@ def _text_out(sock, cmd, name):
     sock.sock.recvRAW(name, timeout=None)
     tasklog("Initiated Text:out task", "DEBUG")
     sock.sock.sendAES(format(cmd['retries'], 'x'), name)
-    for attempt in range(int(cmd['retries'])):
+    for attempt in range(1+int(cmd['retries'])):
         tasklog("Sending message and signature", "DEBUG")
         sock.sock.sendRSA(cmd['msg'], name)
         sock.sock.sendRAW(rsa.sign(

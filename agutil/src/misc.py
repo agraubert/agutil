@@ -81,8 +81,8 @@ def hashfile(filepath, algorithm='sha1', length=None):
 def byteSize(n):
     if n == 0:
         return '0B'
-    index = min(7, int(log(abs(n), 1024)))
-    suffix = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB'][index]
+    index = min(8, int(log(abs(n), 1024)))
+    suffix = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'][index]
     output = '%.1f' % (n / 1024**index)
     return replacement.sub('', output)+suffix
 
