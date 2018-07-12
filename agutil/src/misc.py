@@ -82,7 +82,9 @@ def byteSize(n):
     if n == 0:
         return '0B'
     index = min(8, int(log(abs(n), 1024)))
-    suffix = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'][index]
+    suffix = [
+        'B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'
+    ][index]
     output = '%.1f' % (n / 1024**index)
     return replacement.sub('', output)+suffix
 
