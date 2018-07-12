@@ -2,7 +2,7 @@ from ... import io, Logger, DummyLog, intToBytes, bytesToInt
 import hashlib
 import rsa
 import os
-import Crypto.Cipher.AES as AES
+import Cryptodome.Cipher.AES as AES
 from io import BytesIO, BufferedReader, BufferedWriter
 from . import protocols, files
 from threading import Lock
@@ -73,7 +73,8 @@ class SecureSocket(io.QueuedSocket):
                 ).hexdigest()
             )
             self.baseCipher = AES.new(
-                hashlib.sha256(password.encode()).digest()
+                hashlib.sha256(password.encode()).digest(),
+                AES.MODE_ECB
             )
         else:
             self.baseCipher = _dummyCipher()
@@ -294,11 +295,11 @@ class SecureSocket(io.QueuedSocket):
         # if key is true or a bytestring and iv is false, use AES ECB
         elif not iv:
             mode = 'ECB'
-            cipher = cipher = AES.new(key)
+            cipher = cipher = AES.new(key, AES.MODE_ECB)
         # if both key and iv are either true or bytestrings, use AES CBC
         else:
             mode = 'CBC'
-            cipher = AES.new(key, AES.MODE_CBC, iv)
+            cipher = AES.new(key, AES.MODE_CBC, iv=iv)
         self._ss_log(
             "Informing the remote socket to use AES encryption mode: "+mode,
             "DETAIL"
@@ -380,7 +381,7 @@ class SecureSocket(io.QueuedSocket):
                 cipher = AES.new(
                     self.recvRSA(channel, timeout=timeout),
                     AES.MODE_CBC,
-                    rsa.randnum.read_random_bits(128)
+                    iv=rsa.randnum.read_random_bits(128)
                 )
                 cipher.decrypt(self._recvq(channel, timeout=timeout))
             writer = None

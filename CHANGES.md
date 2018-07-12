@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 3.1.1
+
+* Switched from using `PyCrypto` to `PyCryptodomeX`. The former library is no longer
+maintained and the latter is nearly a drop-in replacement.
+
 ## 3.1.0
 
 **Deprecation Warning:**
