@@ -10,12 +10,15 @@ addons:
   apt:
     packages:
       - pandoc
-dist: trusty
 notifications:
   email:
     on_success: always
     on_failure: always
 language: python
+matrix:
+  include:
+    - python: '3.7-dev'
+      dist: precise
 python:
   - '3.3'
   - '3.4'
