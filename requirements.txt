@@ -1,2 +1,2 @@
-pycryptodomex==3.6.4
+pycryptodomex==3.6.5
 rsa==3.4.2
