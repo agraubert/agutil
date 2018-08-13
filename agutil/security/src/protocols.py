@@ -137,10 +137,10 @@ def _text_out(sock, cmd, name):
     sock.sock.sendAES(packcmd(
         'ti',
         {'name': name}
-    ), '__cmd__')
+    ), '__cmd__', compute_hash=False)
     sock.sock.recvRAW(name, timeout=None)
     tasklog("Initiated Text:out task", "DEBUG")
-    sock.sock.sendAES(format(cmd['retries'], 'x'), name)
+    sock.sock.sendAES(format(cmd['retries'], 'x'), name, compute_hash=False)
     for attempt in range(1+int(cmd['retries'])):
         tasklog("Sending message and signature", "DEBUG")
         sock.sock.sendRSA(cmd['msg'], name)
@@ -188,7 +188,7 @@ def _file_request_out(sock, cmd, name):
             'name': name,
             'size': str(os.path.getsize(cmd['filepath']))
         }
-    ), '__cmd__')
+    ), '__cmd__', compute_hash=False)
     tasklog("Sent file transfer request to remote socket", "DETAIL")
     sock.schedulingqueue.append({
         'cmd': lookupcmd('kill'),
@@ -234,7 +234,7 @@ def _file_transfer_in(sock, cmd, name):
     sock.sock.sendAES(packcmd(
         'fto',
         {'name': name, 'auth': cmd['auth'], 'reject': 'reject' in cmd}
-    ), '__cmd__')
+    ), '__cmd__', compute_hash=False)
     if 'reject' not in cmd:
         try:
             sock.sock.recvRAW(name, timeout=cmd['timeout'])
@@ -246,6 +246,8 @@ def _file_transfer_in(sock, cmd, name):
             )
         except socketTimeout:
             tasklog("Transfer timed out", "ERROR")
+        except ValueError:
+            tasklog("Unable to validate message contenxt", "ERROR")
         else:
             tasklog("Transfer complete", "DEBUG")
             sock.completed_transfers.add(cmd['filepath'])

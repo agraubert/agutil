@@ -336,6 +336,6 @@ class SecureConnection:
         self._shutdown = True
         self._scheduler.join(.1)
         if not _remote:
-            self.sock.sendAES(protocols.packcmd('dci'), '__cmd__')
+            self.sock.sendAES(protocols.packcmd('dci'), '__cmd__', compute_hash=False)
         self.sock.close()
         self.log.close()

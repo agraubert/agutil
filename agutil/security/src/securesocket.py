@@ -10,7 +10,7 @@ import random
 
 from socket import timeout as socketTimeout
 
-_SECURESOCKET_IDENTIFIER_ = '<agutil.security.securesocket:3.0.0>'
+_SECURESOCKET_IDENTIFIER_ = '<agutil.security.securesocket:3.1.0>'
 
 RSA_CPU = None
 try:
@@ -274,7 +274,7 @@ class SecureSocket(io.QueuedSocket):
         self._desync_channel(channel)
         return msg
 
-    def sendAES(self, msg, channel='__aes__', key=False, iv=False):
+    def sendAES(self, msg, channel='__aes__', key=False, iv=False, compute_hash=True):
         self._ss_log("Preparing to send AES encrypted message", "DEBUG")
         if type(msg) == str:
             msg = msg.encode()
@@ -321,12 +321,21 @@ class SecureSocket(io.QueuedSocket):
             )
         if isinstance(msg, (BytesIO, BufferedReader)):
             self._ss_log("Sending message from file", "DEBUG")
+            if compute_hash:
+                hasher = hashlib.sha512()
             intake = msg.read(4095)
             while len(intake):
+                if compute_hash:
+                    hasher.update(intake)
                 self._sendq(self._baseEncrypt('+'), channel)
                 self._sendq(files._encrypt_chunk(intake, cipher), channel)
                 intake = msg.read(4095)
-            self._sendq(self._baseEncrypt('-'), channel)
+            if compute_hash:
+                self._ss_log("Sending hash checksum", "DEBUG")
+                self._sendq(self._baseEncrypt(':'), channel)
+                self.sendRSA(hasher.digest(), channel)
+            else:
+                self._sendq(self._baseEncrypt('-'), channel)
         else:
             if type(msg) != bytes:
                 self._ss_log(
@@ -338,7 +347,12 @@ class SecureSocket(io.QueuedSocket):
             self._ss_log("Sending message from text", "DEBUG")
             self._sendq(self._baseEncrypt('+'), channel)
             self._sendq(files._encrypt_chunk(msg, cipher), channel)
-            self._sendq(self._baseEncrypt('-'), channel)
+            if compute_hash:
+                self._ss_log("Sending hash checksum", "DEBUG")
+                self._sendq(self._baseEncrypt(':'), channel)
+                self.sendRSA(hashlib.sha512(msg).digest(), channel)
+            else:
+                self._sendq(self._baseEncrypt('-'), channel)
         self._ss_log("Message sent", "DEBUG")
         self._desync_channel(channel)
 
@@ -392,6 +406,7 @@ class SecureSocket(io.QueuedSocket):
                 self._ss_log("Output will be written to file", "DEBUG")
                 writer = output_file
             command = self._baseDecrypt(self._recvq(channel, timeout=timeout))
+            hasher = hashlib.sha512()
             msg = b""
             while command == b'+':
                 self._ss_log("Receiving chunk", "DETAIL")
@@ -403,10 +418,18 @@ class SecureSocket(io.QueuedSocket):
                     writer.write(intake)
                 else:
                     msg += intake
+                hasher.update(intake)
                 command = self._baseDecrypt(self._recvq(
                     channel,
                     timeout=timeout
                 ))
+                if command == b':':
+                    self._ss_log("Reading checksum from sender", "DEBUG")
+                    expected = self.recvRSA(channel, timeout=timeout)
+                    observed = hasher.digest()
+                    if expected != observed:
+                        self._ss_log("Message failed! Unable to verify encryption", "ERROR")
+                        raise ValueError("Unable to verify message integrity")
             self._ss_log("Payload received", "DEBUG")
             self._desync_channel(channel)
             if writer is not None:
