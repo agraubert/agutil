@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 3.1.2
+
+* Fixed `setup.py` to allow installation using pip >=10 and python <3.6
+
 ## 3.1.1
 
 * Switched from using `PyCrypto` to `PyCryptodomeX`. The former library is no longer
