@@ -1,7 +1,7 @@
 from setuptools import setup
 try:
     from pip.req import parse_requirements
-except ModuleNotFoundError:
+except ImportError:
     from pip._internal.req import parse_requirements
 
 import sys
