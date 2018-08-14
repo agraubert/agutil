@@ -274,7 +274,13 @@ class SecureSocket(io.QueuedSocket):
         self._desync_channel(channel)
         return msg
 
-    def sendAES(self, msg, channel='__aes__', key=False, iv=False, compute_hash=True):
+    def sendAES(self,
+                msg,
+                channel='__aes__',
+                key=False,
+                iv=False,
+                compute_hash=True
+                ):
         self._ss_log("Preparing to send AES encrypted message", "DEBUG")
         if type(msg) == str:
             msg = msg.encode()
@@ -428,7 +434,10 @@ class SecureSocket(io.QueuedSocket):
                     expected = self.recvRSA(channel, timeout=timeout)
                     observed = hasher.digest()
                     if expected != observed:
-                        self._ss_log("Message failed! Unable to verify encryption", "ERROR")
+                        self._ss_log(
+                            "Message failed! Unable to verify encryption",
+                            "ERROR"
+                        )
                         raise ValueError("Unable to verify message integrity")
             self._ss_log("Payload received", "DEBUG")
             self._desync_channel(channel)
