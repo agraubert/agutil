@@ -38,25 +38,32 @@ def server_comms(secureClass, port, payload):
     sock = ss.accept()
     payload.intake=[]
     payload.output=[]
+    confirmations = []
     ss.close()
     sock.sock.sendRAW("+")
     for trial in range(5):
         payload.output.append(make_random_string())
-        sock.send(payload.output[-1])
+        confirmations.append(sock.send(payload.output[-1]))
         payload.intake.append(sock.read())
+    for conf in confirmations:
+        sock.confirm(conf)
     payload.sock = sock
 
 def client_comms(secureclass, securesocketclass, port, payload):
     sock = securesocketclass('localhost', port, password='password', rsabits=1024)
     sock.sendRAW('<potato>', '__protocol__')
+    sock.close()
     sock = secureclass('localhost', port, password='password', rsabits=1024)
     payload.intake=[]
     payload.output=[]
+    confirmations = []
     payload.comms_check = sock.sock.recvRAW(decode=True)
     for trial in range(5):
         payload.output.append(make_random_string())
-        sock.send(payload.output[-1])
+        confirmations.append(sock.send(payload.output[-1]))
         payload.intake.append(sock.read())
+    for conf in confirmations:
+        sock.confirm(conf)
     payload.sock = sock
 
 def server_comms_files(secureClass, port, payload):

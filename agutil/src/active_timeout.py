@@ -14,7 +14,6 @@ class ActiveTimeout(object):
 
     def __enter__(self):
         self.reset()
-        self.last = time.monotonic()
         return self
 
     def update(self):
@@ -43,3 +42,4 @@ class ActiveTimeout(object):
 
     def reset(self):
         self.remainder = self.original
+        self.last = time.monotonic()

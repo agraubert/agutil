@@ -149,5 +149,6 @@ class MPlexSocket(Socket):
                 if sleep_time is None:
                     time.sleep(1)
                 elif sleep_time > 0:
-                    time.sleep(sleep_time)
+                    time.sleep(0.05)
                     sleep_time = 0
+                    timer.reset()

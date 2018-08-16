@@ -205,17 +205,25 @@ class SecureConnection:
         return channel
 
     def _transfer(self, channel, filename):
-        response = self.sock.recvRAW(channel, decode=True, timeout=None)
-        if response == '+':
-            with open(filename, 'rb') as reader:
-                self.sock.sendAES(
-                    reader,
-                    channel,
-                    True,
-                    True
-                )
-        with self.sock.syncLock:
-            del self.pending_transfers[channel]
+        try:
+            response = self.sock.recvRAW(channel, decode=True, timeout=None)
+            if response == '+':
+                with open(filename, 'rb') as reader:
+                    self.sock.sendAES(
+                        reader,
+                        channel,
+                        True,
+                        True
+                    )
+            with self.sock.syncLock:
+                del self.pending_transfers[channel]
+        except BaseException as e:
+            self.log(
+                "Background transfer failed: " + repr(e),
+                'ERROR'
+            )
+            with self.sock.syncLock:
+                self.pending_confirmations[channel]=False
 
     def savefile(self, destination=None, timeout=-1, force=False):
         if timeout == -1:
