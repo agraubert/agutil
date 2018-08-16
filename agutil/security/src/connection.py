@@ -1,14 +1,16 @@
 from .securesocket import SecureSocket
-from ... import io, Logger, DummyLog, byteSize
+from ... import io, Logger, DummyLog, byteSize, ActiveTimeout
 from . import protocols
 from socket import timeout as socketTimeout
 import threading
 import random
 import os
+import time
+import rsa
 
 random.seed()
 
-_SECURECONNECTION_IDENTIFIER_ = '<agutil.security.secureconnection:1.0.0>'
+_SECURECONNECTION_IDENTIFIER_ = '<agutil.security.secureconnection:2.0.0>'
 
 
 class SecureConnection:
@@ -32,7 +34,7 @@ class SecureConnection:
                 SecureSocket,
                 password=password,
                 rsabits=rsabits,
-                timeout=timeout,
+                timeout=None,
                 logmethod=self.log.bindToSender(self.log.name+"->SecureSocket")
             )
             ss.close()
@@ -47,53 +49,14 @@ class SecureConnection:
                 port,
                 password,
                 rsabits,
-                timeout,
+                None,
                 self.log.bindToSender(self.log.name+"->SecureSocket")
             )
         self.log(
             "SecureConnection now initialized.  Starting background threads..."
         )
-        self.address = address
-        self.port = port
-        # Queue of taskname : thread pairs for currently running tasks
-        self.tasks = {}
-        # Queue of task commands pending authorization
-        self.authqueue = []
-        # mapping of auth_key : filename pairs for files ready to transfer
-        self.filemap = {}
-        self.pending_tasks = threading.Event()
-        self.intakeEvent = threading.Event()
-        self.pendingRequest = threading.Event()
-        self.transferTracking = {}
-        self.killedtask = threading.Event()
-        self.completed_transfers = set()
-        self.queuedmessages = []  # Queue of decrypted received text messages
-        self.schedulingqueue = []  # Queue of task commands to be scheduled
-        self._shutdown = False
-        self._init_shutdown = False
-
-        # Pops new commands out of the scheduling queue, and spawns a new
-        # thread to deal with each task.  Commands which require
-        # pre-authorization to start (ie: file transfer) are put in a
-        # holding queue instead of being scheduled.  Once the user authorizes
-        # the command (ie: .savefile()) the task is scheduled properly
-        self._scheduler = threading.Thread(
-            target=SecureConnection._scheduler_worker,
-            args=(self,),
-            name="SecureConnection Task Scheduling",
-            daemon=True
-        )
-        self._scheduler.start()
-
-        # Constantly receives from __cmd__ and adds new
-        # tasks to the scheduling queue
-        self._listener = threading.Thread(
-            target=SecureConnection._listener_worker,
-            args=(self,),
-            name="SecureConnection Remote Task Listener",
-            daemon=True
-        )
-        self._listener.start()
+        self.pending_transfers = {}
+        self.pending_confirmations = {}
 
         self.sock.sendRAW(_SECURECONNECTION_IDENTIFIER_, '__protocol__')
         remoteID = self.sock.recvRAW('__protocol__', True)
@@ -106,83 +69,20 @@ class SecureConnection:
                 ),
                 "WARN"
             )
-            self.close(_remote=True)
+            self.close()
             raise ValueError(
                 "The remote socket provided an invalid identifier "
                 "at the SecureConnection level"
             )
 
+        self.sock.settimeout(timeout)
+
     def _reserve_task(self, prefix):
-        taskname = prefix+"_"+"".join(
-            str(random.randint(0, 9)) for _ in range(3)
+        return prefix+"_"+str(time.time())+"".join(
+            str(random.randint(0, 9)) for _ in range(5)
         )
-        while taskname in self.tasks:
-            taskname = prefix+"_"+"".join(
-                str(random.randint(0, 9)) for _ in range(3)
-            )
-        return taskname
 
-    def _scheduler_worker(self):
-        self.log("SecureConnection Task Scheduling thread active")
-        while not self._shutdown:
-            if len(self.schedulingqueue):
-                self.pending_tasks.clear()
-                command = self.schedulingqueue.pop(0)
-                self.log(
-                    "Scheduling new command: %d" % command['cmd'],
-                    "DETAIL"
-                )
-                if protocols._COMMANDS[command['cmd']] == 'kill':
-                    self.tasks[command['name']].join(.05)
-                    del self.tasks[command['name']]
-                    if not len(self.tasks):
-                        self.killedtask.set()
-                elif command['cmd'] < len(protocols._COMMANDS):
-                    if command['cmd'] % 2:
-                        name = command['name']
-                    else:
-                        name = self._reserve_task(
-                            protocols._COMMANDS[command['cmd']]
-                        )
-                    worker = protocols._assign_task(
-                        protocols._COMMANDS[command['cmd']]
-                    )
-                    self.killedtask.clear()
-                    self.tasks[name] = threading.Thread(
-                        target=worker,
-                        args=(self, command, name),
-                        name=name,
-                        daemon=True
-                    )
-                    self.tasks[name].start()
-                    self.log("Started new task '%s'" % name, "DEBUG")
-            else:
-                self.pending_tasks.wait(.05)
-        self.log("SecureConnection Task Scheduling thread inactive")
-
-    def _listener_worker(self):
-        self.log("SecureConnection Remote Command thread active")
-        while not self._init_shutdown:
-            try:
-                cmd = self.sock.recvAES('__cmd__', timeout=.1, _logInit=False)
-                self.log("Remote command received: %s" % cmd, "DETAIl")
-                self.schedulingqueue.append(protocols.unpackcmd(cmd))
-                self.pending_tasks.set()
-            except socketTimeout:
-                pass
-            except Exception as e:
-                self.log("Encountered an unexpected error: "+e.msg, "ERROR")
-        self.log("SecureConnection Remote Command thread inactive")
-
-    def send(self, msg, retries=1):
-        if self._init_shutdown:
-            self.log(
-                "Attempt to use the SecureConnection after shutdown",
-                "WARN"
-            )
-            raise IOError(
-                "This SecureConnection has already initiated shutdown"
-            )
+    def send(self, msg):
         if type(msg) == str:
             msg = msg.encode()
         elif type(msg) != bytes:
@@ -192,154 +92,203 @@ class SecureConnection:
             )
             raise TypeError("msg argument must be str or bytes")
         self.log("Outgoing text message scheduled", "INFO")
-        self.schedulingqueue.append({
-            'cmd': protocols.lookupcmd('to'),
-            'msg': msg,
-            'retries': retries
-        })
-        self.pending_tasks.set()
+        channel = self._reserve_task('TEXT')
+        self.sock.sendAES(
+            channel,
+            '__text__'
+        )
+        self.sock.sendRSA(
+            msg,
+            channel
+        )
+        self.sock.sendRAW(
+            rsa.sign(
+                msg,
+                self.sock.priv,
+                'SHA-256'
+            ),
+            channel
+        )
+        return channel
 
-    def read(self, decode=True, timeout=-1):
-        if self._init_shutdown:
-            self.log(
-                "Attempt to use the SecureConnection after shutdown",
-                "WARN"
-            )
-            raise IOError(
-                "This SecureConnection has already initiated shutdown"
-            )
+    def _send_confirm(self, task, success=True):
+        self.sock.sendAES(
+            task + ('+' if success else '-'),
+            '__conf__'
+        )
+
+    def confirm(self, task, timeout=-1):
         if timeout == -1:
             timeout = self.sock.timeout
-        self.log("Waiting to receive incoming text message", "INFO")
-        if not len(self.queuedmessages):
-            self.intakeEvent.wait(timeout)
-            if not len(self.queuedmessages):
-                raise socketTimeout(
-                    "No message recieved within the specified timeout"
+        self.log("Waiting for task confirmation", 'DEBUG')
+        with ActiveTimeout(timeout) as timer:
+            while task not in self.pending_confirmations:
+                conf = self.sock.recvAES(
+                    '__conf__',
+                    True,
+                    timer.socket_timeout
                 )
-        msg = self.queuedmessages.pop(0)
-        self.intakeEvent.clear()
-        self.log("Text message received", "INFO")
+                with self.sock.syncLock:
+                    self.pending_confirmations[conf[:-1]] = conf[-1] == '+'
+        with self.sock.syncLock:
+            result = self.pending_confirmations[task]
+            del self.pending_confirmations[task]
+        return result
+
+    def read(self, decode=True, timeout=-1):
+        if timeout == -1:
+            timeout = self.sock.timeout
+        self.log("Waiting for text syncup", 'DEBUG')
+        with ActiveTimeout(timeout) as timer:
+            channel = self.sock.recvAES(
+                '__text__',
+                True,
+                timeout=timer.socket_timeout
+            )
+            try:
+                message = self.sock.recvRSA(
+                    channel,
+                    timeout=timer.socket_timeout
+                )
+                signature = self.sock.recvRAW(
+                    channel,
+                    timeout=timer.socket_timeout
+                )
+            except BaseException:
+                self._send_confirm(channel, False)
+                self.log(
+                    "Encountered an error reading RSA message",
+                    'ERROR'
+                )
+                raise
+        try:
+            rsa.verify(
+                message,
+                signature,
+                self.sock.rpub
+            )
+        except rsa.pkcs1.VerificationError:
+            self._send_confirm(channel, False)
+            self.log(
+                "RSA Message failed signature validation",
+                "WARN"
+            )
+            raise
+        else:
+            self._send_confirm(channel)
         if decode:
-            msg = msg.decode()
-        return msg
+            message = message.decode()
+        return message
 
     def sendfile(self, filename):
-        if self._init_shutdown:
-            self.log(
-                "Attempt to use the SecureConnection after shutdown",
-                "WARN"
+        self.log("Preparing file transfer", "INFO")
+        channel = self._reserve_task('FILE')
+        with self.sock.syncLock:
+            self.pending_transfers[channel] = threading.Thread(
+                target=SecureConnection._transfer,
+                args=(self, channel, filename),
+                daemon=True
             )
-            raise IOError(
-                "This SecureConnection has already initiated shutdown"
-            )
-        if not os.path.isfile(filename):
-            self.log(
-                "Unable to determine file specified by path '%s'" % filename,
-                "ERROR"
-            )
-            raise FileNotFoundError(
-                "The provided filename does not exist or is invalid"
-            )
-        self.log("Outgoing file request scheduled", "INFO")
-        self.schedulingqueue.append({
-            'cmd': protocols.lookupcmd('fro'),
-            'filepath': os.path.abspath(filename)
-        })
-        self.pending_tasks.set()
+        self.pending_transfers[channel].start()
+        self.sock.sendAES(
+            protocols.packcmd(
+                'FILE',
+                {
+                    'channel': channel,
+                    'filename': os.path.basename(filename),
+                    'size': str(os.path.getsize(filename))
+                }
+            ),
+            '__file__',
+            True
+        )
+        return channel
 
-    def savefile(self, destination, timeout=-1, force=False):
-        if self._init_shutdown:
+    def _transfer(self, channel, filename):
+        try:
+            response = self.sock.recvRAW(channel, decode=True, timeout=None)
+            if response == '+':
+                with open(filename, 'rb') as reader:
+                    self.sock.sendAES(
+                        reader,
+                        channel,
+                        True,
+                        True
+                    )
+            with self.sock.syncLock:
+                del self.pending_transfers[channel]
+        except BaseException as e:
             self.log(
-                "Attempt to use the SecureConnection after shutdown",
-                "WARN"
+                "Background transfer failed: " + repr(e),
+                'ERROR'
             )
-            raise IOError(
-                "This SecureConnection has already initiated shutdown"
-            )
+            with self.sock.syncLock:
+                self.pending_confirmations[channel] = False
+
+    def savefile(self, destination=None, timeout=-1, force=False):
         if timeout == -1:
             timeout = self.sock.timeout
         self.log("Waiting to receive incoming file request", "INFO")
-        while not len(self.authqueue):
-            result = self.pendingRequest.wait(timeout)
-            if not result:
-                raise socketTimeout(
-                    "No file transfer requests recieved within "
-                    "the specified timeout"
+        with ActiveTimeout(timeout) as timer:
+            metadata = protocols.unpackcmd(
+                self.sock.recvAES(
+                    '__file__',
+                    timeout=timer.socket_timeout
                 )
-            self.pendingRequest.clear()
-        (filename, auth, size) = self.authqueue.pop(0)
-        if not force:
-            print(
-                "The remote socket is attempting to send the "
-                "file '%s'" % filename
             )
-            print("Size:", byteSize(size))
-            accepted = False
-            choice = ""
-            while not accepted:
-                choice = input("Accept this transfer (y/n): ")
-                choice = choice.lower()
-                if choice not in {'y', 'n', 'yes', 'no'}:
-                    print("Please enter y, Y, yes, n, N, or no")
-                else:
-                    accepted = True
-            if choice[0] != 'y':
-                self.log("User rejected transfer of file '%s'" % filename)
-                self.schedulingqueue.append({
-                    'cmd': protocols.lookupcmd('fti'),
-                    'auth': auth,
-                    'reject': True
-                })
-                self.pending_tasks.set()
-                return
-        self.log("Accepted transfer of file '%s'" % filename)
-        transferKey = '%s-%d' % (auth, hash(destination))
-        self.transferTracking[transferKey] = threading.Event()
-        self.schedulingqueue.append({
-            'cmd': protocols.lookupcmd('fti'),
-            'auth': auth,
-            'filepath': destination,
-            'key': transferKey,
-            'timeout': timeout
-        })
-        self.pending_tasks.set()
-        self.log("Waiting for transfer to complete...", "INFO")
-        self.transferTracking[transferKey].wait()
-        if destination not in self.completed_transfers:
-            raise socketTimeout(
-                "File transfer did not complete in the specified timeout"
+            self.log(
+                "Acquired file transfer request. Reading metadata",
+                "DEBUG"
             )
-        del self.transferTracking[transferKey]
-        self.log("File transfer complete", "INFO")
+        try:
+            if destination is None:
+                destination = metadata['filename']
+            if not force:
+                print(
+                    "The remote socket is attempting to send the "
+                    "file '%s'" % metadata['filename']
+                )
+                print("Size:", byteSize(int(metadata['size'])))
+                accepted = False
+                choice = ""
+                while not accepted:
+                    choice = input("Accept this transfer (y/n): ")
+                    choice = choice.lower()
+                    if choice not in {'y', 'n', 'yes', 'no'}:
+                        print("Please enter y, Y, yes, n, N, or no")
+                    else:
+                        accepted = True
+                if choice[0] != 'y':
+                    self.log(
+                        "User rejected transfer of file '%s'" % (
+                            metadata['filename']
+                        )
+                    )
+                    self.sock.sendRAW('-', metadata['channel'])
+                    self._send_confirm(metadata['channel'], False)
+                    return
+            self.log("Accepted transfer of file '%s'" % metadata['filename'])
+            self.sock.sendRAW('+', metadata['channel'])
+            self.log("Starting transfer...", "INFO")
+            self.sock.recvAES(
+                metadata['channel'],
+                output_file=destination,
+                timeout=timeout
+            )
+            self._send_confirm(metadata['channel'])
+        except BaseException:
+            if 'channel' in metadata:
+                self._send_confirm(metadata['channel'], False)
+            raise
         return destination
 
-    def flush(self):
-        self.killedtask.wait()
-
-    def shutdown(self, timeout=-1):
+    def shutdown(self):
         self.close(timeout)
 
-    def close(self, timeout=-1, _remote=False):
-        if self._shutdown or self._init_shutdown:
-            return
-        if timeout == -1:
-            timeout = self.sock.timeout
-        self._init_shutdown = True
-        self.log(
-            "Initiating " + ("remote " if _remote else "") +
-            "shutdown of SecureConnection",
-            "INFO"
-        )
-        self._listener.join(.2)
-        self.killedtask.wait(timeout)
-        self._shutdown = True
-        self._scheduler.join(.1)
-        if not _remote:
-            self.sock.sendAES(
-                protocols.packcmd('dci'),
-                '__cmd__',
-                compute_hash=False
-            )
+    def close(self):
         self.sock.close()
         self.log.close()
+
+    def flush(self):
+        while len(self.pending_transfers):
+            self.pending_transfers[0].join()

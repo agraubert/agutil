@@ -38,98 +38,109 @@ def server_comms(secureClass, port, payload):
     sock = ss.accept()
     payload.intake=[]
     payload.output=[]
+    confirmations = []
     ss.close()
     sock.sock.sendRAW("+")
     for trial in range(5):
         payload.output.append(make_random_string())
-        sock.send(payload.output[-1])
+        confirmations.append(sock.send(payload.output[-1]))
         payload.intake.append(sock.read())
-    sock.flush()
+    for conf in confirmations:
+        sock.confirm(conf)
     payload.sock = sock
 
 def client_comms(secureclass, securesocketclass, port, payload):
     sock = securesocketclass('localhost', port, password='password', rsabits=1024)
     sock.sendRAW('<potato>', '__protocol__')
+    sock.close()
     sock = secureclass('localhost', port, password='password', rsabits=1024)
     payload.intake=[]
     payload.output=[]
+    confirmations = []
     payload.comms_check = sock.sock.recvRAW(decode=True)
     for trial in range(5):
         payload.output.append(make_random_string())
-        sock.send(payload.output[-1])
+        confirmations.append(sock.send(payload.output[-1]))
         payload.intake.append(sock.read())
-    sock.flush()
+    for conf in confirmations:
+        sock.confirm(conf)
     payload.sock = sock
 
 def server_comms_files(secureClass, port, payload):
-    ss = secureClass(port, password='password', rsabits=1024)
     try:
+        ss = secureClass(port, password='password', rsabits=1024)
+        try:
+            sock = ss.accept()
+            payload.exception = False
+        except ValueError:
+            payload.exception = True
         sock = ss.accept()
-        payload.exception = False
-    except ValueError:
-        payload.exception = True
-    sock = ss.accept()
-    payload.intake=[]
-    payload.output=[]
-    ss.close()
-    sock.sock.sendRAW("+")
-    for trial in range(5):
+        payload.intake=[]
+        payload.output=[]
+        ss.close()
+        sock.sock.sendRAW("+")
+        for trial in range(5):
+            outfile = tempname()
+            infile = tempname()
+            sock.savefile(infile, force=True)
+            reader = open(infile, mode='rb')
+            payload.intake.append(reader.read().decode())
+            reader.close()
+            payload.output.append(make_random_file(outfile))
+            sock.sendfile(outfile)
+            sock.sock.recvRAW()
+            os.remove(outfile)
+            os.remove(infile)
         outfile = tempname()
-        infile = tempname()
-        sock.savefile(infile, force=True)
-        reader = open(infile, mode='rb')
-        payload.intake.append(reader.read().decode())
-        reader.close()
         payload.output.append(make_random_file(outfile))
         sock.sendfile(outfile)
         sock.sock.recvRAW()
         os.remove(outfile)
-        os.remove(infile)
-    outfile = tempname()
-    payload.output.append(make_random_file(outfile))
-    sock.sendfile(outfile)
-    sock.sock.recvRAW()
-    sock.flush()
-    os.remove(outfile)
-    payload.sock = sock
+        payload.sock = sock
+    except:
+        print("SERR", sock.sock.queue)
+        raise
 
 def client_comms_files(secureclass, port, payload):
     try:
-        sock = secureclass('localhost', port, password='wrong password', rsabits=1024)
-        payload.exception = False
-    except ValueError:
-        payload.exception = True
-    sock = secureclass('localhost', port, password='password', rsabits=1024)
-    payload.intake=[]
-    payload.output=[]
-    payload.comms_check = sock.sock.recvRAW(decode=True)
-    for trial in range(5):
-        outfile = tempname()
+        try:
+            sock = secureclass('localhost', port, password='wrong password', rsabits=1024)
+            payload.exception = False
+        except ValueError:
+            payload.exception = True
+        sock = secureclass('localhost', port, password='password', rsabits=1024)
+        payload.intake=[]
+        payload.output=[]
+        payload.comms_check = sock.sock.recvRAW(decode=True)
+        for trial in range(5):
+            outfile = tempname()
+            infile = tempname()
+            payload.output.append(make_random_file(outfile))
+            sock.sendfile(outfile)
+            sock.savefile(infile, force=True)
+            sock.sock.sendRAW('+')
+            reader = open(infile, mode='rb')
+            payload.intake.append(reader.read().decode())
+            reader.close()
+            os.remove(outfile)
+            os.remove(infile)
+        sys.stdout = open(os.devnull, 'w')
         infile = tempname()
-        payload.output.append(make_random_file(outfile))
-        sock.sendfile(outfile)
-        sock.savefile(infile, force=True)
-        sock.sock.sendRAW('+')
+        sys.stdin = io.StringIO("y"+os.linesep)
+        sock.savefile(infile)
+        sock.sock.sendRAW("+")
         reader = open(infile, mode='rb')
         payload.intake.append(reader.read().decode())
         reader.close()
-        os.remove(outfile)
+        sys.stdout.close()
+        sys.stdout = sys.__stdout__
+        sys.stdin.close()
+        sys.stdin = sys.__stdin__
         os.remove(infile)
-    sys.stdout = open(os.devnull, 'w')
-    infile = tempname()
-    sys.stdin = io.StringIO("y"+os.linesep)
-    sock.savefile(infile)
-    sock.sock.sendRAW("+")
-    reader = open(infile, mode='rb')
-    payload.intake.append(reader.read().decode())
-    reader.close()
-    sock.flush()
-    sys.stdout.close()
-    sys.stdout = sys.__stdout__
-    sys.stdin.close()
-    sys.stdin = sys.__stdin__
-    os.remove(infile)
-    payload.sock = sock
+        payload.sock = sock
+    except:
+        print("CERR", sock.sock.queue)
+        raise
 
 class test(unittest.TestCase):
     @classmethod
