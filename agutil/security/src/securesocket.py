@@ -5,7 +5,7 @@ import os
 import Cryptodome.Cipher.AES as AES
 from io import BytesIO, BufferedReader, BufferedWriter
 from . import protocols, files
-from threading import Lock
+from threading import Lock, Condition
 import random
 
 from socket import timeout as socketTimeout
@@ -32,7 +32,7 @@ class _dummyCipher:
         return msg
 
 
-class SecureSocket(io.QueuedSocket):
+class SecureSocket(io.MPlexSocket):
     def __init__(
         self,
         address,
@@ -51,12 +51,12 @@ class SecureSocket(io.QueuedSocket):
             address,
             port,
             logmethod=self._ss_log.bindToSender(
-                self._ss_log.name+"->QueuedSocket"
+                self._ss_log.name+"->MPlexSocket"
             ),
             _socket=_socket
         )
         self._ss_log(
-            "The underlying QueuedSocket has been initialized.  "
+            "The underlying MPlexSocket has been initialized.  "
             "Exchanging encryption data now"
         )
         self.rsabits = rsabits
@@ -158,7 +158,7 @@ class SecureSocket(io.QueuedSocket):
         self.sync_tail = '-' if syncSeed > tmp else '+'
         self.synced_channels = set()
         # self.syncLock = Lock()
-        self.syncLock = self.datalock
+        self.syncLock = Condition()
 
     def _sendq(self, msg, channel='__orphan__'):
         super().send(msg, channel)
@@ -295,7 +295,7 @@ class SecureSocket(io.QueuedSocket):
         # if key is true or a bytestring and iv is false, use AES ECB
         elif not iv:
             mode = 'ECB'
-            cipher = cipher = AES.new(key, AES.MODE_ECB)
+            cipher = AES.new(key, AES.MODE_ECB)
         # if both key and iv are either true or bytestrings, use AES CBC
         else:
             mode = 'CBC'
@@ -375,7 +375,10 @@ class SecureSocket(io.QueuedSocket):
                 cipher = self.baseCipher
             elif mode == 'ECB':
                 self._ss_log("Receiving cipher key", "DETAIL")
-                cipher = AES.new(self.recvRSA(channel, timeout=timeout))
+                cipher = AES.new(
+                    self.recvRSA(channel, timeout=timeout),
+                    AES.MODE_ECB
+                )
             else:
                 self._ss_log("Receiving cipher key", "DETAIL")
                 cipher = AES.new(

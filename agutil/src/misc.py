@@ -2,6 +2,8 @@ from itertools import tee, chain, islice, zip_longest
 import hashlib
 from math import log
 import re
+from contextlib import contextmanager
+from .active_timeout import TimeoutExceeded
 
 replacement = re.compile(r'\.0+$')
 
@@ -98,3 +100,20 @@ def first(iterable, predicate=lambda x: True):
     for item in iterable:
         if func(item):
             return item
+
+
+class LockTimeoutExceeded(TimeoutExceeded):
+    pass
+
+
+@contextmanager
+def context_lock(lock, timeout=-1):
+    attempt = lock.acquire(timeout=timeout)
+    if not attempt:
+        raise LockTimeoutExceeded(
+            "Failed to acquire %s after %d seconds" % (lock, timeout)
+        )
+    try:
+        yield lock
+    finally:
+        lock.release()

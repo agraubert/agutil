@@ -2,6 +2,7 @@ from .socket import Socket
 from socket import timeout as sockTimeout
 from ... import Logger, DummyLog
 import threading
+import sys
 
 _QUEUEDSOCKET_IDENTIFIER_ = '<agutil.io.queuedsocket:1.0.0>'
 
@@ -14,6 +15,11 @@ class QueuedSocket(Socket):
         logmethod=DummyLog,
         _socket=None
     ):
+        print(
+            "Deprecation Warning: QueuedSocket is now deprecated and will be"
+            " removed in a future release",
+            file=sys.stderr
+        )
         super().__init__(address, port, _socket)
         self.incoming = {'__orphan__': []}
         self.outgoing = {}
