@@ -223,7 +223,7 @@ class SecureConnection:
                 'ERROR'
             )
             with self.sock.syncLock:
-                self.pending_confirmations[channel]=False
+                self.pending_confirmations[channel] = False
 
     def savefile(self, destination=None, timeout=-1, force=False):
         if timeout == -1:
