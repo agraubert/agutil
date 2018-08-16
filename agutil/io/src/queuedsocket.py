@@ -14,6 +14,10 @@ class QueuedSocket(Socket):
         logmethod=DummyLog,
         _socket=None
     ):
+        print(
+            "Deprecation Warning: QueuedSocket is now deprecated and will be"
+            " removed in a future release"
+        )
         super().__init__(address, port, _socket)
         self.incoming = {'__orphan__': []}
         self.outgoing = {}

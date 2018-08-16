@@ -3,7 +3,20 @@ import os
 import random
 from socket import timeout as socketTimeout
 
-_COMMANDS = ['kill', 'ti', 'to', 'fri', 'fro', 'fto', 'fti', '_NULL', 'dci', ]
+_COMMANDS = [
+    'kill',
+    'ti',
+    'to',
+    'fri',
+    'fro',
+    'fto',
+    'fti',
+    '_NULL',
+    'dci',
+    'TEXT',
+    'FILE',
+    'SHUTDOWN'
+]
 _CMD_LOOKUP = {}
 # commands: {command code byte}
 # {item name}{colon ':'}{item size (hex bytes)}{bar '|'}{item bytes}...
@@ -81,204 +94,3 @@ def padstring(msg):
 
 def unpadstring(msg):
     return msg[:-1*msg[-1]]
-
-
-def _assign_task(cmd):
-    return _WORKERS[cmd]
-
-
-def _text_in(sock, cmd, name):
-    sock.sock.sendRAW('+', name)
-    tasklog = sock.log.bindToSender(sock.log.name+":"+name)
-    tasklog("Initiated Text:in task", "DEBUG")
-    retries = int(sock.sock.recvAES(name, True), 16)
-    for attempt in range(1+retries):
-        tasklog("Receving message and signature", "DEBUG")
-        msg = sock.sock.recvRSA(name)
-        signature = sock.sock.recvRAW(name)
-        tasklog("Attempting to verify message signature", "DEBUG")
-        try:
-            rsa.verify(
-                msg,
-                signature,
-                sock.sock.rpub
-            )
-            sock.sock.sendRAW('+', name)
-            tasklog("Message validated", "DEBUG")
-            sock.queuedmessages.append(msg)
-            sock.intakeEvent.set()
-            sock.schedulingqueue.append({
-                'cmd': lookupcmd('kill'),
-                'name': name
-            })
-            sock.pending_tasks.set()
-            return
-        except rsa.pkcs1.VerificationError:
-            tasklog("Message failed signature validation", "WARN")
-            sock.sock.sendRAW('-', name)
-    tasklog("Exceded retry limit for inbound message.  Task aborted", "ERROR")
-    sock.schedulingqueue.append({
-        'cmd': lookupcmd('kill'),
-        'name': name
-    })
-    sock.pending_tasks.set()
-    raise IOError(
-        "Background worker %s was unable to receive and "
-        "decrypt the message in %d retries" % (
-            name,
-            retries
-        )
-    )
-
-
-def _text_out(sock, cmd, name):
-    tasklog = sock.log.bindToSender(sock.log.name+":"+name)
-    tasklog("Scheduling Text:in on remote socket", "DEBUG")
-    sock.sock.sendAES(packcmd(
-        'ti',
-        {'name': name}
-    ), '__cmd__')
-    sock.sock.recvRAW(name, timeout=None)
-    tasklog("Initiated Text:out task", "DEBUG")
-    sock.sock.sendAES(format(cmd['retries'], 'x'), name)
-    for attempt in range(1+int(cmd['retries'])):
-        tasklog("Sending message and signature", "DEBUG")
-        sock.sock.sendRSA(cmd['msg'], name)
-        sock.sock.sendRAW(rsa.sign(
-            cmd['msg'],
-            sock.sock.priv,
-            'SHA-256'
-        ), name)
-        tasklog("Waiting for verification", "DETAIL")
-        if sock.sock.recvRAW(name, True) == '+':
-            tasklog("Message sent", "DEBUG")
-            sock.schedulingqueue.append({
-                'cmd': lookupcmd('kill'),
-                'name': name
-            })
-            sock.pending_tasks.set()
-            return
-        tasklog("Remote socket was unable to validate the message", "WARN")
-    tasklog("Exceded retry limit for outbound message.  Task aborted", "ERROR")
-    sock.schedulingqueue.append({
-        'cmd': lookupcmd('kill'),
-        'name': name
-    })
-    sock.pending_tasks.set()
-    raise IOError(
-        "Background worker %s was unable to encrypt and "
-        "send the message in %d retries" % (
-            name,
-            int(cmd['retries'])
-        )
-    )
-
-
-def _file_request_out(sock, cmd, name):
-    tasklog = sock.log.bindToSender(sock.log.name+":"+name)
-    auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
-    while auth_key in sock.filemap:
-        auth_key = "".join(chr(random.randint(32, 127)) for _ in range(5))
-    sock.filemap[auth_key] = cmd['filepath']
-    sock.sock.sendAES(packcmd(
-        'fri',
-        {
-            'auth': auth_key,
-            'filename': os.path.basename(cmd['filepath']),
-            'name': name,
-            'size': str(os.path.getsize(cmd['filepath']))
-        }
-    ), '__cmd__')
-    tasklog("Sent file transfer request to remote socket", "DETAIL")
-    sock.schedulingqueue.append({
-        'cmd': lookupcmd('kill'),
-        'name': name
-    })
-    sock.pending_tasks.set()
-
-
-def _file_request_in(sock, cmd, name):
-    tasklog = sock.log.bindToSender(sock.log.name+":"+name)
-    tasklog("Received new file request.  Queueing authorization", "DETAIL")
-    sock.authqueue.append((cmd['filename'], cmd['auth'], int(cmd['size'])))
-    sock.pendingRequest.set()
-    sock.schedulingqueue.append({
-        'cmd': lookupcmd('kill'),
-        'name': name
-    })
-    sock.pending_tasks.set()
-
-
-def _file_transfer_out(sock, cmd, name):
-    tasklog = sock.log.bindToSender(sock.log.name+":"+name)
-    tasklog("Initiating File:out task", "DEBUG")
-    filepath = sock.filemap[cmd['auth']]
-    del sock.filemap[cmd['auth']]
-    if 'reject' not in cmd:
-        reader = open(filepath, mode='rb')
-        tasklog("Now sending file to remote socket", "DETAIL")
-        sock.sock.sendRAW('+', name)
-        sock.sock.sendAES(reader, name, True, True)
-        reader.close()
-        tasklog("Transfer complete", "DEBUG")
-    sock.schedulingqueue.append({
-        'cmd': lookupcmd('kill'),
-        'name': name
-    })
-    sock.pending_tasks.set()
-
-
-def _file_transfer_in(sock, cmd, name):
-    tasklog = sock.log.bindToSender(sock.log.name+":"+name)
-    tasklog("Initiating File:in task", "DEBUG")
-    sock.sock.sendAES(packcmd(
-        'fto',
-        {'name': name, 'auth': cmd['auth'], 'reject': 'reject' in cmd}
-    ), '__cmd__')
-    if 'reject' not in cmd:
-        try:
-            sock.sock.recvRAW(name, timeout=cmd['timeout'])
-            tasklog("File transfer initiated", "DEBUG")
-            sock.sock.recvAES(
-                name,
-                output_file=cmd['filepath'],
-                timeout=cmd['timeout']
-            )
-        except socketTimeout:
-            tasklog("Transfer timed out", "ERROR")
-        else:
-            tasklog("Transfer complete", "DEBUG")
-            sock.completed_transfers.add(cmd['filepath'])
-        finally:
-            sock.transferTracking[cmd['key']].set()
-    sock.schedulingqueue.append({
-        'cmd': lookupcmd('kill'),
-        'name': name
-    })
-    sock.pending_tasks.set()
-
-
-def _disconnect_in(sock, cmd, name):
-    from threading import Thread
-    Thread(
-        target=sock.close,
-        args=(3, True),
-        name="SecureConnection Shutdown Thread",
-        daemon=True
-    ).start()
-    sock.schedulingqueue.append({
-        'cmd': lookupcmd('kill'),
-        'name': name
-    })
-    sock.pending_tasks.set()
-
-
-_WORKERS = {
-    'ti': _text_in,
-    'to': _text_out,
-    'fri': _file_request_in,
-    'fro': _file_request_out,
-    'fti': _file_transfer_in,
-    'fto': _file_transfer_out,
-    'dci': _disconnect_in
-}

@@ -10,13 +10,17 @@ __Version:__ 3.1.2
 * search_range (A utility for manipulating numerical ranges)
 * status_bar (A simple progress bar indicator)
 * Logger (A class for fast, simple, logging)
+* ActiveTimeout (A class for enforcing a timeout for a set of operations)
 * Several standalone utility methods (See the [agutil module page](https://github.com/agraubert/agutil/wiki/agutil-%28main-module%29) on the wiki)
 
 The __io__ package:
 
 * Socket (A low-level network IO class built on top of the standard socket class)
 * SocketServer (A low-level listen server to accept connections and return Socket classes)
-* QueuedSocket (A low-level network IO class built to manage input across multiple channels)
+* MPlexSocket (A low-level network IO class which multiplexes I/O through multiple channels. Threadless version of `QueuedSocket`)
+* ~~QueuedSocket (A low-level network IO class built to manage input across multiple channels)~~
+
+  **Deprecated: Will be removed in a future release.** Please transition to `agutil.io.MPlexSocket` which is a threadless version of the same interface
 
 The __parallel__ package:
 
@@ -42,6 +46,10 @@ Detailed documentation of these packages can be found on the [agutil Github wiki
 
 * The `maf2bed` utility and its associated code has been removed
 
+## Deprecation Notice:
+
+* `agutil.io.QueuedSocket` is now deprecated in favor of `agutil.io.MPlexSocket`
+
 ## Features in Development:
 
 ### agutil.io.SocketServer
@@ -51,7 +59,7 @@ The method also takes a variable number of keyword arguments which will be passe
 to returning `agutil.io.Socket` instances
 
 ##### API
-* agutil.io.SocketServer(_socket\_type_=agutil.io.Socket, \*\*_kwargs_):
+* agutil.io.SocketServer(_socket\_type_=`agutil.io.Socket`, \*\*_kwargs_):
 
   Blocks until an incoming connection is established, then returns an object for the incoming connection of type
   _socket\_type_. The type defaults to `agutil.io.Socket`. Any _kwargs_ are sent to the constructor of the
@@ -59,25 +67,62 @@ to returning `agutil.io.Socket` instances
 
 ### agutil.io.QueuedSocket
 The following changes have been made to `agutil.io.QueuedSocket`:
+* **Deprecation Notice:** `agutil.io.QueuedSocket` is now deprecated in favor of `agutil.io.MPlexSocket`. The latter provides the same interface but in a lighter-weight and threadless manner.
 * The constructor no longer takes an `agutil.io.Socket` as argument, but instead takes an address and port, like `agutil.io.Socket`
 * Outgoing messages are no longer sent in a FIFO order. The socket will continuously rotate
 through all channels waiting to send messages, sending one message from each (in FIFO).
 
 
 ##### API
-* agutil.io.QueuedSocket(_address_, _port_, _logmethod_=agutil.DummyLog) _(Constructor)_
+* agutil.io.QueuedSocket(_address_, _port_, _logmethod_=`agutil.DummyLog`) _(Constructor)_
 
   _address_ and _port_ are used to establish a connection to a remote socket.
   _logmethod_ specifies a logging object to use (it defaults to `agutil.DummyLog`),
   but may also be an `agutil.Logger` instance or a bound method returned by
   `agutil.Logger.bindToSender()`.
 
-### agutil.security.SecureSocket
-The following change has been made to `agutil.security.SecureSocket`:
-* The constructor no longer takes an `agutil.io.Socket` as an argument, but instead takes an address and port, like `agutil.io.Socket`
+### agutil.io.MPlexSocket (new class)
+This class provides the same interface as `agutil.io.QueuedSocket` but does so without
+the use of background threads. It is meant to serve as a drop-in replacement, but
+due to the significance of the change, it was written as a new class.
+`agutil.security.SecureSocket` now derives from this class
 
 ##### API
-* agutil.security.SecureSocket(_address_, _port_, _password_=None, _rsabits_=4096, _timeout_=3, _logmethod_=agutil.DummyLog) _(Constructor)_
+* MPlexSocket(_address_, _port_, _logmethod_=`agutil.DummyLog`): _(Constructor)_
+
+  Constructs a new `agutil.io.MPlexSocket`. _address_ and _port_ are used to establish a connection to a remote socket.
+  _logmethod_ specifies a logging object to use (it defaults to `agutil.DummyLog`), but may also be an `agutil.Logger` instance or a
+  bound method returned by `agutil.Logger.bindToSender()`
+
+* MPlexSocket.close():
+
+  Closes the socket
+
+* MPlexSocket.flush():
+
+  This is a no-op added for compatability with the `agutil.io.QueuedSocket` api
+
+* MPlexSocket.use\_timeout(_t_): _(Context Manager)_
+
+  This function returns a context manager which sets the socket timeout to _t_ when entering, and resets it to its previous value when exiting.
+  _t_ may be a positive number of seconds or `None`
+
+* MPlexSocket.send(_message_, _channel_=`'__orphan__'`):
+
+  Sends _message_ over the specified _channel_. If the _channel_ argument is omitted, it sends it over a default channel.
+  Channel names **cannot** contain the carrot character (`^`, ascii 94), which is used as a delimiter for encoding the channel name.
+
+* MPlexSocket.recv(_channel_=`'__orphan__'`, _decode_=`False`, _timeout_=`None`):
+
+  Attempts to receive a message from the specified _channel_, or blocks until a message is available. If _decode_ is `True`, the byes object will be decodes into a string when returned. If a _timeout_ is specified and not `None`, the method will block for at most approximately _timeout_ seconds, then raise a `socket.Timeout` exception.
+
+### agutil.security.SecureSocket
+The following changes have been made to `agutil.security.SecureSocket`:
+* The constructor no longer takes an `agutil.io.Socket` as an argument, but instead takes an address and port, like `agutil.io.Socket`
+* This class now derives from `agutil.io.MPlexSocket` instead of `agutil.io.QueuedSocket`
+
+##### API
+* agutil.security.SecureSocket(_address_, _port_, _password_=`None`, _rsabits_=`4096`, _timeout_=`3`, _logmethod_=`agutil.DummyLog`) _(Constructor)_
 
   _address_ and _port_ are used to establish a connection to a remote socket.
   If _password_ is set and not None, it is used to generate a new AES ECB cipher
@@ -97,6 +142,8 @@ in a future release, but this is not yet planned
 * Added a function `agutil.splice` which takes a iterable of at least 2 dimensions (M rows by N columns)
 and returns an iterable for each column (N iterables of length M).
 * `agutil.byteSize` now supports yottabytes
+* Added `agutil.context_lock` method, which enforces a timeout when acquiring a native lock
+* New exceptions: `agutil.TimeoutExceeded` and `agutil.LockTimeoutExceeded`
 
 ##### API
 * agutil.clump(_seq_, _length_):
@@ -114,6 +161,65 @@ and returns an iterable for each column (N iterables of length M).
   opposite of the builtin `zip`. The width of _seq_ is determined by its first element,
   and `splice` will provide a number of iterators equal to that width.
 
+* agutil.TimeoutExceeded: _(Exception)_
+
+  `OSError` -> `socket.timeout` -> `agutil.TimeoutExceeded`
+  This exception is raised by `agutil.ActiveTimeout` when the timeout has expired
+
+* agutil.LockTimeoutExceeded: _(Exception)_
+
+  `OSError` -> `socket.timeout` -> `agutil.TimeoutExceeded` -> `agutil.LockTimeoutExceeded`
+  This exception is raised by `agutil.context_lock` when it fails to acquire the
+  lock within the provided timeout
+
+* agutil.context_lock(_lock_, _timeout_=`-1`): _(Context Manager)_
+
+  Returns a context manager object. When entering the context it attempts to
+  acquire the _lock_. If _timeout_ is a non-negative number, it waits at most
+  _timeout_ seconds before raising `agutil.LockTimeoutExceeded`. When exiting
+  the context, it always attempts to release the _lock_, regardless of any
+  exceptions which may have occurred within the context.
+
+### agutil.ActiveTimeout (new class)
+This class has been added to manage a timeout over a set of operations. Specifically,
+to enforce that several blocking operations all complete within the given timeout.
+The enforcement is not automatic, but relies on checking the timeout when possible
+
+##### API
+* ActiveTimeout(_t_): _(Constructor)_
+
+  Constructs a new `agutil.ActiveTimeout` with the specified timeout.
+  _t_ should be a positive number indicating an amount of seconds, or `None` if the timeout should not expire.
+  This class may be used as a context manager.
+  **Note:** This class will not automatically raise timeout exceptions; call `ActiveTimeout.update()` to check if the timeout has expired
+
+* ActiveTimeout.\_\_enter\_\_(): _(Context manager entry)_
+
+  Resets the timer and starts recording time
+
+* ActiveTimeout.\_\_exit\_\_(): _(Context manager exit)_
+
+  Updates the remaining time, but will not raise a timeout exception if the timeout has elapsed.
+
+* ActiveTimeout.update():
+
+  Updates the time remaining. If the timeout has expired, it raises `agutil.TimeoutExceeded`.
+
+* ActiveTimeout.thread_timeout: _(Property)_
+
+  This property always reflects the time remaining in a format useable by the `threading` module.
+  It returns the current time remaining, or -1 if the _t_ was None.
+  This property may be passed as the timeout to native locks so that
+  they will timeout when the ActiveTimeout expires.
+  **Note:** This property calls `ActiveTimeout.update()` and will raise `agutil.TimeoutExceeded` if the timout has expired
+
+* ActiveTimeout.socket_timeout: _(Property)_
+
+  This property always reflects the time remaining in a format useable by the `socket` module.
+  It returns the current time remaining (including if _t_ was None).
+  This property may be passed as the timeout to native sockets or any sockets in the `agutil.io` and `agutil.security` modules so that network operations will timeout when the ActiveTimeout expires.
+  **Note:** This property calls `ActiveTimeout.update()` and will raise `agutil.TimeoutExceeded` if the timout has expired
+
 ### agutil.status_bar
 The following changes have been made to `agutil.status_bar`:
 * Added a `passthrough()` method which takes one argument and returns it unchanged
@@ -121,12 +227,12 @@ while incrementing the bar by 1.
 * Added a _file_ argument to the `status_bar()` constructor
 
 ##### API
-* agutil.status_bar.passthrough(_value_):
+* status_bar.passthrough(_value_):
 
   Returns _value_ unchaged, but increments the `status_bar` by 1. Useful for updating
   a bar in list certain comprehensions where `status_bar.iter` is infeasible.
 
-* status_bar(_maximum_, _show\_percent_=True, _init_=True, _prepend_="", _append_="", _cols_=int(get\_terminal\_size()[0]/2), _update\_threshold_=.00005, _debugging_=False, _file_=sys.stdout) _(constructor)_
+* status_bar(_maximum_, _show\_percent_=`True`, _init_=`True`, _prepend_=`""`, _append_=`""`, _cols_=`int(get\_terminal\_size()[0]/2)`, _update\_threshold_=`.00005`, _debugging_=`False`, _file_=`sys.stdout`) _(constructor)_
 
   Creates a new status_bar instance ranging from 0 to _maximum_.
   _show\_percent_ toggles whether or not a percentage meter should be displayed to the right of the bar.
@@ -185,7 +291,7 @@ worker interface above. It still defaults to a `ThreadWorker`
 but operates identically to `IterDispatcher.run`
 
 ##### API
-* IterDispatcher(_func_, \*_args_, _maximum_=15, _workertype_=WORKERTYPE_THREAD, \*\*_kwargs_): _(constructor)_
+* IterDispatcher(_func_, \*_args_, _maximum_=`15`, _workertype_=`WORKERTYPE_THREAD`, \*\*_kwargs_): _(constructor)_
 
   Constructs a new `IterDispatcher` (similar to the old `Dispatcher` object).
   _func_ is the function to be run in the background. _maximum_ is the maximum
@@ -219,7 +325,7 @@ The following change has been made to the `agutil.parallel.DemandDispatcher` cla
 worker interface above. It still defaults to a `ThreadWorker`
 
 ##### API
-* DemandDispatcher(_func_, _maximum_=15, _workertype_=WORKERTYPE_THREAD): _(constructor)_
+* DemandDispatcher(_func_, _maximum_=`15`, _workertype_=`WORKERTYPE_THREAD`): _(constructor)_
 
   Constructs a new `DemandDispatcher`. _func_ is the function to be executed and
   _maximum_ is the maximum number of background workers which can be executed at
@@ -236,7 +342,7 @@ and `agutil.security.decryptFile` methods except that they take _file-like_ obje
 instead of filenames
 
 ##### API
-* encryptFileObj(_reader_, _writer_, _cipher_, _validate_=False):
+* encryptFileObj(_reader_, _writer_, _cipher_, _validate_=`False`):
 
   Encrypts the data read from _reader_ using _cipher_ and writes it to _writer_.
   The cipher is not required to be any class, but it must support an `encrypt()`
@@ -245,7 +351,7 @@ instead of filenames
   If _validate_ is `True`, encrypt and prepend 16 known bytes to the beginning of the output file.
   This enables file decryption to check the key immediately without decrypting the entire file
 
-* decryptFileObj(_reader_, _writer_, _cipher_, _validate_=False):
+* decryptFileObj(_reader_, _writer_, _cipher_, _validate_=`False`):
 
   Decrypts the data read from _reader_ using _cipher_ and writes it to _writer_.
   The cipher is not required to be any class, but it must support an `decrypt()`
@@ -256,7 +362,56 @@ instead of filenames
   If the bytes do not match, raise a `KeyError`
 
 ### agutil.security.SecureConnection
-The following change has been made to `agutil.security.SecureConnection`:
-* The _retries_ argument of the `send()` function now refers to the number of additional
-attempts to send **after** the first fails. Essentially, the maximum number of
-attempts to send a message is now _retries_+1 instead of simply _retries_
+The following changes have been made to `agutil.security.SecureConnection`:
+* This class has been overhauled to be more efficient, and mostly threadless.
+* The _retries_ argument of the `send()` function has been removed
+* Added a `confirm()` method to await confirmation from the remote socket that a
+task has been completed
+* Removed the _timeout_ argument from `close()` and `shutdown()`
+
+##### API
+* SecureConnection.send(_msg_):
+
+  Sends _msg_ to the remote socket using RSA encryption. The RSA signature of _msg_ is also sent.
+  Returns a the task name used to send the _msg_. Use `confirm()` to
+  check if the task was a success
+
+* SecureConnection.confirm(_task_, _timeout_=`-1`):
+
+  Waits for confirmation of the _task_ from the remote socket.
+  If _timeout_ is a positive number, it waits at most _timeout_ seconds.
+  If _timeout_ is `None`, it blocks indefinitely. If _timeout_ is `-1`, it uses the default timeout specified in the constructor.
+  Returns `True` or `False` indicating success or failure of the task on the remote end. Raises a `socket.Timeout` exception if the _timeout_ expires.
+  Confirmations are sent automatically by the remote socket, but must be `confirm()`-ed manually.
+  If a _task_ fails or times out, it is the programmers responsibility to re-attempt the task, if desired.
+
+* SecureConnection.read(_decode_=`True`, _timeout_=`-1`):
+
+  Waits for a message from the remote socket.
+  If _timeout_ is a positive number, it waits at most _timeout_ seconds.
+  If _timeout_ is `None`, it blocks indefinitely. If _timeout_ is `-1`, it uses the default timeout specified in the constructor.
+  Returns `True` or `False` indicating success or failure of the task on the remote end. Raises a `socket.Timeout` exception if the _timeout_ expires.
+  If _decode_ is `True`, the message will be decoded to a string when returned
+
+* SecureConnection.sendfile(_filename_):
+
+  Prepares the file specified by _filename_ to be sent and informs the remote socket that the file is available for transfer.
+  Starts a background thread which waits for a response from the remote socket before encrypting and sending the file using AES CBC encryption.
+  Returns a the task name used to send the file. Use `confirm()` to
+  check if the task was a success.
+
+* SecureConnection.savefile(_destination_=`None`, _timeout_=`-1`, _force_=`False`):
+
+  Processes the oldest pending file transfer request or waits at most _timeout_ seconds to receive one.
+  If _timeout_ is a positive number, it waits at most _timeout_ seconds.
+  If _timeout_ is `None`, it blocks indefinitely. If _timeout_ is `-1`, it uses the default timeout specified in the constructor.
+  Returns `True` or `False` indicating success or failure of the task on the remote end. Raises a `socket.Timeout` exception if the _timeout_ expires.
+  If _force_ is not `True`, this method will request user confirmation before completing the transfer.
+  Once the transfer begins, the socket must receive at least one chunk every _timeout_ seconds or it will raise a `socket.Timeout` exception.
+  _destination_ should be the path where the file will be saved.
+  If _destination_ is `None`, the file will be saved in the current directory, using the original filename.
+
+* SecureConnection.shutdown():
+* SecureConnection.close():
+
+  Closes the underlying socket

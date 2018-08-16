@@ -5,6 +5,7 @@ import sys
 import hashlib
 import random
 import tempfile
+import threading
 
 def make_random_string(length=25, lower=0, upper=255):
     return "".join(chr(random.randint(lower,upper)) for i in range(length))
@@ -145,3 +146,14 @@ class test(unittest.TestCase):
                     self.assertEqual(next(column_iters[c]), data[r][c])
                 i += 1
             self.assertEqual(i,len(data))
+
+    def test_context_lock(self):
+        from agutil import context_lock, LockTimeoutExceeded
+        lock = threading.Lock()
+        with context_lock(lock) as l:
+            # This assertion is mostly to ensure we reach this block
+            self.assertEqual(lock, l)
+        lock.acquire()
+        with self.assertRaises(LockTimeoutExceeded):
+            with context_lock(lock, 1):
+                self.fail("context_lock somehow managed to acquire")
