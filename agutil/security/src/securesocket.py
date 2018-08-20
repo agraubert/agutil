@@ -10,7 +10,7 @@ import random
 
 from socket import timeout as socketTimeout
 
-_SECURESOCKET_IDENTIFIER_ = '<agutil.security.securesocket:3.0.0>'
+_SECURESOCKET_IDENTIFIER_ = '<agutil.security.securesocket:4.0.0>'
 
 RSA_CPU = None
 try:
@@ -216,7 +216,7 @@ class SecureSocket(io.MPlexSocket):
     def send(self, msg, channel='__rsa__'):
         self.sendRSA(msg, channel)
 
-    def sendRSA(self, msg, channel='__rsa__'):
+    def sendRSA(self, msg, channel='__rsa__', sign='SHA-256'):
         self._ss_log("Preparing to send RSA encrypted message", "DEBUG")
         if type(msg) == str:
             msg = msg.encode()
@@ -243,8 +243,24 @@ class SecureSocket(io.MPlexSocket):
                 self.rpub
             ), channel)
         self._ss_log("Message sent", "DEBUG")
+        if sign:
+            if sign not in rsa.pkcs1.HASH_METHODS:
+                raise ValueError(
+                    "Valid signature algorithms: " + str(
+                        list(rsa.pkcs1.HASH_METHODS)
+                    )
+                )
+            self._ss_log("Sending RSA signature", "DEBUG")
+            self._sendq(
+                self._baseEncrypt(rsa.sign(msg, self.priv, sign)),
+                channel
+            )
+        else:
+            self._sendq(
+                self._baseEncrypt('-'),
+                channel
+            )
         self._desync_channel(channel)
-        return rsa.sign(msg, self.priv, 'SHA-256')
 
     def recv(self, channel='__rsa__', decode=False, timeout=-1):
         return self.recvRSA(channel, decode, timeout)
@@ -270,6 +286,19 @@ class SecureSocket(io.MPlexSocket):
                 self.priv
             )
         self._ss_log("Message received", "DEBUG")
+        self._ss_log("Waiting for signature", "DETAIL")
+        signature = self._baseDecrypt(self._recvq(channel, timeout=timeout))
+        if signature != b'-':
+            rsa.verify(
+                msg,
+                signature,
+                self.rpub
+            )
+        else:
+            self._ss_log(
+                "No RSA signature received. Unable to verify message",
+                "WARN"
+            )
         if decode:
             msg = msg.decode()
         self._desync_channel(channel)
@@ -314,9 +343,9 @@ class SecureSocket(io.MPlexSocket):
         if key:
             self._ss_log("Sending cipher key", "DETAIL")
             if iv:
-                self.sendRSA(key+iv, channel)
+                self.sendRSA(key+iv, channel, 'MD5')
             else:
-                self.sendRSA(key, channel)
+                self.sendRSA(key, channel, 'MD5')
         elif iv:
             # self._sendq(self._baseEncrypt('+'))
             self._sendq(

@@ -120,6 +120,8 @@ due to the significance of the change, it was written as a new class.
 The following changes have been made to `agutil.security.SecureSocket`:
 * The constructor no longer takes an `agutil.io.Socket` as an argument, but instead takes an address and port, like `agutil.io.Socket`
 * This class now derives from `agutil.io.MPlexSocket` instead of `agutil.io.QueuedSocket`
+* Added _sign_ argument to `sendRSA()`. `sendRSA()` and `recvRSA()` now handle signature
+validation internally
 
 ##### API
 * SecureSocket(_address_, _port_, _password_=`None`, _rsabits_=`4096`, _timeout_=`3`, _logmethod_=`agutil.DummyLog`) _(Constructor)_
@@ -133,6 +135,26 @@ The following changes have been made to `agutil.security.SecureSocket`:
   messages (must be None, or a non-negative integer). _logmethod_ specifies a
   logging object to use (it defaults to `agutil.DummyLog`), but may also be an
   `agutil.Logger` instance or a bound method returned by `agutil.Logger.bindToSender()`.
+
+* SecureSocket.send(_msg_, _channel_=`'\_\_rsa\_\_'`, _sign_=`'SHA-256'`)
+* SecureScoket.sendRSA(_msg_, _channel_=`'\_\_rsa\_\_'`, _sign_=`'SHA-256'`)
+  Encrypts _msg_ using the remote socket's public key and sends over the channel _channel_.
+  If _msg_ is longer than the remote public key can encrypt, it is broken into
+  chunks and each chunk is encrypted before transmission. _sign_ can be `False`,
+  or one of `'MD5'`, `'SHA-1'`, `'SHA-224'`, `'SHA-256'`, `'SHA-384'`, or `'SHA-512'`.
+  If _sign_ is not `False`, the rsa signature of _msg_ is computed using the specified
+  hashing algorithm and sent to the remote socket.
+
+* SecureSocket.recv(_channel_=`'\_\_rsa\_\_'`, _decode_=`False`, _timeout_=`-1`)
+* SecureSocket.recvRSA(_channel_=`'\_\_rsa\_\_'`, _decode_=`False`, _timeout_=`-1`)
+  Waits to receive a message on the _channel_ channel, then decrypts using this socket's private key.
+  If _decode_ is true, the decrypted bytes object is decoded into a str object.
+  _timeout_ sets the maximum time allowed for any single operation with the remote
+  socket (thus the `.recvRSA` method may take longer to complete as a whole).
+  If _timeout_ is -1, it defaults to the `SecureSocket`'s default timeout parameter.
+  If the remote socket elects to send a message signature (the default), the message will be
+  verified against the signature. This will raise `rsa.pkcs1.VerificationError`
+  if signature verification fails
 
 ### agutil (Main Module)
 The following changes have been made to the main `agutil` module:

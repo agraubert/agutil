@@ -98,13 +98,8 @@ class SecureConnection:
             '__text__'
         )
         self.log("Sending message payload", "DEBUG")
-        signature = self.sock.sendRSA(
+        self.sock.sendRSA(
             msg,
-            channel
-        )
-        self.log("Sending message signature", "DETAIL")
-        self.sock.sendRAW(
-            signature,
             channel
         )
         return channel
@@ -148,10 +143,13 @@ class SecureConnection:
                     channel,
                     timeout=timer.socket_timeout
                 )
-                signature = self.sock.recvRAW(
-                    channel,
-                    timeout=timer.socket_timeout
+            except rsa.pkcs1.VerificationError:
+                self._send_confirm(channel, False)
+                self.log(
+                    "RSA Message failed signature validation",
+                    "WARN"
                 )
+                raise
             except BaseException:
                 self._send_confirm(channel, False)
                 self.log(
@@ -159,21 +157,7 @@ class SecureConnection:
                     'ERROR'
                 )
                 raise
-        try:
-            rsa.verify(
-                message,
-                signature,
-                self.sock.rpub
-            )
-        except rsa.pkcs1.VerificationError:
-            self._send_confirm(channel, False)
-            self.log(
-                "RSA Message failed signature validation",
-                "WARN"
-            )
-            raise
-        else:
-            self._send_confirm(channel)
+        self._send_confirm(channel)
         if decode:
             message = message.decode()
         return message
