@@ -11,6 +11,7 @@ from hashlib import md5
 import Cryptodome.Cipher.AES as AES
 import warnings
 from itertools import chain
+import hashlib
 
 def make_random_string():
     return "".join(chr(random.randint(0,255)) for i in range(25))
@@ -55,16 +56,20 @@ class test(unittest.TestCase):
             decrypted = tempname()
             aes_key = rsa.randnum.read_random_bits(256)
             aes_iv = rsa.randnum.read_random_bits(128)
-            encryptionCipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
-            decryptionCipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
+            legacy_encryptionCipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
+            legacy_decryptionCipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
+            nonce = aes_key[-16:]
+            modern_key = hashlib.md5(aes_key).digest()
+            modern_encryptionCipher = AES.new(aes_key, mode=AES.MODE_EAX, nonce=nonce)
+            modern_decryptionCipher = AES.new(aes_key, mode=AES.MODE_EAX, nonce=nonce)
             writer = open(source, mode='w')
             for line in range(15):
                 writer.write(make_random_string())
                 writer.write('\n')
             writer.close()
-            encryptFile(source, encrypted, encryptionCipher)
+            encryptFile(source, encrypted, legacy_encryptionCipher, modern_encryptionCipher)
             self.assertFalse(cmp(source, encrypted))
-            decryptFile(encrypted, decrypted, decryptionCipher)
+            decryptFile(encrypted, decrypted, legacy_decryptionCipher, modern_decryptionCipher)
             self.assertTrue(cmp(source, decrypted))
             os.remove(source)
             os.remove(encrypted)
@@ -194,6 +199,54 @@ class test(unittest.TestCase):
         ))
         os.remove(output_filename)
 
+    @unittest.skipIf(sys.version_info<(3,4), "This test is for python 3.4 and newer")
+    def test_modern_decryption(self):
+        import agutil.security.console
+        output_filename = tempname()
+        agutil.security.console.main([
+            'decrypt',
+            os.path.join(
+                self.test_data_dir,
+                'modern'
+            ),
+            '-o',
+            output_filename,
+            '-p',
+            'password'
+        ])
+        self.assertTrue(cmp(
+            os.path.join(
+                self.test_data_dir,
+                'expected'
+            ),
+            output_filename
+        ))
+        os.remove(output_filename)
+
+    def test_modern_decryption_33(self):
+        import agutil.security.console
+        output_filename = tempname()
+        agutil.security.console.main([
+            'decrypt',
+            os.path.join(
+                self.test_data_dir,
+                'modern.3.3'
+            ),
+            '-o',
+            output_filename,
+            '-p',
+            'password',
+            '--py33'
+        ])
+        self.assertTrue(cmp(
+            os.path.join(
+                self.test_data_dir,
+                'expected'
+            ),
+            output_filename
+        ))
+        os.remove(output_filename)
+
     def test_in_place(self):
         import agutil.security.console
         source = tempname()
@@ -232,16 +285,17 @@ class test(unittest.TestCase):
         from agutil.security.src.files import _encrypt_chunk, _decrypt_chunk
         for trial in range(5):
             source = "".join(make_random_string() for _ in range(1, 200))
-            aes_key = rsa.randnum.read_random_bits(256)
+            aes_key = rsa.randnum.read_random_bits(128)
             aes_iv = rsa.randnum.read_random_bits(128)
-            encryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
-            decryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
+            encryptionCipher = AES.new(aes_key, mode=AES.MODE_EAX, nonce=aes_iv)
+            decryptionCipher = AES.new(aes_key, mode=AES.MODE_EAX, nonce=aes_iv)
             decrypted = _decrypt_chunk(_encrypt_chunk(source, encryptionCipher), decryptionCipher).decode()
             self.assertEqual(len(source), len(decrypted))
             if len(source) <= 2048:
                 self.assertEqual(source, decrypted)
             else:
                 self.assertEqual(hash(source), hash(decrypted))
+            decryptionCipher.verify(encryptionCipher.digest())
 
     def test_password_prompt(self):
         from io import StringIO

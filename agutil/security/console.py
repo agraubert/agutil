@@ -80,7 +80,8 @@ def main(args_input=sys.argv[1:]):
         action='store_false',
         help="Attempts to decrypt the file without verifying the password. "
         "Files encrypted with agutil version 1.1.3 and earlier MUST "
-        "be decrypted with this option"
+        "be decrypted with this option. Note: This disables the usage "
+        "of modern encryption features."
     )
     parser.add_argument(
         '-v', '--verbose',
@@ -122,8 +123,14 @@ def main(args_input=sys.argv[1:]):
                 b'this is some serious salt, yo',
                 250000
             )).digest()
+            nonce = key[-16:]
             iv = os.urandom(16)
-            cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+            legacy_cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+            modern_cipher = AES.new(
+                hashlib.md5(key).digest(),
+                mode=AES.MODE_EAX,
+                nonce=nonce
+            )
             if args.verbose:
                 # this is definitely a hacky solution, but it looks better from
                 # the user's perspective.  I have no way of reporting the
@@ -154,7 +161,8 @@ def main(args_input=sys.argv[1:]):
                     files.encryptFile(
                         input_file.name,
                         output_file.name,
-                        cipher,
+                        legacy_cipher,
+                        modern_cipher if args.force else None,
                         validate=args.force,
                         _prechunk=True
                     )
@@ -162,12 +170,18 @@ def main(args_input=sys.argv[1:]):
                     files.decryptFile(
                         input_file.name,
                         output_file.name,
-                        cipher,
+                        legacy_cipher,
+                        modern_cipher if args.force else None,
                         validate=args.force,
                         _prechunk=True
                     )
             except KeyError:
                 sys.exit("Failed!  The provided password may be incorrect")
+            except ValueError:
+                sys.exit(
+                    "Failed!  The authenticity of the file could not be "
+                    "guaranteed"
+                )
 
             if output_arg is None:
                 from shutil import copyfile

@@ -97,16 +97,14 @@ class SecureConnection:
             channel,
             '__text__'
         )
-        self.sock.sendRSA(
+        self.log("Sending message payload", "DEBUG")
+        signature = self.sock.sendRSA(
             msg,
             channel
         )
+        self.log("Sending message signature", "DETAIL")
         self.sock.sendRAW(
-            rsa.sign(
-                msg,
-                self.sock.priv,
-                'SHA-256'
-            ),
+            signature,
             channel
         )
         return channel

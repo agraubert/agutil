@@ -244,6 +244,7 @@ class SecureSocket(io.MPlexSocket):
             ), channel)
         self._ss_log("Message sent", "DEBUG")
         self._desync_channel(channel)
+        return rsa.sign(msg, self.priv, 'SHA-256')
 
     def recv(self, channel='__rsa__', decode=False, timeout=-1):
         return self.recvRSA(channel, decode, timeout)
@@ -298,8 +299,8 @@ class SecureSocket(io.MPlexSocket):
             cipher = AES.new(key, AES.MODE_ECB)
         # if both key and iv are either true or bytestrings, use AES CBC
         else:
-            mode = 'CBC'
-            cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+            mode = 'EAX'
+            cipher = AES.new(hashlib.md5(key).digest(), AES.MODE_EAX, nonce=iv)
         self._ss_log(
             "Informing the remote socket to use AES encryption mode: "+mode,
             "DETAIL"
@@ -312,8 +313,11 @@ class SecureSocket(io.MPlexSocket):
         self._sendq(self._baseEncrypt(mode), channel)
         if key:
             self._ss_log("Sending cipher key", "DETAIL")
-            self.sendRSA(key, channel)
-        if iv:
+            if iv:
+                self.sendRSA(key+iv, channel)
+            else:
+                self.sendRSA(key, channel)
+        elif iv:
             # self._sendq(self._baseEncrypt('+'))
             self._sendq(
                 cipher.encrypt(rsa.randnum.read_random_bits(128)),
@@ -340,6 +344,9 @@ class SecureSocket(io.MPlexSocket):
             self._sendq(files._encrypt_chunk(msg, cipher), channel)
             self._sendq(self._baseEncrypt('-'), channel)
         self._ss_log("Message sent", "DEBUG")
+        if mode == 'EAX':
+            self._ss_log("Sending EAX digest", "DETAIL")
+            self._sendq(self._baseEncrypt(cipher.digest()), channel)
         self._desync_channel(channel)
 
     def recvAES(
@@ -379,7 +386,7 @@ class SecureSocket(io.MPlexSocket):
                     self.recvRSA(channel, timeout=timeout),
                     AES.MODE_ECB
                 )
-            else:
+            elif mode == 'CBC':
                 self._ss_log("Receiving cipher key", "DETAIL")
                 cipher = AES.new(
                     self.recvRSA(channel, timeout=timeout),
@@ -387,6 +394,16 @@ class SecureSocket(io.MPlexSocket):
                     iv=rsa.randnum.read_random_bits(128)
                 )
                 cipher.decrypt(self._recvq(channel, timeout=timeout))
+            elif mode == 'EAX':
+                self._ss_log("Receiving cipher key", "DETAIL")
+                info = self.recvRSA(channel, timeout=timeout)
+                cipher = AES.new(
+                    hashlib.md5(info[:-16]).digest(),
+                    AES.MODE_EAX,
+                    nonce=info[-16:]
+                )
+            else:
+                raise ValueError("Unsupported Cipher type: "+mode)
             writer = None
             if type(output_file) == str:
                 self._ss_log("Output will be written to file", "DEBUG")
@@ -411,6 +428,13 @@ class SecureSocket(io.MPlexSocket):
                     timeout=timeout
                 ))
             self._ss_log("Payload received", "DEBUG")
+            if mode == 'EAX':
+                self._ss_log("Waiting for EAX digest", "DETAIL")
+                cipher.verify(self._baseDecrypt(self._recvq(
+                    channel,
+                    timeout=timeout
+                )))
+                self._ss_log("Message digest successful", "DETAIL")
             self._desync_channel(channel)
             if writer is not None:
                 writer.close()

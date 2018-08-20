@@ -122,7 +122,7 @@ The following changes have been made to `agutil.security.SecureSocket`:
 * This class now derives from `agutil.io.MPlexSocket` instead of `agutil.io.QueuedSocket`
 
 ##### API
-* agutil.security.SecureSocket(_address_, _port_, _password_=`None`, _rsabits_=`4096`, _timeout_=`3`, _logmethod_=`agutil.DummyLog`) _(Constructor)_
+* SecureSocket(_address_, _port_, _password_=`None`, _rsabits_=`4096`, _timeout_=`3`, _logmethod_=`agutil.DummyLog`) _(Constructor)_
 
   _address_ and _port_ are used to establish a connection to a remote socket.
   If _password_ is set and not None, it is used to generate a new AES ECB cipher
@@ -335,31 +335,65 @@ worker interface above. It still defaults to a `ThreadWorker`
   name as the parameter, do not provide a class instance).
 
 ### agutil.security (module)
-The following change has been made to the `agutil.security` module:
+The following changes have been made to the `agutil.security` module:
 * Added `agutil.security.encryptFileObj` and `agutil.security.decryptFileObj`
 methods. These methods take the same arguments as `agutil.security.encryptFile`
 and `agutil.security.decryptFile` methods except that they take _file-like_ objects
 instead of filenames
+* Updated cipher used by `agutil-secure` while still maintaining backwards
+compatibility.
+* Added a _modern\_cipher_ argument to `agutil.security.encryptFile`,
+`agutil.security.encryptFileObj`, `agutil.security.decryptFile`, and
+`agutil.security.decryptFileObj`
 
 ##### API
-* encryptFileObj(_reader_, _writer_, _cipher_, _validate_=`False`):
 
-  Encrypts the data read from _reader_ using _cipher_ and writes it to _writer_.
+* encryptFile(_input\_filename_, _output\_filename_, _legacy_cipher_, _modern\_cipher_=`None`, _validate_=`False`):
+
+  Opens _input\_filename_ and _output\_filename_ and passes their file handles,
+  along with the other arguments, to `encryptFileObj()`. For a description of that
+  function, see below.
+
+* encryptFileObj(_reader_, _writer_, _legacy_cipher_, _modern\_cipher_=`None`, _validate_=`False`):
+
+  _legacy\_cipher_ can be any `Crypto.AES` or `Cryptodome.AES` cipher mode.
+  _modern\_cipher_ can be a `Crypto.AES` or `Cryptodome.AES` cipher in CCM, EAX
+  (preferred), or GCM mode.
+  If _modern\_cipher_ is provided and not `None`, and _validate_ is not `False`,
+  the _modern\_cipher_ will be used to encrypt the data instead of the _legacy\_cipher_.
+  The _legacy\_cipher_ is always used to encrypt cipher metadata.
+  Encrypts the data read from _reader_ using the cipher and writes it to _writer_.
   The cipher is not required to be any class, but it must support an `encrypt()`
   method, which takes a chunk of text, and returns a ciphered chunk.  Padding is
   handled internally (chunks are padded to 16-byte intervals).
   If _validate_ is `True`, encrypt and prepend 16 known bytes to the beginning of the output file.
-  This enables file decryption to check the key immediately without decrypting the entire file
+  This enables file decryption to check the key immediately without decrypting the entire file.
+  _validate_ must be `True` to enable the use of the _modern\_cipher_.
 
-* decryptFileObj(_reader_, _writer_, _cipher_, _validate_=`False`):
+* decryptFile(_input\_filename_, _output\_filename_, _legacy_cipher_, _modern\_cipher_=`None`, _validate_=`False`):
 
+  Opens _input\_filename_ and _output\_filename_ and passes their file handles,
+  along with the other arguments, to `decryptFileObj()`. For a description of that
+  function, see below.
+
+* decryptFileObj(_reader_, _writer_, _legacy_cipher_, _modern\_cipher_=`None`, _validate_=`False`):
+
+  _legacy\_cipher_ can be any `Crypto.AES` or `Cryptodome.AES` cipher mode.
+  _modern\_cipher_ can be a `Crypto.AES` or `Cryptodome.AES` cipher in CCM, EAX
+  (preferred), or GCM mode.
+  If _modern\_cipher_ is provided and not `None`, and _validate_ is not `False`,
+  the _modern\_cipher_ will be used to decrypt the data instead of the _legacy\_cipher_.
+  The _legacy\_cipher_ is always used to decrypt cipher metadata.
   Decrypts the data read from _reader_ using _cipher_ and writes it to _writer_.
   The cipher is not required to be any class, but it must support an `decrypt()`
   method, which takes a chunk of ciphertext, and returns a deciphered chunk.
   Unpadding is handled internally (chunks are padded to 16-byte intervals).
   If _validate_ is `True`, decrypt the first 16 bytes of the file and check against the expected value.
   If the bytes match the expectation, discard them and continue decryption as normal.
-  If the bytes do not match, raise a `KeyError`
+  If the bytes do not match, raise a `KeyError`.
+  _validate_ must be `True` to enable the use of the _modern\_cipher_.
+  If the _modern\_cipher_ is enabled, the integrity of the file will be checked,
+  raising a `ValueError` if the integrity check fails
 
 ### agutil.security.SecureConnection
 The following changes have been made to `agutil.security.SecureConnection`:
