@@ -362,8 +362,9 @@ The following changes have been made to the `agutil.security` module:
 methods. These methods take the same arguments as `agutil.security.encryptFile`
 and `agutil.security.decryptFile` methods except that they take _file-like_ objects
 instead of filenames
-* Updated cipher used by `agutil-secure` while still maintaining backwards
-compatibility.
+* Updated cipher used by `agutil-secure`.
+  * Files encrypted using the new cipher cannot be decrypted by older versions of `agutil`
+  * Files encrypted by older versions of `agutil` can still be decrypted with the new cipher
 * Added a _modern\_cipher_ argument to `agutil.security.encryptFile`,
 `agutil.security.encryptFileObj`, `agutil.security.decryptFile`, and
 `agutil.security.decryptFileObj`
