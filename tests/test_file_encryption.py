@@ -49,27 +49,20 @@ class test(unittest.TestCase):
 
     # @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
     def test_encrypts_and_decrypts(self):
-        from agutil.security import encryptFile, decryptFile
+        from agutil.security import encryptFile, decryptFile, configure_cipher
         for trial in range(5):
             source = tempname()
             encrypted = tempname()
             decrypted = tempname()
-            aes_key = rsa.randnum.read_random_bits(256)
-            aes_iv = rsa.randnum.read_random_bits(128)
-            legacy_encryptionCipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
-            legacy_decryptionCipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
-            nonce = aes_key[-16:]
-            modern_key = hashlib.md5(aes_key).digest()
-            modern_encryptionCipher = AES.new(aes_key, mode=AES.MODE_EAX, nonce=nonce)
-            modern_decryptionCipher = AES.new(aes_key, mode=AES.MODE_EAX, nonce=nonce)
+            key = rsa.randnum.read_random_bits(256)
             writer = open(source, mode='w')
             for line in range(15):
                 writer.write(make_random_string())
                 writer.write('\n')
             writer.close()
-            encryptFile(source, encrypted, legacy_encryptionCipher, modern_encryptionCipher)
+            encryptFile(source, encrypted, configure_cipher(), key)
             self.assertFalse(cmp(source, encrypted))
-            decryptFile(encrypted, decrypted, legacy_decryptionCipher, modern_decryptionCipher)
+            decryptFile(encrypted, decrypted, key)
             self.assertTrue(cmp(source, decrypted))
             os.remove(source)
             os.remove(encrypted)
@@ -135,7 +128,7 @@ class test(unittest.TestCase):
             ),
             '-o',
             output_filename,
-            '-f',
+            '-l',
             '-p',
             'password'
         ])
@@ -280,22 +273,6 @@ class test(unittest.TestCase):
         reader.close()
         self.assertEqual(sourceHash, hasher.hexdigest())
         os.remove(source)
-
-    def test_chunk_encryption_decryption(self):
-        from agutil.security.src.files import _encrypt_chunk, _decrypt_chunk
-        for trial in range(5):
-            source = "".join(make_random_string() for _ in range(1, 200))
-            aes_key = rsa.randnum.read_random_bits(128)
-            aes_iv = rsa.randnum.read_random_bits(128)
-            encryptionCipher = AES.new(aes_key, mode=AES.MODE_EAX, nonce=aes_iv)
-            decryptionCipher = AES.new(aes_key, mode=AES.MODE_EAX, nonce=aes_iv)
-            decrypted = _decrypt_chunk(_encrypt_chunk(source, encryptionCipher), decryptionCipher).decode()
-            self.assertEqual(len(source), len(decrypted))
-            if len(source) <= 2048:
-                self.assertEqual(source, decrypted)
-            else:
-                self.assertEqual(hash(source), hash(decrypted))
-            decryptionCipher.verify(encryptionCipher.digest())
 
     def test_password_prompt(self):
         from io import StringIO

@@ -97,6 +97,20 @@ class test(unittest.TestCase):
             compare = decryptor.decrypt(data[64:]) + decryptor.finish()
             self.assertEqual(source, compare)
 
+    def test_bulk(self):
+        from agutil.security.src.cipher import configure_cipher, EncryptionCipher, DecryptionCipher
+        for trial in range(5):
+            source = os.urandom(1024 * random.randint(1,16))
+            key = os.urandom(32)
+            encryptor = EncryptionCipher(configure_cipher(
+                enable_streaming=False
+            ), key)
+            data = encryptor.encrypt(source) + encryptor.finish()
+            self.assertNotEqual(source, data)
+            decryptor = DecryptionCipher(data[:64], key)
+            compare = decryptor.decrypt(data[64:]) + decryptor.finish()
+            self.assertEqual(source, compare)
+
     def test_external_nonce(self):
         from agutil.security.src.cipher import configure_cipher, EncryptionCipher, DecryptionCipher
         for trial in range(5):

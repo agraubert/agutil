@@ -316,9 +316,7 @@ class AbstractCipher(object):
         )
 
     def finish(self):
-        if self.streaming_enabled:
-            return self._terminate()
-        return b''
+        return self._terminate()
 
 class EncryptionCipher(AbstractCipher):
     def __init__(self, header, key, nonce=None):
@@ -398,13 +396,24 @@ class EncryptionCipher(AbstractCipher):
         )
 
     def _terminate(self):
+        do_print("TERM")
         output = b''
+        if not self.streaming_enabled:
+            do_print("Cipher is not stream-enabled. Chunking data now")
+            if len(self.data_buffer) >= self.block_size - 1:
+                while len(self.data_buffer) >= self.block_size - 1:
+                    output += protocols.padstring(
+                        self.data_buffer[:self.block_size - 1]
+                    )
+                    self.data_buffer = self.data_buffer[self.block_size - 1:]
         if len(self.data_buffer):
-            output += self.cipher.encrypt(
-                protocols.padstring(self.data_buffer)
-            )
+            output += protocols.padstring(self.data_buffer)
+        if len(output):
+            do_print("Padded plaintext:", output)
+            output = self.cipher.encrypt(output)
         if self.header.use_modern_cipher and self.header.control_bitmask[4]:
             tag = self.cipher.digest()
+            do_print("Plaintext tag:", tag, len(tag))
             if self.header.control_bitmask[5]:
                 if self.secondary_cipher is None:
                     raise ValueError(
@@ -418,21 +427,17 @@ class EncryptionCipher(AbstractCipher):
         self.data_buffer += data
         output = b'' + self.header_buffer
         self.header_buffer = b''
-        if len(self.data_buffer) >= self.block_size - 1:
+        if not self.streaming_enabled:
+            do_print("Cipher is not stream-enabled. Buffering data")
+        elif len(self.data_buffer) >= self.block_size - 1:
             input_data = b''
             while len(self.data_buffer) >= self.block_size - 1:
                 input_data += protocols.padstring(
                     self.data_buffer[:self.block_size - 1]
                 )
                 self.data_buffer = self.data_buffer[self.block_size - 1:]
-            if not self.streaming_enabled:
-                self.data_buffer = input_data + self.data_buffer
-                output = self._terminate()
-            else:
-                output += self.cipher.encrypt(input_data)
-
+            output += self.cipher.encrypt(input_data)
         return output
-
 
 
 class DecryptionCipher(AbstractCipher):
@@ -616,22 +621,30 @@ class DecryptionCipher(AbstractCipher):
         data = self.stream.read() + data
         do_print("Data for decryption:", data)
         output = b''
-        for block in self._blk_read(data):
-            output += block
-        do_print("Blocks ready for output:", output)
-        if not self.streaming_enabled:
-            do_print("Cipher is not stream-enabled. Decrypting all data now")
-            self.data_buffer = output + self.data_buffer
-            output = self._terminate()
-        elif len(output) >= self.block_size:
-            do_print("Decrypting blocks")
-            output = self.cipher.decrypt(output)
+        if self.streaming_enabled:
+            for block in self._blk_read(data):
+                output += block
+            do_print("Blocks ready for output:", output)
+            if len(output) >= self.block_size:
+                do_print("Decrypting blocks")
+                output = self.cipher.decrypt(output)
+        else:
+            do_print("Cipher is not stream-enabled. Buffering data")
+            self.data_buffer += data
         return self._unpad_blocks(output)
 
     def _terminate(self):
         do_print("Terminating. Available data:", self.data_buffer)
-        do_print("Tag buffer state:", self.tag_buffer)
-        output = self.cipher.decrypt(self.data_buffer)
+        if self.streaming_enabled:
+            output = self.cipher.decrypt(self.data_buffer)
+        else:
+            do_print("Cipher is not stream-enabled. Chunking data now")
+            output = self.cipher.decrypt(
+                b''.join(block for block in self._blk_read(b''))
+                + self.data_buffer
+            )
+            do_print("Length of plaintext:", len(output))
+        do_print("Tag buffer state:", self.tag_buffer, len(self.tag_buffer))
         if self.header.use_modern_cipher and self.header.control_bitmask[4]:
             do_print("Extracting tag from buffer")
             if len(self.tag_buffer) != self.tag_size:
@@ -646,7 +659,9 @@ class DecryptionCipher(AbstractCipher):
                 self.tag_buffer = self.secondary_cipher.decrypt(
                     self.tag_buffer
                 )
+            do_print("Plaintext tag:", self.tag_buffer, len(self.tag_buffer))
             self.cipher.verify(self.tag_buffer)
+        do_print("Length of plaintext:", len(self._unpad_blocks(output)))
         return self._unpad_blocks(output)
 
     def _blk_read(self, data):
@@ -660,6 +675,8 @@ class DecryptionCipher(AbstractCipher):
         if self.tag_size > 0:
             self.tag_buffer = self.data_buffer[-1*self.tag_size:]
             self.data_buffer = self.data_buffer[:-1*self.tag_size]
+        else:
+            self.tag_buffer = b''
         do_print("Not enough data in buffer. Remaining buffer:", self.data_buffer)
 
     def _unpad_blocks(self, data):
@@ -735,17 +752,3 @@ def initialize_cipher(cipher_id, key, nonce, cipher_data, tag_length):
             nonce=nonce[:cipher_data[0]],
             mac_len=tag_length,
         )
-
-def run_test(size=16, key=None, nonce=None, **kwargs):
-    if key is None:
-        key = os.urandom(32)
-    encryptor = EncryptionCipher(
-        configure_cipher(**kwargs),
-        key,
-        nonce
-    )
-    src = os.urandom(size)
-    data = encryptor.encrypt(src) + encryptor.finish()
-    decryptor = DecryptionCipher(data, key, nonce)
-    compare = decryptor.decrypt(b'') + decryptor.finish()
-    return src, data, compare

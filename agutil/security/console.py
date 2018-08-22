@@ -6,6 +6,7 @@ import Cryptodome.Cipher.AES as AES
 from getpass import getpass
 from itertools import chain
 from contextlib import ExitStack
+from .src.cipher import EncryptionCipher, DecryptionCipher, configure_cipher
 
 try:
     from .src import files
@@ -76,12 +77,14 @@ def main(args_input=sys.argv[1:]):
         "3.3 compatable pbkdf2_hmac "
     )
     parser.add_argument(
-        '-f', '--force',
-        action='store_false',
-        help="Attempts to decrypt the file without verifying the password. "
-        "Files encrypted with agutil version 1.1.3 and earlier MUST "
-        "be decrypted with this option. Note: This disables the usage "
-        "of modern encryption features."
+        '-l', '--legacy',
+        action='store_true',
+        help="Enables compatability with agutil version 1.1.3 and earlier. "
+        "Encrypting in this mode will produce output which can be decrypted "
+        "by agutil 1.1.3 and earlier without additonal options and by agutil "
+        "3.1.2 and earlier with the '-f' option. "
+        "Decrypting in this mode is compatable only with files encrypted under"
+        " the conditions described above."
     )
     parser.add_argument(
         '-v', '--verbose',
@@ -161,19 +164,17 @@ def main(args_input=sys.argv[1:]):
                     files.encryptFile(
                         input_file.name,
                         output_file.name,
-                        legacy_cipher,
-                        modern_cipher if args.force else None,
-                        validate=args.force,
-                        _prechunk=True
+                        configure_cipher(
+                            enable_compatability=args.legacy
+                        ),
+                        key
                     )
                 else:
                     files.decryptFile(
                         input_file.name,
                         output_file.name,
-                        legacy_cipher,
-                        modern_cipher if args.force else None,
-                        validate=args.force,
-                        _prechunk=True
+                        key,
+                        compatability=args.legacy
                     )
             except KeyError:
                 sys.exit("Failed!  The provided password may be incorrect")
