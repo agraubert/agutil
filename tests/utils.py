@@ -24,16 +24,3 @@ def random_asciistring(size):
 
 def random_text(size):
     return os.urandom(size//2).hex()
-
-def safe_open(*args, **kwargs):
-    for attempt in range(6):
-        try:
-            return open(*args, **kwargs)
-        except PermissionError:
-            print("Waiting 10 seconds to open the file again")
-            time.sleep(10)
-
-def winclose():
-    if sys.platform == 'win32':
-        print("Waiting 30 seconds to open the file again")
-        time.sleep(30)

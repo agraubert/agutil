@@ -9,9 +9,6 @@ import tempfile
 from filecmp import cmp
 from .utils import TempDir
 
-def make_random_string(length=25, lower=0, upper=255):
-    return "".join(chr(random.randint(lower,upper)) for i in range(length))
-
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -44,7 +41,6 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
     def test_basic_logging(self):
         import agutil.src.logger
         time_mock = unittest.mock.Mock(side_effect = lambda text:text)
@@ -80,4 +76,5 @@ class test(unittest.TestCase):
                 'logger_compare.txt'
             )
         ))
+        log.close()
         os.remove(output_file)

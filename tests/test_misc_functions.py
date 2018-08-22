@@ -4,11 +4,8 @@ from py_compile import compile
 import sys
 import hashlib
 import random
-import tempfile
 import threading
-
-def make_random_string(length=25, lower=0, upper=255):
-    return "".join(chr(random.randint(lower,upper)) for i in range(length))
+from .utils import random_bytestring, random_text, TempDir
 
 class test(unittest.TestCase):
     @classmethod
@@ -33,7 +30,7 @@ class test(unittest.TestCase):
     def test_sequence_splitting(self):
         from agutil import split_iterable
         for trial in range(25):
-            sequence = make_random_string(random.randint(10,10000))
+            sequence = random_text(random.randint(10,10000))
             sequence_length = len(sequence)
             total = 0
             split = random.randint(5,sequence_length-1)
@@ -89,27 +86,23 @@ class test(unittest.TestCase):
 
     def test_hashfile(self):
         from agutil import hashfile
-        temp_dir = tempfile.TemporaryDirectory()
+        temp_dir = TempDir()
         #Test shake algorithms later
         for algo in hashlib.algorithms_available:
             for trial in range(2):
-                filename = os.path.join(
-                    temp_dir.name,
-                    '%s-trial-%d'%(algo, trial)
-                )
-                writer = open(filename, mode='w')
+                filename = temp_dir()
+                writer = open(filename, mode='wb')
                 hasher = hashlib.new(algo)
                 for line in range(32):
-                    content = make_random_string(length=1024)
+                    content = random_bytestring(1024)
                     writer.write(content)
-                    hasher.update(content.encode())
+                    hasher.update(content)
                 writer.close()
                 if algo.startswith('shake'):
                     length = int(2**random.randint(4,10))
                     self.assertEqual(hashfile(filename, algo, length), hasher.digest(length))
                 else:
                     self.assertEqual(hashfile(filename, algo), hasher.digest())
-        temp_dir.cleanup()
 
     def test_byte_size(self):
         from agutil import byteSize

@@ -8,12 +8,10 @@ import warnings
 import os
 import port_for as pf
 from socket import socket as _socket_
+from .utils import random_bytestring
 startup_lock = threading.Lock()
 
 TRAVIS = 'CI' in os.environ
-
-def make_random_string():
-    return "".join(chr(random.randint(0,255)) for i in range(25))
 
 def server_comms(ss, payload):
     global startup_lock
@@ -28,7 +26,7 @@ def server_comms(ss, payload):
     payload.output=[]
     for trial in range(5):
         payload.intake.append(sock.recv(True))
-        payload.output.append(make_random_string())
+        payload.output.append(random_bytestring(1024))
         sock.send(payload.output[-1])
     sock.close()
 
@@ -50,11 +48,12 @@ def client_comms(_sockClass, port, payload):
     payload.intake=[]
     payload.output=[]
     for trial in range(5):
-        payload.output.append(make_random_string())
+        payload.output.append(random_bytestring())
         sock.send(payload.output[-1])
         payload.intake.append(sock.recv(True))
     payload.sock = sock
 
+@unittest.skipIf(sys.platform.startswith('win'), 'Socket tests broken on windows')
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

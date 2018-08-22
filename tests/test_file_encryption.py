@@ -4,14 +4,13 @@ import os
 from py_compile import compile
 import sys
 import random
-import tempfile
 from filecmp import cmp
 import rsa.randnum
 from hashlib import md5
 import Cryptodome.Cipher.AES as AES
 import warnings
 from itertools import chain
-from .utils import TempDir, random_bytestring, random_text, winclose
+from .utils import TempDir, random_bytestring, random_text
 
 class test(unittest.TestCase):
     @classmethod
@@ -40,7 +39,6 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    # @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
     def test_encrypts_and_decrypts(self):
         from agutil.security import encryptFile, decryptFile
         for trial in range(5):
@@ -63,7 +61,6 @@ class test(unittest.TestCase):
             os.remove(encrypted)
             os.remove(decrypted)
 
-    # @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
     def test_commands(self):
         import agutil.security.console
         warnings.simplefilter('ignore', DeprecationWarning)

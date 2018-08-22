@@ -140,6 +140,7 @@ def client_comms_files(secureclass, port, payload):
         print("CERR", sock.sock.queue)
         raise
 
+@unittest.skipIf(sys.platform.startswith('win'), 'Socket tests broken on windows')
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

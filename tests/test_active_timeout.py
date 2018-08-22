@@ -28,9 +28,9 @@ class test(unittest.TestCase):
     def test_time(self):
         from agutil import ActiveTimeout
         with ActiveTimeout(5) as timeout:
-            self.assertLessEqual(timeout.socket_timeout, 5)
+            self.assertLessEqual(timeout.socket_timeout, 5.05)
             time.sleep(2)
-            self.assertLessEqual(timeout.socket_timeout, 3)
+            self.assertLessEqual(timeout.socket_timeout, 3.05)
             self.assertGreaterEqual(timeout.thread_timeout, timeout.socket_timeout)
 
     def test_timeout_formats(self):
@@ -42,6 +42,6 @@ class test(unittest.TestCase):
     def test_timeouts(self):
         from agutil import ActiveTimeout, TimeoutExceeded
         with ActiveTimeout(1) as timeout:
-            time.sleep(1)
+            time.sleep(1.05)
             with self.assertRaises(TimeoutExceeded):
                 timeout.update()

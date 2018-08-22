@@ -62,6 +62,7 @@ def client_comms(mplexclass, _sockClass, port, payload, CHANNELS):
         payload.output.append(raw_output[CHANNELS[trial]].pop(0))
     payload.sock = sock
 
+@unittest.skipIf(sys.platform.startswith('win'), 'Socket tests broken on windows')
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
