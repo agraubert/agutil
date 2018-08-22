@@ -119,6 +119,7 @@ due to the significance of the change, it was written as a new class.
 ### agutil.security.SecureSocket
 The following changes have been made to `agutil.security.SecureSocket`:
 * The constructor no longer takes an `agutil.io.Socket` as an argument, but instead takes an address and port, like `agutil.io.Socket`
+* `sendAES` now takes a _compute\_hash_ argument which, if true, sends a sha512 hash of the plaintext to ensure message integrity
 * This class now derives from `agutil.io.MPlexSocket` instead of `agutil.io.QueuedSocket`
 
 ##### API
@@ -133,6 +134,24 @@ The following changes have been made to `agutil.security.SecureSocket`:
   messages (must be None, or a non-negative integer). _logmethod_ specifies a
   logging object to use (it defaults to `agutil.DummyLog`), but may also be an
   `agutil.Logger` instance or a bound method returned by `agutil.Logger.bindToSender()`.
+
+* SecureSocket.sendAES(_msg_, _channel_='\_\_aes\_\_', _key_=False, _iv_=False)
+  Encrypts _msg_ using an AES cipher and sends to the remote socket over the
+  channel _channel_.  If _msg_ is a `BytesIO` object, bytes will be read from
+  the file and transmitted, instead of transmitting _msg_ itself.
+  If both _key_ and _iv_ are False, the cipher used for encryption is the same
+  as the `SecureSocket`'s base cipher (an ECB cipher if _password_ was set in
+  the constructor, or no cipher at all otherwise).  If _key_ is True or a bytes
+  object, the cipher used for encryption is an AES ECB cipher using _key_ as the
+  key (if _key_ is true, a random 32-byte key is generated).
+  If both _key_ and _iv_ are True or bytes objects, the cipher used for
+  encryption is an AES CBC cipher using _key_ as the key and _iv_ as the
+  initialization vector (if _key_ is true, a random 32-byte key is generated;
+  if _iv_ is true, a random 16-byte vector is generated).  If an AES cipher is
+  used that isn't the socket's base cipher, the _key_ is transmitted using the
+  `.sendRSA` method. If _compute_hash_ is true, a sha512 hash will be computed and
+  sent using the `.sendRSA` method afterwards. The receiving socket will verify
+  the hash, if present, and raise an exception if it does not match its own data
 
 ### agutil (Main Module)
 The following changes have been made to the main `agutil` module:
