@@ -7,14 +7,10 @@ import random
 import time
 import tempfile
 from filecmp import cmp
+from .utils import TempDir
 
 def make_random_string(length=25, lower=0, upper=255):
     return "".join(chr(random.randint(lower,upper)) for i in range(length))
-
-def tempname():
-    (handle, name) = tempfile.mkstemp()
-    os.close(handle)
-    return name
 
 class test(unittest.TestCase):
     @classmethod
@@ -37,6 +33,7 @@ class test(unittest.TestCase):
         )
         sys.path.append(os.path.dirname(os.path.dirname(cls.script_path)))
         random.seed()
+        cls.test_dir = TempDir()
 
     @classmethod
     def tearDownClass(cls):
@@ -52,7 +49,7 @@ class test(unittest.TestCase):
         import agutil.src.logger
         time_mock = unittest.mock.Mock(side_effect = lambda text:text)
         agutil.src.logger.time.strftime = time_mock
-        output_file = tempname()
+        output_file = self.test_dir()
         log = agutil.src.logger.Logger(output_file, stdout_level = agutil.src.logger.Logger.LOGLEVEL_DETAIL)
         log.log("Test message")
         log.log("More messages!", sender="me")

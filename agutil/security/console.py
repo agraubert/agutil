@@ -172,6 +172,7 @@ def main(args_input=sys.argv[1:]):
             if output_arg is None:
                 from shutil import copyfile
                 copyfile(output_file.name, input_file.name)
+                output_file.close()
                 os.remove(output_file.name)
 
             if args.verbose:

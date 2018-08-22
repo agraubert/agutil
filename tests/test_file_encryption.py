@@ -11,14 +11,7 @@ from hashlib import md5
 import Cryptodome.Cipher.AES as AES
 import warnings
 from itertools import chain
-
-def make_random_string():
-    return "".join(chr(random.randint(0,255)) for i in range(25))
-
-def tempname():
-    (handle, name) = tempfile.mkstemp()
-    os.close(handle)
-    return name
+from .utils import TempDir, random_bytestring, random_text, winclose
 
 class test(unittest.TestCase):
     @classmethod
@@ -41,6 +34,7 @@ class test(unittest.TestCase):
         )
         sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.script_path))))
         random.seed()
+        cls.test_dir = TempDir()
 
     def test_compilation(self):
         compiled_path = compile(self.script_path)
@@ -50,17 +44,16 @@ class test(unittest.TestCase):
     def test_encrypts_and_decrypts(self):
         from agutil.security import encryptFile, decryptFile
         for trial in range(5):
-            source = tempname()
-            encrypted = tempname()
-            decrypted = tempname()
+            source = self.test_dir()
+            encrypted = self.test_dir()
+            decrypted = self.test_dir()
             aes_key = rsa.randnum.read_random_bits(256)
             aes_iv = rsa.randnum.read_random_bits(128)
             encryptionCipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
             decryptionCipher = AES.new(aes_key, AES.MODE_CBC, iv=aes_iv)
-            writer = open(source, mode='w')
-            for line in range(15):
-                writer.write(make_random_string())
-                writer.write('\n')
+            writer = open(source, mode='wb')
+            for line in range(trial+1):
+                writer.write(random_bytestring(1024))
             writer.close()
             encryptFile(source, encrypted, encryptionCipher)
             self.assertFalse(cmp(source, encrypted))
@@ -75,14 +68,13 @@ class test(unittest.TestCase):
         import agutil.security.console
         warnings.simplefilter('ignore', DeprecationWarning)
         for trial in range(5):
-            source = tempname()
-            encrypted = tempname()
-            decrypted = tempname()
-            password = make_random_string()
-            writer = open(source, mode='w')
-            for line in range(15):
-                writer.write(make_random_string())
-                writer.write('\n')
+            source = self.test_dir()
+            encrypted = self.test_dir()
+            decrypted = self.test_dir()
+            password = random_text(256)
+            writer = open(source, mode='wb')
+            for line in range(trial+1):
+                writer.write(random_bytestring(1024))
             writer.close()
             agutil.security.console.main([
                 'encrypt',
@@ -109,7 +101,7 @@ class test(unittest.TestCase):
                     '-o',
                     decrypted,
                     '-p',
-                    "\"%s\""%make_random_string()
+                    "\"%s\""%random_text(256)
                 ])
             os.remove(source)
             os.remove(encrypted)
@@ -121,7 +113,7 @@ class test(unittest.TestCase):
         #to ensure backwards compatibility
         #There must always be a way to decrypt the file, even as the api changes
         import agutil.security.console
-        output_filename = tempname()
+        output_filename = self.test_dir()
         agutil.security.console.main([
             'decrypt',
             os.path.join(
@@ -147,7 +139,7 @@ class test(unittest.TestCase):
     def test_platform_33_to_newer(self):
         #Test if a file encrypted on 3.3 can be decrypted on newer python versions using the --py33 flag
         import agutil.security.console
-        output_filename = tempname()
+        output_filename = self.test_dir()
         agutil.security.console.main([
             'decrypt',
             os.path.join(
@@ -173,7 +165,7 @@ class test(unittest.TestCase):
     def test_platform_35_to_33(self):
         #Test if a file encrypted on 3.5 with the --py33 flag can be decrypted on python 3.3
         import agutil.security.console
-        output_filename = tempname()
+        output_filename = self.test_dir()
         agutil.security.console.main([
             'decrypt',
             os.path.join(
@@ -196,14 +188,14 @@ class test(unittest.TestCase):
 
     def test_in_place(self):
         import agutil.security.console
-        source = tempname()
-        password = make_random_string()
-        writer = open(source, mode='w')
+        source = self.test_dir()
+        password = random_text(256)
+        writer = open(source, mode='wb')
         hasher = md5()
         for line in range(15):
-            line = make_random_string() + '\n'
+            line = random_bytestring(1024)
             writer.write(line)
-            hasher.update(line.encode())
+            hasher.update(line)
         writer.close()
         sourceHash = hasher.hexdigest()
         agutil.security.console.main([
@@ -231,12 +223,12 @@ class test(unittest.TestCase):
     def test_chunk_encryption_decryption(self):
         from agutil.security.src.files import _encrypt_chunk, _decrypt_chunk
         for trial in range(5):
-            source = "".join(make_random_string() for _ in range(1, 200))
+            source = random_bytestring(256*(trial+1))
             aes_key = rsa.randnum.read_random_bits(256)
             aes_iv = rsa.randnum.read_random_bits(128)
             encryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
             decryptionCipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
-            decrypted = _decrypt_chunk(_encrypt_chunk(source, encryptionCipher), decryptionCipher).decode()
+            decrypted = _decrypt_chunk(_encrypt_chunk(source, encryptionCipher), decryptionCipher)
             self.assertEqual(len(source), len(decrypted))
             if len(source) <= 2048:
                 self.assertEqual(source, decrypted)
@@ -246,16 +238,15 @@ class test(unittest.TestCase):
     def test_password_prompt(self):
         from io import StringIO
         import agutil.security.console
-        password = make_random_string()
+        password = random_text(256)
         mock = unittest.mock.create_autospec(agutil.security.console.getpass, return_value=password)
         agutil.security.console.getpass = mock
-        source = tempname()
-        encrypted = tempname()
-        decrypted = tempname()
-        writer = open(source, mode='w')
+        source = self.test_dir()
+        encrypted = self.test_dir()
+        decrypted = self.test_dir()
+        writer = open(source, mode='wb')
         for line in range(15):
-            writer.write(make_random_string())
-            writer.write('\n')
+            writer.write(random_bytestring(1024))
         writer.close()
         agutil.security.console.main([
             'encrypt',
@@ -279,16 +270,15 @@ class test(unittest.TestCase):
 
     def test_multi(self):
         import agutil.security.console
-        encrypted = [tempname() for i in range(5)]
-        decrypted = [tempname() for i in range(5)]
-        password = make_random_string()
+        encrypted = [self.test_dir() for i in range(5)]
+        decrypted = [self.test_dir() for i in range(5)]
+        password = random_text(256)
         source = []
         for i in range(5):
-            source.append(tempname())
-            writer = open(source[-1], mode='w')
+            source.append(self.test_dir())
+            writer = open(source[-1], mode='wb')
             for line in range(15):
-                writer.write(make_random_string())
-                writer.write('\n')
+                writer.write(random_bytestring(1024))
             writer.close()
         agutil.security.console.main([
             'encrypt',
@@ -318,17 +308,17 @@ class test(unittest.TestCase):
 
     def test_multi_in_place(self):
         import agutil.security.console
-        password = make_random_string()
+        password = random_text(256)
         source = []
         hashes = []
         for i in range(5):
-            source.append(tempname())
+            source.append(self.test_dir())
             hasher = md5()
-            writer = open(source[-1], mode='w')
+            writer = open(source[-1], mode='wb')
             for line in range(15):
-                line = make_random_string()+'\n'
+                line = random_bytestring(1024)
                 writer.write(line)
-                hasher.update(line.encode())
+                hasher.update(line)
             writer.close()
             hashes.append(hasher.digest())
         agutil.security.console.main([

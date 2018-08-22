@@ -10,8 +10,11 @@ import os
 import time
 import io
 import port_for as pf
+from .utils import TempDir
 
 TRAVIS = 'CI' in os.environ
+
+tempname = None #Bad practice...
 
 def make_random_string():
     return "".join(chr(random.randint(0,255)) for i in range(25))
@@ -22,11 +25,6 @@ def make_random_file(filename):
     writer.write(contents)
     writer.close()
     return contents
-
-def tempname():
-    (handle, name) = tempfile.mkstemp()
-    os.close(handle)
-    return name
 
 def server_comms(secureClass, port, payload):
     ss = secureClass(port, password='password', rsabits=1024)
@@ -145,6 +143,7 @@ def client_comms_files(secureclass, port, payload):
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        global tempname
         cls.connection_script_path = os.path.join(
             os.path.dirname(
                 os.path.dirname(
@@ -169,6 +168,8 @@ class test(unittest.TestCase):
         )
         sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(cls.connection_script_path))))
         random.seed()
+        cls.test_dir = TempDir()
+        tempname = cls.test_dir
 
     def test_compilation(self):
         compiled_path = compile(self.connection_script_path)
