@@ -164,10 +164,8 @@ def main(args_input=sys.argv[1:]):
                     files.encryptFile(
                         input_file.name,
                         output_file.name,
-                        configure_cipher(
-                            enable_compatability=args.legacy
-                        ),
-                        key
+                        key,
+                        enable_compatability=args.legacy
                     )
                 else:
                     files.decryptFile(

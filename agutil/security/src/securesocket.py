@@ -324,26 +324,22 @@ class SecureSocket(io.MPlexSocket):
             cipher = self.baseCipher
         # if key is true or a bytestring and iv is false, use AES ECB
         elif not iv:
-            mode = 'ADVANCED'
+            mode = 'ADV'
             cipher = Cipher.EncryptionCipher(
-                Cipher.configure_cipher(
-                    secondary_cipher_type=AES.MODE_ECB,
-                    use_legacy_ciphers=True,
-                    legacy_store_nonce=False,
-                    legacy_randomized_nonce=False
-                ),
-                key
-            )
-        # if both key and iv are either true or bytestrings, use AES CBC
-        else:
-            mode = 'ADVANCED'
-            cipher = Cipher.EncryptionCipher(
-                Cipher.configure_cipher(
-                    cipher_type=AES.MODE_EAX,
-                    store_nonce=True
-                ),
                 key,
-                iv
+                secondary_cipher_type=AES.MODE_ECB,
+                use_legacy_ciphers=True,
+                legacy_store_nonce=False,
+                legacy_randomized_nonce=False
+            )
+        # if both key and iv are either true or bytestrings, use AES EAX
+        else:
+            mode = 'ADV'
+            cipher = Cipher.EncryptionCipher(
+                key,
+                iv,
+                cipher_type=AES.MODE_EAX,
+                store_nonce=True
             )
         self._ss_log(
             "Informing the remote socket to use AES encryption mode: "+mode,
@@ -417,6 +413,7 @@ class SecureSocket(io.MPlexSocket):
                 _logInit=_logInit
             )).decode()
             self._ss_log("AES encryption using mode: "+mode, "DETAIL")
+            cipher = None
             if mode == 'BASE':
                 cipher = self.baseCipher
             elif mode == 'ECB':
@@ -433,7 +430,7 @@ class SecureSocket(io.MPlexSocket):
                     iv=rsa.randnum.read_random_bits(128)
                 )
                 cipher.decrypt(self._recvq(channel, timeout=timeout))
-            elif mode == 'ADVANCED':
+            elif mode == 'ADV':
                 self._ss_log("Receiving cipher key", "DETAIL")
                 key = self.recvRSA(channel, timeout=timeout)
                 cipher = None
@@ -450,21 +447,19 @@ class SecureSocket(io.MPlexSocket):
             msg = b""
             while command == b'+':
                 self._ss_log("Receiving chunk", "DETAIL")
-                if cipher is None:
+                intake = self._recvq(
+                    channel,
+                    timeout=timeout
+                )
+                if mode == 'ADV' and cipher is None:
                     cipher = Cipher.DecryptionCipher(
-                        self._recvq(
-                            channel,
-                            timeout=timeout
-                        ),
+                        intake,
                         key=key
                     )
-                    intake = b''
+                    intake = cipher.decrypt(b'')
                 else:
-                    intake = cipher.decrypt(self._recvq(
-                        channel,
-                        timeout=timeout
-                    ))
-                    if mode != 'ADVANCED':
+                    intake = cipher.decrypt(intake)
+                    if mode != 'ADV':
                         intake = protocols.unpadstring(intake)
                 if writer is not None:
                     writer.write(intake)
@@ -475,10 +470,13 @@ class SecureSocket(io.MPlexSocket):
                     timeout=timeout
                 ))
             self._ss_log("Payload received", "DEBUG")
-            if mode == 'ADVANCED':
+            if mode == 'ADV':
                 self._ss_log("Waiting for digest digest", "DETAIL")
+                digest = self._recvq(channel, timeout=timeout)
                 if writer is not None:
-                    writer.write(cipher.finish())
+                    writer.write(cipher.decrypt(digest) + cipher.finish())
+                else:
+                    msg += cipher.decrypt(digest) + cipher.finish()
                 self._ss_log("Message digest successful", "DETAIL")
             self._desync_channel(channel)
             if writer is not None:

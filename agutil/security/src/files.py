@@ -7,14 +7,12 @@ import Cryptodome.Cipher.AES as AES
 from .cipher import EncryptionCipher, DecryptionCipher, CipherHeader
 
 
-def encryptFileObj(reader, writer, config, key, nonce=None):
-    if not isinstance(config, CipherHeader):
-        raise TypeError("Cipher must be an agutil.security.CipherHeader")
+def encryptFileObj(reader, writer, key, nonce=None, **kwargs):
     if not isinstance(key, bytes):
         raise TypeError("key must be a bytes object")
     if not (isinstance(nonce, bytes) or nonce is None):
         raise TypeError("nonce must be a bytes object or None")
-    cipher = EncryptionCipher(config, key, nonce)
+    cipher = EncryptionCipher(key, nonce, **kwargs)
     intake = reader.read(4096)
     while len(intake):
         writer.write(cipher.encrypt(intake))
@@ -25,10 +23,11 @@ def encryptFileObj(reader, writer, config, key, nonce=None):
     return cipher.nonce
 
 
-def encryptFile(input_filename, output_filename, config, key, nonce=None):
+def encryptFile(input_filename, output_filename, key, nonce=None, **kwargs):
     with open(input_filename, mode='rb') as reader:
         with open(output_filename, mode='wb') as writer:
-            return encryptFileObj(reader, writer, config, key, nonce)
+            return encryptFileObj(reader, writer, key, nonce, **kwargs)
+
 
 def decryptFileObj(
     reader,
@@ -41,7 +40,7 @@ def decryptFileObj(
         raise TypeError("key must be a bytes object")
     if not (isinstance(nonce, bytes) or nonce is None):
         raise TypeError("nonce must be a bytes object or None")
-    intake = reader.read(64) # read header data
+    intake = reader.read(64)  # read header data
     cipher = DecryptionCipher(intake, key, nonce, compatability)
     intake = reader.read(4096)
     while len(intake):

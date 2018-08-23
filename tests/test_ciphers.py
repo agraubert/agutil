@@ -74,23 +74,27 @@ class test(unittest.TestCase):
         for trial in range(5):
             source = os.urandom(1024 * random.randint(1,16))
             key = os.urandom(32)
-            encryptor = EncryptionCipher(configure_cipher(), key)
+            encryptor = EncryptionCipher(key)
             data = encryptor.encrypt(source) + encryptor.finish()
             self.assertNotEqual(source, data)
             decryptor = DecryptionCipher(data[:64], key)
             compare = decryptor.decrypt(data[64:]) + decryptor.finish()
             self.assertEqual(source, compare)
-            encryptor = EncryptionCipher(configure_cipher(
+            encryptor = EncryptionCipher(
+                key,
                 use_legacy_ciphers=True
-            ), key)
+            )
+            self.assertEqual(encryptor.header_buffer[:16], encryptor.header.data)
             data = encryptor.encrypt(source) + encryptor.finish()
             self.assertNotEqual(source, data)
             decryptor = DecryptionCipher(data[:64], key)
             compare = decryptor.decrypt(data[64:]) + decryptor.finish()
             self.assertEqual(source, compare)
-            encryptor = EncryptionCipher(configure_cipher(
+            encryptor = EncryptionCipher(
+                key,
                 enable_compatability=True
-            ), key)
+            )
+            self.assertNotEqual(encryptor.header_buffer[:16], encryptor.header.data)
             data = encryptor.encrypt(source) + encryptor.finish()
             self.assertNotEqual(source, data)
             decryptor = DecryptionCipher(data[:64], key)
@@ -102,13 +106,30 @@ class test(unittest.TestCase):
         for trial in range(5):
             source = os.urandom(1024 * random.randint(1,16))
             key = os.urandom(32)
-            encryptor = EncryptionCipher(configure_cipher(
+            encryptor = EncryptionCipher(
+                key,
                 enable_streaming=False
-            ), key)
-            data = encryptor.encrypt(source) + encryptor.finish()
+            )
+            header_len = len(encryptor.header_buffer)
+            data = encryptor.encrypt(source)
+            self.assertEqual(len(data), header_len)
+            data += encryptor.finish()
             self.assertNotEqual(source, data)
             decryptor = DecryptionCipher(data[:64], key)
             compare = decryptor.decrypt(data[64:]) + decryptor.finish()
+            self.assertEqual(source, compare)
+
+    def test_inline(self):
+        from agutil.security.src.cipher import configure_cipher, EncryptionCipher, DecryptionCipher
+        for trial in range(5):
+            source = os.urandom(1024 * random.randint(1,16))
+            key = os.urandom(32)
+            encryptor = EncryptionCipher(key)
+            decryptor = DecryptionCipher(
+                encryptor.encrypt(source) + encryptor.finish(),
+                key
+            )
+            compare = decryptor.decrypt() + decryptor.finish()
             self.assertEqual(source, compare)
 
     def test_external_nonce(self):
@@ -117,9 +138,12 @@ class test(unittest.TestCase):
             source = os.urandom(1024 * random.randint(1,16))
             key = os.urandom(32)
             nonce = os.urandom(16)
-            encryptor = EncryptionCipher(configure_cipher(
+            encryptor = EncryptionCipher(
+                key,
+                nonce,
                 store_nonce=False
-            ), key, nonce)
+            )
+            self.assertNotIn(nonce, encryptor.header_buffer)
             data = encryptor.encrypt(source) + encryptor.finish()
             self.assertNotEqual(source, data)
             decryptor = DecryptionCipher(data[:64], key, encryptor.nonce)
@@ -132,19 +156,25 @@ class test(unittest.TestCase):
             source = os.urandom(1024 * random.randint(1,16))
             key = os.urandom(32)
             nonce = os.urandom(16)
-            encryptor = EncryptionCipher(configure_cipher(
+            encryptor = EncryptionCipher(
+                key,
+                nonce,
                 encrypted_nonce=True
-            ), key, nonce)
+            )
+            self.assertNotEqual(nonce, encryptor.header_buffer[-16:])
             data = encryptor.encrypt(source) + encryptor.finish()
             self.assertNotEqual(source, data)
             decryptor = DecryptionCipher(data[:64], key)
             compare = decryptor.decrypt(data[64:]) + decryptor.finish()
             self.assertEqual(source, compare)
-            encryptor = EncryptionCipher(configure_cipher(
+            encryptor = EncryptionCipher(
+                key,
+                nonce,
                 encrypted_nonce=True,
                 legacy_randomized_nonce=True,
                 legacy_store_nonce=False
-            ), key, nonce)
+            )
+            self.assertNotEqual(nonce, encryptor.header_buffer[-16:])
             data = encryptor.encrypt(source) + encryptor.finish()
             self.assertNotEqual(source, data)
             decryptor = DecryptionCipher(data[:64], key)

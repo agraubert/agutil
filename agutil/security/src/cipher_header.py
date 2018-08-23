@@ -1,32 +1,9 @@
 from ... import search_range, bytesToInt, intToBytes
 
-# File format:
-# Legacy:
-# [16: encrypted(random)]
-# [16: encrypted(0x00)]
-# Modern (superformat):
-# [16: format header]
-# []
-
-# header format (16):
-# 0x00, [legacy control bitmask], [modern control bitmask],
-# [exdata blocksize], [modern cipher ID], [secondary cipher ID],
-# [6:cipher specific data], [2:reserved], \xae, [header hamming weight]
-
-# legacy control bitmask format:
-# 0, [should use legacy cipher], [should use randomized nonce],
-# [should read nonce block as nonce], [legacy compatability: use header for bypass],
-# [should read exdata as validation], [should use legacy cipher] *2
-
-# modern control bitmask format:
-# 0, [should use modern cipher], [should read nonce block],
-# [nonce block is legacy encrypted], [should read tag block],
-# [tag block is legacy encrypted], [cipher is stream_enabled?],
-# [should use modern cipher]
-
 
 class CipherHeader(object):
     _data = b'\x00'*14 + b'\xae'
+
     def __init__(self, header=None):
         if header is not None:
             self._data = header
@@ -40,14 +17,14 @@ class CipherHeader(object):
     def valid(self):
         return (
             len(self._data) == 15
-            and self._data[0] == 0 # constant
-            and self._data[12] == 0 # reserved block
-            and self._data[13] == 0 # reserved block
-            and self._data[14] == 174 # constant
-            and not self.legacy_bitmask[0] # constant
-            and not self.control_bitmask[0] # constant
-            and self.legacy_bitmask[1] == self.legacy_bitmask[7] # match
-            and self.control_bitmask[1] == self.control_bitmask[7] # match
+            and self._data[0] == 0  # constant
+            and self._data[12] == 0  # reserved block
+            and self._data[13] == 0  # reserved block
+            and self._data[14] == 174  # constant
+            and not self.legacy_bitmask[0]  # constant
+            and not self.control_bitmask[0]  # constant
+            and self.legacy_bitmask[1] == self.legacy_bitmask[7]  # match
+            and self.control_bitmask[1] == self.control_bitmask[7]  # match
         )
 
     @property
@@ -112,32 +89,34 @@ class CipherHeader(object):
     def use_modern_cipher(self):
         return self.control_bitmask[1]
 
+
 class Bitmask(object):
     def __init__(self, n=0, values=None):
-        self.mask = search_range(0,8, False)
+        self.mask = search_range(0, 8, False)
         if n != 0:
             self.mask.data = n
-        if values is not None and not len(values)%8:
+        if values is not None and not len(values) % 8:
             for i, v in enumerate(values):
                 if v:
-                    self.mask.add_range(i,i+1)
+                    self.mask.add_range(i, i+1)
                 else:
-                    self.mask.remove_range(i,i+1)
+                    self.mask.remove_range(i, i+1)
 
     def __getitem__(self, i):
         return self.mask.check(i)
 
     def __setitem__(self, i, v):
         if v:
-            self.mask.add_range(i,i+1)
+            self.mask.add_range(i, i+1)
         else:
-            self.mask.remove_range(i,i+1)
+            self.mask.remove_range(i, i+1)
 
     def set_range(self, start, stop, value=True):
         if value:
             self.mask.add_range(start, stop)
         else:
             self.mask.remove_range(start, stop)
+
 
 def hamming(data):
     return sum(data) % 256

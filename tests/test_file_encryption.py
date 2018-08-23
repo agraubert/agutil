@@ -49,7 +49,7 @@ class test(unittest.TestCase):
 
     # @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
     def test_encrypts_and_decrypts(self):
-        from agutil.security import encryptFile, decryptFile, configure_cipher
+        from agutil.security import encryptFile, decryptFile
         for trial in range(5):
             source = tempname()
             encrypted = tempname()
@@ -60,7 +60,7 @@ class test(unittest.TestCase):
                 writer.write(make_random_string())
                 writer.write('\n')
             writer.close()
-            encryptFile(source, encrypted, configure_cipher(), key)
+            encryptFile(source, encrypted, key)
             self.assertFalse(cmp(source, encrypted))
             decryptFile(encrypted, decrypted, key)
             self.assertTrue(cmp(source, decrypted))

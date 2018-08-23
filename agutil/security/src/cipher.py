@@ -7,53 +7,9 @@ import os
 import Cryptodome.Cipher.AES as AES
 from .cipher_header import CipherHeader, Bitmask
 from ... import bytesToInt, intToBytes
-
-if True:
-    def do_print(*args, **kwargs):
-        pass
-else:
-    do_print = print
-# File format:
-# Legacy:
-# [16: encrypted(random)]
-# [16: encrypted(0x00)]
-# Modern (superformat):
-# [16: format header]
-# [toggle:16: nonce block] <- read unless modern and disabled nonce block
-# [variable: exdata block] <- read under conditions where legacy cipher is used to parse nonce
-# [body]
-# [variable: tag]
-
-# header format (16):
-# 0x00, [legacy control bitmask], [modern control bitmask],
-# [exdata blocksize], [modern cipher ID], [legacy cipher ID],
-# [6:cipher specific data], [2:reserved], \xae, [header hamming weight]
-
-# legacy control bitmask format:
-# 0, [should use legacy cipher], [should use randomized nonce],
-# [should read nonce block as nonce], [legacy compatability: use header for bypass],
-# [should read exdata as validation], [should use legacy cipher] *2
-
-# modern control bitmask format:
-# 0, [should use modern cipher], [should read nonce block],
-# [nonce block is legacy encrypted], [should read tag block],
-# [tag block is legacy encrypted], [cipher is stream enabled],
-# [should use modern cipher]
-
-# modern cipher_data:
-# [ex_cipher_bitmask], [tag block size], [data block size], [cipher data]*3
-# ex_cipher_bitmask:
-# [should use md5 on key], *
-
-# on init, use mode argument to determine task
-# decrypt init:
-# read header: if valid, parse as modern header
-# if invalid:
-# if legacy_force is false: decrypt header and first block.
-# expect block to be \x00*16
-# if legacy_force is true: decrypt body and make no assertions
-
 from functools import wraps
+
+
 def expect_stream(func):
     @wraps(func)
     def call(size, *args, **kwargs):
@@ -72,14 +28,17 @@ def cipher_type(name):
         'mode_'+name
     )
 
+
 def apply_user_options(defaults, opts):
     implications = {}
     if 'encrypted_nonce' in opts and opts['encrypted_nonce']:
         implications['legacy_store_nonce'] = True
         implications['legacy_randomized_nonce'] = False
         implications['legacy_validate_nonce'] = False
-    if ('cipher_type' in opts
-        and cipher_type(opts['cipher_type']) == AES.MODE_CCM):
+    if (
+        'cipher_type' in opts
+        and cipher_type(opts['cipher_type']) == AES.MODE_CCM
+    ):
         if 'ccm_message_length' in opts:
             implications['enable_streaming'] = True
         else:
@@ -97,6 +56,7 @@ def apply_user_options(defaults, opts):
     defaults.update(opts)
     return defaults
 
+
 def validate_config(opts):
     opts['cipher_type'] = cipher_type(opts['cipher_type'])
     opts['secondary_cipher_type'] = cipher_type(opts['secondary_cipher_type'])
@@ -110,8 +70,10 @@ def validate_config(opts):
         raise ValueError(
             "Cannot encrypt tag without encrypting nonce"
         )
-    if (opts['cipher_type'] == AES.MODE_CTR
-        or opts['secondary_cipher_type'] == AES.MODE_CTR):
+    if (
+        opts['cipher_type'] == AES.MODE_CTR
+        or opts['secondary_cipher_type'] == AES.MODE_CTR
+    ):
         length = opts['cipher_nonce_length']
         if length < 0 or length > 15:
             raise ValueError("CTR ciphers must have nonce in range [0, 15]")
@@ -154,6 +116,7 @@ def validate_config(opts):
             "legacy_randomized_nonce and legacy_store_nonce are mutually "
             "exclusive"
         )
+
 
 def configure_cipher(**kwargs):
     """
@@ -236,7 +199,6 @@ def configure_cipher(**kwargs):
         'legacy_validate_nonce': True
     }
     # add user settings and implications
-
     config = apply_user_options(config, kwargs)
     validate_config(config)
     header = CipherHeader()
@@ -293,19 +255,11 @@ def configure_cipher(**kwargs):
     header.cipher_data = cipher_data
     return header
 
-class CipherManager(object):
-    def __init__(self):
-        self.cache = set()
-    def validate_nonce(self, value):
-        if value in self.cache:
-            raise ValueError("This nonce has been previously used")
-        self.cache.add(value)
 
 class AbstractCipher(object):
     secondary_cipher = None
     block_size = 4096
     tag_size = 16
-    parent = None
     data_buffer = b''
 
     @property
@@ -318,31 +272,31 @@ class AbstractCipher(object):
     def finish(self):
         return self._terminate()
 
+
 class EncryptionCipher(AbstractCipher):
-    def __init__(self, header, key, nonce=None):
+    def __init__(self, key, nonce=None, header=None, **kwargs):
+        if header is None:
+            header = configure_cipher(**kwargs)
         if nonce is None:
             nonce = os.urandom(16)
-        do_print("Initializing new cipher")
         self.header = header
         self.header_buffer = self.header.data
+        # Initialize the cipher and buffer any initial data
+        # (header, nonce, validation/extra-data blocks)
         if not self.header.valid:
             raise ValueError("Header is not valid")
         if self.header.use_modern_cipher:
             self.tag_size = self.header.cipher_data[1]
             self.block_size = self.header.cipher_data[2] * 256
-            do_print("Config specifies modern cipher")
             if self.header.control_bitmask[3]:
-                do_print("Generating legacy cipher to produce nonce")
                 if self.header.legacy_bitmask[2]:
-                    do_print("Legacy cipher uses randomized nonce")
                     self.secondary_cipher = self._initialize_legacy_cipher(
                         key
                     )
                     self.header_buffer += self.secondary_cipher.encrypt(
-                        os.urandom(16) # bypass block
+                        os.urandom(16)  # bypass block
                     )
                 else:
-                    do_print("Legacy cipher uses given nonce")
                     self.secondary_cipher = self._initialize_legacy_cipher(
                         key,
                         nonce
@@ -351,7 +305,6 @@ class EncryptionCipher(AbstractCipher):
                     nonce = os.urandom(16)
                 self.header_buffer += self.secondary_cipher.encrypt(nonce)
             elif self.header.control_bitmask[2]:
-                do_print("Storing plaintext nonce")
                 self.header_buffer += nonce
             self.cipher = initialize_cipher(
                 self.header.cipher_id,
@@ -367,25 +320,20 @@ class EncryptionCipher(AbstractCipher):
         else:
             self.cipher = self._initialize_legacy_cipher(key, nonce)
             if self.header.legacy_bitmask[4]:
-                do_print("compatability mode. Clearing header buffer")
+                # If the cipher is in compatability (headerless) mode,
+                # clear out the header. We don't need to store it
                 self.header_buffer = b''
             if self.header.legacy_bitmask[2]:
-                do_print("Storing nonce bypass block")
                 self.header_buffer += self.cipher.encrypt(os.urandom(16))
             elif self.header.legacy_bitmask[3]:
-                do_print("Storing plaintext nonce")
                 self.header_buffer += nonce
             if self.header.legacy_bitmask[5]:
-                do_print("Storing validation block")
                 self.header_buffer += self.cipher.encrypt(b'\x00'*16)
         self.nonce = nonce
 
     def _initialize_legacy_cipher(self, key, nonce=None):
-        do_print("Initializing a legacy cipher")
         if self.header.secondary_id != AES.MODE_ECB:
-            do_print("Legacy - Nonce required by this cipher")
             if self.header.legacy_bitmask[2]:
-                do_print("Using randomized nonce")
                 nonce = os.urandom(16)
         return initialize_cipher(
             self.header.secondary_id,
@@ -396,10 +344,10 @@ class EncryptionCipher(AbstractCipher):
         )
 
     def _terminate(self):
-        do_print("TERM")
         output = b''
         if not self.streaming_enabled:
-            do_print("Cipher is not stream-enabled. Chunking data now")
+            # Cipher was not stream enabled, so do all the chunk preparation
+            # that streaming ciphers did earlier
             if len(self.data_buffer) >= self.block_size - 1:
                 while len(self.data_buffer) >= self.block_size - 1:
                     output += protocols.padstring(
@@ -407,13 +355,15 @@ class EncryptionCipher(AbstractCipher):
                     )
                     self.data_buffer = self.data_buffer[self.block_size - 1:]
         if len(self.data_buffer):
+            # Any leftover data in the buffer needs to be padded for encryption
             output += protocols.padstring(self.data_buffer)
         if len(output):
-            do_print("Padded plaintext:", output)
+            # If there is any unencrypted data, encrypt it now
+            # For non-streaming ciphers, this is the single encryption step
             output = self.cipher.encrypt(output)
         if self.header.use_modern_cipher and self.header.control_bitmask[4]:
+            # Generate a MAC tag, if we are configured to do so
             tag = self.cipher.digest()
-            do_print("Plaintext tag:", tag, len(tag))
             if self.header.control_bitmask[5]:
                 if self.secondary_cipher is None:
                     raise ValueError(
@@ -421,6 +371,7 @@ class EncryptionCipher(AbstractCipher):
                     )
                 tag = self.secondary_cipher.encrypt(tag)
             output += tag
+        # Now output any ciphertext and/or MAC tag data generated
         return output
 
     def encrypt(self, data):
@@ -428,9 +379,13 @@ class EncryptionCipher(AbstractCipher):
         output = b'' + self.header_buffer
         self.header_buffer = b''
         if not self.streaming_enabled:
-            do_print("Cipher is not stream-enabled. Buffering data")
+            # Cipher does not support streaming
+            # Buffer the data until we finish
+            pass
         elif len(self.data_buffer) >= self.block_size - 1:
             input_data = b''
+            # Encrypt as many complete chunks that we have data for
+            # Buffer leftover data for later
             while len(self.data_buffer) >= self.block_size - 1:
                 input_data += protocols.padstring(
                     self.data_buffer[:self.block_size - 1]
@@ -442,8 +397,8 @@ class EncryptionCipher(AbstractCipher):
 
 class DecryptionCipher(AbstractCipher):
     tag_buffer = b''
+
     def __init__(self, init_data, key, nonce=None, legacy_force=False):
-        do_print("Stream initialized with", len(init_data), 'bytes')
         self.stream = io.BytesIO(init_data)
         if len(init_data) < 16:
             raise ValueError(
@@ -452,63 +407,47 @@ class DecryptionCipher(AbstractCipher):
         self.stream.read = expect_stream(self.stream.read)
         header_data = self.stream.read(16)
         self._raw_header = header_data
-        do_print("Initializing Cipher in Decryption Mode")
         header = CipherHeader(header_data[:-1])
+        # Check the header. If it's valid, use it to configure the cipher
+        # If it's not, assume headerless format. The data we just read was
+        # probably the nonce block. In that case, generate a fake header to
+        # configure the cipher
         if header.valid:
             if header.weight == header_data[-1]:
-                do_print("Header valid. Continuing in modern mode")
                 self.header = header
             elif legacy_force:
-                do_print("Using legacy_force mode. Modern failed hamming weight")
                 self.header = CipherHeader()
                 control = Bitmask()
-                control[1] = True # Enable legacy cipher
-                control[2] = True # Pick random nonce
-                control[4] = True # Use raw_header instead of nonce block
-                control.set_range(6, 8) # Enable legacy cipher
+                control[1] = True  # Enable legacy cipher
+                control[2] = True  # Pick random nonce
+                control[4] = True  # Use raw_header instead of nonce block
+                control.set_range(6, 8)  # Enable legacy cipher
                 self.header.legacy_bitmask = control
                 self.header.secondary_id = AES.MODE_CBC
             else:
                 raise ValueError("This header is in an invalid state")
         elif legacy_force:
-            do_print("Using legacy_force mode. Modern failed header validity")
             self.header = CipherHeader()
             control = Bitmask()
-            control[1] = True # Enable legacy cipher
-            control[2] = True # Pick random nonce
-            control[4] = True # Use raw_header instead of nonce block
-            control.set_range(6, 8) # Enable legacy cipher
+            control[1] = True  # Enable legacy cipher
+            control[2] = True  # Pick random nonce
+            control[4] = True  # Use raw_header instead of nonce block
+            control.set_range(6, 8)  # Enable legacy cipher
             self.header.legacy_bitmask = control
             self.header.secondary_id = AES.MODE_CBC
         else:
-            do_print("Using Legacy mode. Modern failed header validity")
             self.header = CipherHeader()
             control = Bitmask()
-            control[1] = True # Enable legacy cipher
-            control[2] = True # Pick random nonce
-            control[4] = True # Use raw_header instead of nonce block
-            control[5] = True # Read exdata for validation
+            control[1] = True  # Enable legacy cipher
+            control[2] = True  # Pick random nonce
+            control[4] = True  # Use raw_header instead of nonce block
+            control[5] = True  # Read exdata for validation
             self.header.legacy_bitmask = control
-            self.header.exdata_size = 16 # validation block stored in exdata
+            self.header.exdata_size = 16  # validation block stored in exdata
             self.header.secondary_id = AES.MODE_CBC
         if self.header.use_modern_cipher:
-            do_print("Initializing modern cipher")
             if self.header.control_bitmask[2]:
-                do_print("Reading nonce from stream")
                 if self.header.control_bitmask[3]:
-                    do_print("Bitmask is encrypted. Assuming format from config:")
-                    if self.header.legacy_bitmask[2]:
-                        do_print("Legacy uses randomized nonce. Assumed settings 2")
-                        do_print("Nonce block contains bypass")
-                        do_print("Exdata contains encrypted nonce")
-                    elif self.header.legacy_bitmask[3]:
-                        do_print("Legacy uses stored nonce. Assumed settings 3")
-                        do_print("nonce block contains legacy nonce")
-                        do_print("Exdata contains encrypted nonce")
-                    else:
-                        do_print("Legacy uses given nonce or no nonce. Assumed settings -")
-                        do_print("Nonce block contains encrypted nonce")
-                        do_print("0 exdata")
                     self.secondary_cipher = self._initialize_legacy_cipher(
                         key,
                         nonce
@@ -520,16 +459,12 @@ class DecryptionCipher(AbstractCipher):
                         else self.stream.read(16)
                     )
                 else:
-                    do_print("Reading plaintext nonce")
                     nonce = self.stream.read(16)
             if nonce is None and self.header.cipher_id != AES.MODE_ECB:
                 raise ValueError(
                     "Header specified external nonce but a nonce was not "
                     "provided"
                 )
-            elif self.parent is not None and not self.header.legacy_bitmask[2]:
-                do_print("Validating nonce")
-                self.parent.validate_nonce(nonce)
             self.block_size = self.header.cipher_data[2] * 256
             self.cipher = initialize_cipher(
                 self.header.cipher_id,
@@ -545,7 +480,6 @@ class DecryptionCipher(AbstractCipher):
         else:
             self.cipher = self._initialize_legacy_cipher(key, nonce)
         # At this point, self.cipher is configured properly to read data
-        do_print("Cipher ready")
         self.tag_size = (
             self.header.cipher_data[1]
             if self.header.use_modern_cipher and self.header.control_bitmask[4]
@@ -554,26 +488,16 @@ class DecryptionCipher(AbstractCipher):
         self.stream.read = self.stream.read.__wrapped__
 
     def _initialize_legacy_cipher(self, key, nonce=None):
-        do_print("Initializing a legacy cipher")
         if self.header.secondary_id != AES.MODE_ECB:
-            do_print("Legacy - Nonce required by this cipher")
             if self.header.legacy_bitmask[2]:
-                do_print("Using randomized nonce")
                 nonce = os.urandom(16)
             elif self.header.legacy_bitmask[3]:
-                do_print("Reading nonce block as nonce")
                 nonce = self.stream.read(16)
             elif nonce is None:
                 raise ValueError(
                     "Header specified external nonce but a nonce was not "
                     "provided"
                 )
-        if (self.parent is not None
-            and not self.header.legacy_bitmask[2]
-            and not self.header.use_modern_cipher):
-            do_print("Parent available and nonce stored in plaintext. Validating nonce")
-            self.parent.validate_nonce(nonce)
-        do_print("Initializing cipher now")
         cipher = initialize_cipher(
             self.header.secondary_id,
             key,
@@ -581,17 +505,15 @@ class DecryptionCipher(AbstractCipher):
             self.header.cipher_data[3:],
             16
         )
-        if (self.header.secondary_id != AES.MODE_ECB
-            and self.header.legacy_bitmask[2]):
-            do_print("A randomized nonce was used")
+        if (
+            self.header.secondary_id != AES.MODE_ECB
+            and self.header.legacy_bitmask[2]
+        ):
             if self.header.legacy_bitmask[4]:
-                do_print("Compatability mode: Using header as bypass")
                 cipher.decrypt(self._raw_header)
             else:
-                do_print("Reading nonce block for bypass")
                 cipher.decrypt(self.stream.read(16))
         if self.header.legacy_bitmask[5]:
-            do_print("Reading exdata for validation")
             validation = cipher.decrypt(
                 self.stream.read(
                     self.header.exdata_size
@@ -601,52 +523,43 @@ class DecryptionCipher(AbstractCipher):
                 raise ValueError(
                     "Header validation block did not match expected value"
                 )
-        do_print("Legacy cipher initialized")
         return cipher
-
-    # def _block_read(self, block, block_size=None):
-    #     if block_size is None:
-    #         block_size = self.block_size
-    #     if self.header.use_modern_cipher and len(self.tag_buffer) < self.tag_size:
-    #         intake = self.stream.read(block_size + self.tag_size) + block
-    #         self.tag_buffer = intake[-1*self.tag_size:]
-    #         return intake[:-1*self.tag_size]
-    #     elif len(self.tag_buffer):
-    #         intake = self.tag_buffer + self.stream.read(block_size) + block
-    #         self.tag_buffer = intake[-1*self.tag_size:]
-    #         return intake[:-1*self.tag_size]
-    #     return self.stream.read(self.block_size) + block
 
     def decrypt(self, data=b''):
         data = self.stream.read() + data
-        do_print("Data for decryption:", data)
         output = b''
         if self.streaming_enabled:
+            # Chunk the buffered ciphertext into complete padded ciphertext
             for block in self._blk_read(data):
                 output += block
-            do_print("Blocks ready for output:", output)
             if len(output) >= self.block_size:
-                do_print("Decrypting blocks")
+                # Decrypt blocks which are ready
                 output = self.cipher.decrypt(output)
         else:
-            do_print("Cipher is not stream-enabled. Buffering data")
+            # This cipher does not support streaming, so buffer until we finish
             self.data_buffer += data
         return self._unpad_blocks(output)
 
     def _terminate(self):
-        do_print("Terminating. Available data:", self.data_buffer)
+        # Finish decryption
         if self.streaming_enabled:
-            output = self.cipher.decrypt(self.data_buffer)
+            # If we have been streaming data, decrypt any remaining data
+            # in the buffer
+            output = (
+                self.cipher.decrypt(b'')
+                + self.cipher.decrypt(self.data_buffer)
+            )
         else:
-            do_print("Cipher is not stream-enabled. Chunking data now")
+            # If the cipher has not been streaming, then all the ciphertext is
+            # currently buffered. Decrypt now
             output = self.cipher.decrypt(
-                b''.join(block for block in self._blk_read(b''))
+                b''.join(block for block in self._blk_read(self.stream.read()))
                 + self.data_buffer
             )
-            do_print("Length of plaintext:", len(output))
-        do_print("Tag buffer state:", self.tag_buffer, len(self.tag_buffer))
+        # At this point, all ciphertext has been decrypted and (if enabled)
+        # the MAC tag remains in the tag buffer
         if self.header.use_modern_cipher and self.header.control_bitmask[4]:
-            do_print("Extracting tag from buffer")
+            # Use the buffered tag data as the MAC tag
             if len(self.tag_buffer) != self.tag_size:
                 raise ValueError(
                     "No data left in stream"
@@ -659,17 +572,16 @@ class DecryptionCipher(AbstractCipher):
                 self.tag_buffer = self.secondary_cipher.decrypt(
                     self.tag_buffer
                 )
-            do_print("Plaintext tag:", self.tag_buffer, len(self.tag_buffer))
             self.cipher.verify(self.tag_buffer)
-        do_print("Length of plaintext:", len(self._unpad_blocks(output)))
         return self._unpad_blocks(output)
 
     def _blk_read(self, data):
-        do_print("BLK READ:", self.tag_buffer, self.tag_size)
+        # Read blocks of data and yield chunks, while making sure to store
+        # enough data to use as a MAC tag
         self.data_buffer += self.tag_buffer + data
         while len(self.data_buffer) >= self.block_size + self.tag_size:
             self.tag_buffer = self.data_buffer[self.block_size:]
-            do_print("Yielding block:", self.data_buffer[:self.block_size])
+            # Yield one full chunk of data
             yield self.data_buffer[:self.block_size]
             self.data_buffer = self.data_buffer[self.block_size:]
         if self.tag_size > 0:
@@ -677,10 +589,10 @@ class DecryptionCipher(AbstractCipher):
             self.data_buffer = self.data_buffer[:-1*self.tag_size]
         else:
             self.tag_buffer = b''
-        do_print("Not enough data in buffer. Remaining buffer:", self.data_buffer)
+        # No more complete data chunks. Store remaining data in buffer
 
     def _unpad_blocks(self, data):
-        do_print("Unpadding plaintext:", data)
+        # Unpad full chunks of data back into plaintext
         output = b''
         while len(data) >= self.block_size:
             output += protocols.unpadstring(data[:self.block_size])
@@ -690,7 +602,6 @@ class DecryptionCipher(AbstractCipher):
         return output
 
 
-
 _IV_CIPHERS = {AES.MODE_CBC, AES.MODE_CFB, AES.MODE_OFB, AES.MODE_OPENPGP}
 _NONCE_CIPHERS = {AES.MODE_EAX, AES.MODE_GCM}
 _LEGACY_CIPHERS = {
@@ -698,6 +609,7 @@ _LEGACY_CIPHERS = {
     AES.MODE_OPENPGP
 }
 _SHORT_KEY_CIPHERS = {AES.MODE_EAX}
+
 
 def initialize_cipher(cipher_id, key, nonce, cipher_data, tag_length):
     if cipher_id == AES.MODE_ECB:
