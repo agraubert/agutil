@@ -21,6 +21,7 @@ DummyLog.bindToSender = _bindToSender
 DummyLog.name = ""
 DummyLog.close = _close
 
+
 class Logger(object):
     LOGLEVEL_NONE = logging.CRITICAL
     LOGLEVEL_ERROR = logging.ERROR
@@ -28,6 +29,7 @@ class Logger(object):
     LOGLEVEL_INFO = logging.INFO
     LOGLEVEL_DEBUG = logging.DEBUG
     LOGLEVEL_DETAIL = 5
+
     def __init__(
         self,
         filename=None,
@@ -139,7 +141,10 @@ class Logger(object):
 
     def bindToSender(self, sender, can_close=True):
         output = functools.partial(self.log, sender=sender)
-        output.bindToSender = functools.partial(self.bindToSender, can_close=False)
+        output.bindToSender = functools.partial(
+            self.bindToSender,
+            can_close=False
+        )
         output.name = sender
         output.close = self.close if can_close else lambda: None
         return output
@@ -182,7 +187,6 @@ class Logger(object):
                 )
             else:
                 del self.mutes[mutee]
-
 
     def close(self):
         self.log("Logger shutting down", 'LOGGER')
