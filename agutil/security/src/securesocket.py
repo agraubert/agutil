@@ -4,7 +4,7 @@ import rsa
 import os
 import Cryptodome.Cipher.AES as AES
 from io import BytesIO, BufferedReader, BufferedWriter
-from . import protocols, files
+from . import protocols, cipher as Cipher
 from threading import Lock, Condition
 import random
 
@@ -324,12 +324,27 @@ class SecureSocket(io.MPlexSocket):
             cipher = self.baseCipher
         # if key is true or a bytestring and iv is false, use AES ECB
         elif not iv:
-            mode = 'ECB'
-            cipher = AES.new(key, AES.MODE_ECB)
+            mode = 'ADVANCED'
+            cipher = Cipher.EncryptionCipher(
+                Cipher.configure_cipher(
+                    secondary_cipher_type=AES.MODE_ECB,
+                    use_legacy_ciphers=True,
+                    legacy_store_nonce=False,
+                    legacy_randomized_nonce=False
+                ),
+                key
+            )
         # if both key and iv are either true or bytestrings, use AES CBC
         else:
-            mode = 'EAX'
-            cipher = AES.new(hashlib.md5(key).digest(), AES.MODE_EAX, nonce=iv)
+            mode = 'ADVANCED'
+            cipher = Cipher.EncryptionCipher(
+                Cipher.configure_cipher(
+                    cipher_type=AES.MODE_EAX,
+                    store_nonce=True
+                ),
+                key,
+                iv
+            )
         self._ss_log(
             "Informing the remote socket to use AES encryption mode: "+mode,
             "DETAIL"
@@ -342,23 +357,16 @@ class SecureSocket(io.MPlexSocket):
         self._sendq(self._baseEncrypt(mode), channel)
         if key:
             self._ss_log("Sending cipher key", "DETAIL")
-            if iv:
-                self.sendRSA(key+iv, channel, 'MD5')
-            else:
-                self.sendRSA(key, channel, 'MD5')
-        elif iv:
-            # self._sendq(self._baseEncrypt('+'))
-            self._sendq(
-                cipher.encrypt(rsa.randnum.read_random_bits(128)),
-                channel
-            )
+            self.sendRSA(key, channel, 'MD5')
         if isinstance(msg, (BytesIO, BufferedReader)):
             self._ss_log("Sending message from file", "DEBUG")
-            intake = msg.read(4095)
+            intake = msg.read(4096)
             while len(intake):
+                if mode == 'BASE':
+                    intake = protocols.padstring(intake)
                 self._sendq(self._baseEncrypt('+'), channel)
-                self._sendq(files._encrypt_chunk(intake, cipher), channel)
-                intake = msg.read(4095)
+                self._sendq(cipher.encrypt(intake), channel)
+                intake = msg.read(4096)
             self._sendq(self._baseEncrypt('-'), channel)
         else:
             if type(msg) != bytes:
@@ -370,12 +378,14 @@ class SecureSocket(io.MPlexSocket):
                 raise TypeError("msg argument must be str or bytes")
             self._ss_log("Sending message from text", "DEBUG")
             self._sendq(self._baseEncrypt('+'), channel)
-            self._sendq(files._encrypt_chunk(msg, cipher), channel)
+            if mode == 'BASE':
+                msg = protocols.padstring(msg)
+            self._sendq(cipher.encrypt(msg), channel)
             self._sendq(self._baseEncrypt('-'), channel)
         self._ss_log("Message sent", "DEBUG")
-        if mode == 'EAX':
+        if mode != 'BASE':
             self._ss_log("Sending EAX digest", "DETAIL")
-            self._sendq(self._baseEncrypt(cipher.digest()), channel)
+            self._sendq(cipher.finish(), channel)
         self._desync_channel(channel)
 
     def recvAES(
@@ -423,14 +433,10 @@ class SecureSocket(io.MPlexSocket):
                     iv=rsa.randnum.read_random_bits(128)
                 )
                 cipher.decrypt(self._recvq(channel, timeout=timeout))
-            elif mode == 'EAX':
+            elif mode == 'ADVANCED':
                 self._ss_log("Receiving cipher key", "DETAIL")
-                info = self.recvRSA(channel, timeout=timeout)
-                cipher = AES.new(
-                    hashlib.md5(info[:-16]).digest(),
-                    AES.MODE_EAX,
-                    nonce=info[-16:]
-                )
+                key = self.recvRSA(channel, timeout=timeout)
+                cipher = None
             else:
                 raise ValueError("Unsupported Cipher type: "+mode)
             writer = None
@@ -444,10 +450,22 @@ class SecureSocket(io.MPlexSocket):
             msg = b""
             while command == b'+':
                 self._ss_log("Receiving chunk", "DETAIL")
-                intake = files._decrypt_chunk(self._recvq(
-                    channel,
-                    timeout=timeout
-                ), cipher)
+                if cipher is None:
+                    cipher = Cipher.DecryptionCipher(
+                        self._recvq(
+                            channel,
+                            timeout=timeout
+                        ),
+                        key=key
+                    )
+                    intake = b''
+                else:
+                    intake = cipher.decrypt(self._recvq(
+                        channel,
+                        timeout=timeout
+                    ))
+                    if mode != 'ADVANCED':
+                        intake = protocols.unpadstring(intake)
                 if writer is not None:
                     writer.write(intake)
                 else:
@@ -457,12 +475,10 @@ class SecureSocket(io.MPlexSocket):
                     timeout=timeout
                 ))
             self._ss_log("Payload received", "DEBUG")
-            if mode == 'EAX':
-                self._ss_log("Waiting for EAX digest", "DETAIL")
-                cipher.verify(self._baseDecrypt(self._recvq(
-                    channel,
-                    timeout=timeout
-                )))
+            if mode == 'ADVANCED':
+                self._ss_log("Waiting for digest digest", "DETAIL")
+                if writer is not None:
+                    writer.write(cipher.finish())
                 self._ss_log("Message digest successful", "DETAIL")
             self._desync_channel(channel)
             if writer is not None:
