@@ -580,7 +580,7 @@ class DecryptionCipher(AbstractCipher):
             # If we have been streaming data, decrypt any remaining data
             # in the buffer
             output = (
-                self.cipher.decrypt(b'')
+                self.decrypt(b'')
                 + self.cipher.decrypt(self.data_buffer)
             )
         else:
