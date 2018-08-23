@@ -69,6 +69,15 @@ class test(unittest.TestCase):
                 self.assertEqual(mask[bit], current)
             self.assertEqual(mask.mask.data, n)
 
+    def test_exceptions(self):
+        from agutil.security.src.cipher import HeaderLengthError, EncryptionCipher, DecryptionCipher
+        source = os.urandom(1024 * random.randint(1,16))
+        key = os.urandom(32)
+        encryptor = EncryptionCipher(key)
+        data = encryptor.encrypt(source) + encryptor.finish()
+        with self.assertRaises(HeaderLengthError):
+            decryptor = DecryptionCipher(data[:24], key)
+        
     def test_encryption_decryption(self):
         from agutil.security.src.cipher import configure_cipher, EncryptionCipher, DecryptionCipher
         for trial in range(5):

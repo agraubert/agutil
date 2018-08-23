@@ -15,7 +15,9 @@ def expect_stream(func):
     def call(size, *args, **kwargs):
         result = func(size, *args, **kwargs)
         if len(result) < size:
-            raise ValueError("Cipher requires additional data to initialize")
+            raise HeaderLengthError(
+                "Cipher requires additional data to initialize"
+            )
         return result
     return call
 
@@ -27,6 +29,30 @@ def cipher_type(name):
         AES,
         'mode_'+name
     )
+
+
+class CipherError(ValueError):
+    pass
+
+
+class HeaderError(CipherError):
+    pass
+
+
+class HeaderLengthError(HeaderError):
+    pass
+
+
+class InvalidHeaderError(HeaderError):
+    pass
+
+
+class EncryptionError(CipherError):
+    pass
+
+
+class DecryptionError(CipherError):
+    pass
 
 
 def apply_user_options(defaults, opts):
@@ -61,13 +87,15 @@ def validate_config(opts):
     opts['cipher_type'] = cipher_type(opts['cipher_type'])
     opts['secondary_cipher_type'] = cipher_type(opts['secondary_cipher_type'])
     if opts['secondary_cipher_type'] not in _LEGACY_CIPHERS:
-        raise ValueError("Legacy cipher cannot be CCM, EAX, GCM, SIV, or OCB")
+        raise InvalidHeaderError(
+            "Legacy cipher cannot be CCM, EAX, GCM, SIV, or OCB"
+        )
     if opts['encrypted_nonce'] and opts['legacy_validate_nonce']:
-        raise ValueError(
+        raise InvalidHeaderError(
             "Cannot store encrypted nonce and enable legacy nonce validation"
         )
     if opts['encrypted_tag'] and not ops['encrypted_nonce']:
-        raise ValueError(
+        raise InvalidHeaderError(
             "Cannot encrypt tag without encrypting nonce"
         )
     if (
@@ -76,21 +104,23 @@ def validate_config(opts):
     ):
         length = opts['cipher_nonce_length']
         if length < 0 or length > 15:
-            raise ValueError("CTR ciphers must have nonce in range [0, 15]")
+            raise InvalidHeaderError(
+                "CTR ciphers must have nonce in range [0, 15]"
+            )
         start = opts['ctr_initial_value']
         if start < 0 or start > 65535:
-            raise ValueError(
+            raise InvalidHeaderError(
                 "CTR ciphers must have initial value in range [0, 65535]"
             )
     if opts['cipher_type'] == AES.MODE_CCM:
         length = opts['cipher_nonce_length']
         if length < 7 or length > 13:
-            raise ValueError(
+            raise InvalidHeaderError(
                 "CCM ciphers must have nonce in range [7, 13]"
             )
         length = opts['ccm_message_length']
         if length is not None and (length < 0 or length > 65535):
-            raise ValueError(
+            raise InvalidHeaderError(
                 "CCM ciphers must have message length in range [0, 65535]. "
                 "If you desire a longer message size, do not specify size "
                 "in advance (which disables streaming)"
@@ -98,21 +128,25 @@ def validate_config(opts):
     elif opts['cipher_type'] == AES.MODE_OCB:
         length = opts['cipher_nonce_length']
         if length < 1 or length > 15:
-            raise ValueError("OCB ciphers must have nonce in range [1, 15]")
+            raise InvalidHeaderError(
+                "OCB ciphers must have nonce in range [1, 15]"
+            )
     if opts['enable_compatability'] and (opts['store_nonce']
                                          or opts['encrypted_nonce']
                                          or opts['store_tag']
                                          or opts['encrypted_tag']
                                          or opts['legacy_store_nonce']):
-        raise ValueError(
+        raise InvalidHeaderError(
             "Compatability mode cannot be combined with "
             "store_nonce, encrypted_nonce, store_tag, encrypted_tag, "
             "or legacy_store_nonce"
         )
     if opts['enable_compatability'] and not opts['use_legacy_ciphers']:
-        raise ValueError("Legacy ciphers must be used in compatability mode")
+        raise InvalidHeaderError(
+            "Legacy ciphers must be used in compatability mode"
+        )
     if opts['legacy_randomized_nonce'] and opts['legacy_store_nonce']:
-        raise ValueError(
+        raise InvalidHeaderError(
             "legacy_randomized_nonce and legacy_store_nonce are mutually "
             "exclusive"
         )
@@ -284,7 +318,7 @@ class EncryptionCipher(AbstractCipher):
         # Initialize the cipher and buffer any initial data
         # (header, nonce, validation/extra-data blocks)
         if not self.header.valid:
-            raise ValueError("Header is not valid")
+            raise InvalidHeaderError("Header is not valid")
         if self.header.use_modern_cipher:
             self.tag_size = self.header.cipher_data[1]
             self.block_size = self.header.cipher_data[2] * 256
@@ -366,7 +400,7 @@ class EncryptionCipher(AbstractCipher):
             tag = self.cipher.digest()
             if self.header.control_bitmask[5]:
                 if self.secondary_cipher is None:
-                    raise ValueError(
+                    raise EncryptionError(
                         "Cannot encrypt tag without secondary cipher"
                     )
                 tag = self.secondary_cipher.encrypt(tag)
@@ -401,7 +435,7 @@ class DecryptionCipher(AbstractCipher):
     def __init__(self, init_data, key, nonce=None, legacy_force=False):
         self.stream = io.BytesIO(init_data)
         if len(init_data) < 16:
-            raise ValueError(
+            raise HeaderLengthError(
                 "Cannot initialize cipher without at least 16 bytes"
             )
         self.stream.read = expect_stream(self.stream.read)
@@ -425,7 +459,7 @@ class DecryptionCipher(AbstractCipher):
                 self.header.legacy_bitmask = control
                 self.header.secondary_id = AES.MODE_CBC
             else:
-                raise ValueError("This header is in an invalid state")
+                raise InvalidHeaderError("This header is in an invalid state")
         elif legacy_force:
             self.header = CipherHeader()
             control = Bitmask()
@@ -461,7 +495,7 @@ class DecryptionCipher(AbstractCipher):
                 else:
                     nonce = self.stream.read(16)
             if nonce is None and self.header.cipher_id != AES.MODE_ECB:
-                raise ValueError(
+                raise HeaderError(
                     "Header specified external nonce but a nonce was not "
                     "provided"
                 )
@@ -494,7 +528,7 @@ class DecryptionCipher(AbstractCipher):
             elif self.header.legacy_bitmask[3]:
                 nonce = self.stream.read(16)
             elif nonce is None:
-                raise ValueError(
+                raise HeaderError(
                     "Header specified external nonce but a nonce was not "
                     "provided"
                 )
@@ -520,7 +554,7 @@ class DecryptionCipher(AbstractCipher):
                 )
             )
             if validation != b'\x00'*self.header.exdata_size:
-                raise ValueError(
+                raise DecryptionError(
                     "Header validation block did not match expected value"
                 )
         return cipher
@@ -561,12 +595,12 @@ class DecryptionCipher(AbstractCipher):
         if self.header.use_modern_cipher and self.header.control_bitmask[4]:
             # Use the buffered tag data as the MAC tag
             if len(self.tag_buffer) != self.tag_size:
-                raise ValueError(
+                raise DecryptionError(
                     "No data left in stream"
                 )
             if self.header.control_bitmask[5]:
                 if self.secondary_cipher is None:
-                    raise ValueError(
+                    raise DecryptionError(
                         "Cannot decrypt tag without secondary cipher"
                     )
                 self.tag_buffer = self.secondary_cipher.decrypt(

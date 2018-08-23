@@ -7,5 +7,11 @@ from .src.cipher import (
     EncryptionCipher,
     DecryptionCipher,
     CipherHeader,
-    Bitmask
+    Bitmask,
+    CipherError,
+    HeaderError,
+    HeaderLengthError,
+    InvalidHeaderError,
+    EncryptionError,
+    DecryptionError
 )

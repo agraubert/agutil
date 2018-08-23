@@ -373,6 +373,13 @@ instead of filenames
 * Changed the arguments for `agutil.security.encryptFile`,
 `agutil.security.encryptFileObj`, `agutil.security.decryptFile`, and
 `agutil.security.decryptFileObj`
+* Added the following exceptions:
+  * `CipherError`
+  * `HeaderError`
+  * `HeaderLengthError`
+  * `InvalidHeaderError`
+  * `EncryptionError`
+  * `Decryptionerror`
 
 ##### API
 
@@ -463,6 +470,37 @@ instead of filenames
   Initializes an `agutil.security.DecryptionCipher` to handle decryption.
   The cipher can handle data encrypted by `agutil` versions between 1.2.0 and 3.1.2.
   _compatability_ must be `True` to decrypt data from earlier versions.
+
+* CipherError: _(Exception)_
+
+  `ValueError` -> `CipherError`
+  This is the parent exception type for other cipher errors
+
+* EncryptionError: _(Exception)_
+
+  `ValueError` -> `CipherError` -> `EncryptionError`
+  Raised by `agutil.security.EncryptionCipher` if there is an error during encryption
+
+  * DecryptionError: _(Exception)_
+
+    `ValueError` -> `CipherError` -> `DecryptionError`
+    Raised by `agutil.security.DecryptionCipher` if there is an error during decryption
+
+* HeaderError: _(Exception)_
+
+  `ValueError` -> `CipherError` -> `HeaderError`
+  Raised by ciphers if the header is in an invalid state
+
+* HeaderLengthError: _(Exception)_
+
+  `ValueError` -> `CipherError` -> `HeaderError` -> `HeaderLengthError`
+  Raised by `agutil.security.DecryptionCipher` if there was not enough initial data to initialize the cipher
+
+* InvalidHeaderError: _(Exception)_
+
+  `ValueError` -> `CipherError` -> `HeaderError` -> `InvalidHeaderError`
+  Raised by ciphers if the header is corrupt or does not specify a valid configuration
+
 
 ### agutil.security.SecureConnection
 The following changes have been made to `agutil.security.SecureConnection`:
@@ -563,7 +601,7 @@ the AES decryption backend for `agutil-secure` and the `agutil.security` module.
   _init\_data_ should be the some or all of the ciphertext produced by an `EncryptionCipher`.
   _init\_data_ is used to determine cipher configuration and any unused data is buffered until calling `decrypt()`.
   _init\_data_ needs to be at least 16 bytes, but depending on the inferred configuration, it may need to be longer to properly initialize the cipher.
-  The constructor will raise a `ValueError` if _init\_data_ was too short.
+  The constructor will raise an `agutil.security.HeaderLengthError` if _init\_data_ was too short.
   64 bytes is almost always enough data to initialize the cipher.
   If the constructor fails due to _init\_data_ length, try again with more data.
   _key_ and _nonce_ are used to initialize the underlying cipher.
