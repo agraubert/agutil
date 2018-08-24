@@ -449,19 +449,35 @@ class DecryptionCipher(AbstractCipher):
         if header.valid:
             if header.weight == header_data[-1]:
                 self.header = header
+            elif legacy_force:
+                self.header = CipherHeader()
+                control = Bitmask()
+                control[1] = True  # Enable legacy cipher
+                control[2] = True  # Pick random nonce
+                control[4] = True  # Use raw_header instead of nonce block
+                control.set_range(6, 8)  # Enable legacy cipher
+                self.header.legacy_bitmask = control
+                self.header.secondary_id = AES.MODE_CBC
             else:
                 raise InvalidHeaderError("This header is in an invalid state")
+        elif legacy_force:
+            self.header = CipherHeader()
+            control = Bitmask()
+            control[1] = True  # Enable legacy cipher
+            control[2] = True  # Pick random nonce
+            control[4] = True  # Use raw_header instead of nonce block
+            control.set_range(6, 8)  # Enable legacy cipher
+            self.header.legacy_bitmask = control
+            self.header.secondary_id = AES.MODE_CBC
         else:
             self.header = CipherHeader()
             control = Bitmask()
             control[1] = True  # Enable legacy cipher
             control[2] = True  # Pick random nonce
             control[4] = True  # Use raw_header instead of nonce block
-            if not legacy_force:
-                control[5] = True  # Read exdata for validation
-                self.header.exdata_size = 16  # validation block stored in exdata
-            control.set_range(6, 8)  # Enable legacy cipher
+            control[5] = True  # Read exdata for validation
             self.header.legacy_bitmask = control
+            self.header.exdata_size = 16  # validation block stored in exdata
             self.header.secondary_id = AES.MODE_CBC
         if self.header.use_modern_cipher:
             if self.header.control_bitmask[2]:
