@@ -557,6 +557,87 @@ task has been completed
 
   Closes the underlying socket
 
+### agutil.Logger
+The following change has been made to `agutil.Logger`:
+* The class has been rewritten to integrate with the builtin `logging` module
+
+##### API
+
+* Logger(_filename_=`None`, _name_=`'agutil'`, _loglevel_=`logging.INFO`): _(Constructor)_
+
+  Instantiates a new `Logger` instance. _filename_ specifies where log messages should be dispatched.
+  If _filename_ is a string, log messages will be written to the file at that path (appending to the file if it already exists).
+  If _filename_ is `None` (default), log messages are written to `sys.stdout`.
+  Otherwise, _filename_ is assumed to be a file-like-object and log messages will be written directly to _filename_.
+  _name_ should be the name of the log in the builtin `logging` hierarchy.
+  This parameter is useful if you need to create multiple `Logger` instances.
+  **Warning:** Messages logged by one `Logger` will also be logged by any additional `Logger`s with the same _name_.
+  _loglevel_ is used to control the minimum severity that this `Logger` will respond to.
+  Messages logged below this level are ignored.
+  Collection (see below) will automatically be enabled on `'ERROR'` and `'WARNING'` channels iff logging those channels is enabled (as determined by the _loglevel_)
+
+* Logger(_message_, _sender_=`'ANONYMOUS'`, _channel_=`'INFO'`): _(Call)_
+* Logger.log(_message_, _sender_=`'ANONYMOUS'`, _channel_=`'INFO'`):
+
+  Logs the provided _message_. _sender_ specifies the name of the object
+  which is sending the message.
+  _channel_ specifies what channel the message is sent over.
+  If the provided _channel_ does not exist, the message will not be logged, and instead a warning message is logged.
+  If the provided _channel_ is below the `Logger.level`, the message will not be logged.
+  If the provided _sender_ has been muted by `Logger.mute()`, the message will not be logged.
+
+* Logger.addChannel(_name_, _priority_):
+
+  Defines a new channel with the given _name_.
+  _priority_ indicates how messages from this channel should be treated.
+  If _priority_ is less than the current `Logger.level`, then messages on this channel will be ignored.
+  If _priority_ is at or above the priority of warnings (`30`) and is greater than or equal to the current `Logger.level`, collection will automatically be enabled for this channel
+
+* Logger.level _(Property)_
+
+  Returns the current level of the `Logger`.
+  Messages on channels with a priority below this value are ignored.
+  You can assign a new value to this attribute to change the level.
+  **Warning:** The level is shared between all `Logger` instances created with the same name.
+  Preferred usage is to create one logger and bind to multiple senders.
+
+* Logger.bindToSender(_sender_, _can\_close_=`True`):
+
+  Returns a bound version of `Logger.log` with the _sender_ argument of `Logger.log` bound to the value of _sender_.
+  This is the preferred way to have multiple objects logging to the same `Logger` instance.
+  The returned function also has a callable attribute `bindToSender` which behaves identically to the root `bindToSender`, except _can\_close_ defaults to `False`.
+  The returned function also has a callable attribute `close` which takes no arguments.
+  If _can\_close_ is `True`, then the `close` attribute of the returned object will close this `Logger`.
+  If _can\_close_ is `True`, then the `close` attribute of the returned object is a no-op.
+  The returned function also has a string attribute `name` which reflects the bound value of _sender_.
+
+* Logger.setChannelCollection(_channel_, _collect_=`True`):
+
+  Enables or disables collection of the specified _channel_ depending on the value of _collect_.
+  While collection is enabled on a given _channel_, all messages logged by this `Logger` on that channel are recorded and appear in a dump when the `Logger` is closed.
+  When collection is disabled, any previously collected messages are discarded.
+  Channel collection is useful for making errors and warnings more visible at the end of logs
+
+* Logger.mute(_mutee_, _muter_=`'ANONYMOUS'`):
+
+  Mutes messages sent by the given _mutee_.
+  While a given sender is muted, they cannot log any messages, however
+  messages will still be collected from this sender if the channel has collection enabled.
+  When a sender gets muted, a message is logged on the INFO channel with _sender_ set to the value of _muter_.
+
+* Logger.unmut(_mutee_):
+
+  Unmutes the given _mutee_.
+  When a sender gets unmuted, a messages is logged on the INFO channel.
+  Additionally, if the _mutee_ sent any messages while muted, the most recent message sent will be logged.
+
+* Logger.close():
+
+  Closes the log.
+  Any channels with collection enabled will dump any collected messages to the end of the log.
+  **Warning:** If there are any other `Loggers` with the same _name_,
+  they will still respond to calling this object's `log()`
+
 ### agutil.security.EncryptionCipher (New class)
 Added the `EncryptionCipher` class, which is a configurable cipher that provides
 the AES encryption backend for `agutil-secure` and the `agutil.security` module.
