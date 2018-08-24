@@ -80,18 +80,28 @@ def apply_user_options(defaults, opts):
     ):
         implications['cipher_nonce_length'] = 8
     if (
-        (
-            'cipher_type' in opts
-            and cipher_type(opts['cipher_type']) == AES.MODE_OPENPGP
-        )
-        or (
-            'secondary_cipher_type' in opts
-            and cipher_type(opts['secondary_cipher_type']) == AES.MODE_OPENPGP
-        )
+        'secondary_cipher_type' in opts
+        and cipher_type(opts['secondary_cipher_type']) == AES.MODE_OPENPGP
     ):
-        implications['store_nonce'] = True
         implications['legacy_store_nonce'] = True
         implications['legacy_randomized_nonce'] = False
+    if (
+        'cipher_type' in opts
+        and cipher_type(opts['cipher_type']) == AES.MODE_OPENPGP
+    ):
+        implications['store_nonce'] = True
+        implications['encrypted_nonce'] = False
+    if (
+        'secondary_cipher_type' in opts
+        and cipher_type(opts['secondary_cipher_type']) == AES.MODE_ECB
+    ):
+        implications['legacy_store_nonce'] = False
+        implications['legacy_randomized_nonce'] = False
+    if (
+        'cipher_type' in opts
+        and cipher_type(opts['cipher_type']) == AES.MODE_ECB
+    ):
+        implications['store_nonce'] = False
         implications['encrypted_nonce'] = False
     if 'cipher_type' in opts:
         if (cipher_type(opts['cipher_type']) == AES.MODE_CTR):
@@ -128,7 +138,7 @@ def validate_config(opts):
         raise InvalidHeaderError(
             "Cannot store encrypted nonce and enable legacy nonce validation"
         )
-    if opts['encrypted_tag'] and not ops['encrypted_nonce']:
+    if opts['encrypted_tag'] and not opts['encrypted_nonce']:
         raise InvalidHeaderError(
             "Cannot encrypt tag without encrypting nonce"
         )
@@ -146,18 +156,36 @@ def validate_config(opts):
             raise InvalidHeaderError(
                 "CTR ciphers must have initial value in range [0, 65535]"
             )
+    if opts['cipher_type'] == AES.MODE_OPENPGP and not opts['store_nonce']:
+        raise InvalidHeaderError(
+            "OPENPGP ciphers require store_nonce and legacy_store_nonce"
+        )
+    if opts['cipher_type'] == AES.MODE_OPENPGP and opts['encrypted_nonce']:
+        raise InvalidHeaderError(
+            'Cannot use encrypted_nonce with OPENPGP ciphers'
+        )
     if (
-        opts['cipher_type'] == AES.MODE_OPENPGP
-        or opts['secondary_cipher_type'] == AES.MODE_OPENPGP
+        opts['secondary_cipher_type'] == AES.MODE_OPENPGP
+        and not opts['legacy_store_nonce']
     ):
-        if not (opts['store_nonce'] and opts['legacy_store_nonce']):
-            raise InvalidHeaderError(
-                "OPENPGP ciphers require store_nonce and legacy_store_nonce"
-            )
-        if opts['encrypted_nonce']:
-            raise InvalidHeaderError(
-                'Cannot use encrypted_nonce with OPENPGP ciphers'
-            )
+        raise InvalidHeaderError(
+            "OPENPGP ciphers require store_nonce and legacy_store_nonce"
+        )
+    if opts['cipher_type'] == AES.MODE_ECB and opts['store_nonce']:
+        raise InvalidHeaderError(
+            "ECB ciphers do not use a nonce"
+        )
+    if opts['cipher_type'] == AES.MODE_ECB and opts['encrypted_nonce']:
+        raise InvalidHeaderError(
+            "ECB ciphers do not use a nonce"
+        )
+    if (
+        opts['secondary_cipher_type'] == AES.MODE_ECB
+        and (opts['legacy_store_nonce'] or opts['legacy_randomized_nonce'])
+    ):
+        raise InvalidHeaderError(
+            "ECB ciphers do not use a nonce"
+        )
     if opts['cipher_type'] == AES.MODE_CCM:
         length = opts['cipher_nonce_length']
         if length < 7 or length > 13:
@@ -387,7 +415,8 @@ class EncryptionCipher(AbstractCipher):
                         key,
                         nonce
                     )
-                    self.header_buffer += nonce
+                    if self.header.secondary_id not in _SKIP_NONCE:
+                        self.header_buffer += nonce
                     nonce = os.urandom(16)
                 self.header_buffer += self.secondary_cipher.encrypt(nonce)
             elif self.header.control_bitmask[2]:
@@ -416,10 +445,13 @@ class EncryptionCipher(AbstractCipher):
             elif (
                 self.header.legacy_bitmask[3]
                 and not self.header.secondary_id == AES.MODE_OPENPGP
+                and not self.header.secondary_id == AES.MODE_ECB
             ):
                 self.header_buffer += nonce
             if self.header.legacy_bitmask[5]:
-                self.header_buffer += self.cipher.encrypt(b'\x00'*16)
+                self.header_buffer += self.cipher.encrypt(
+                    b'\x00'*self.header.exdata_size
+                )
         self.nonce = nonce
 
     def _initialize_legacy_cipher(self, key, nonce=None):
@@ -557,13 +589,14 @@ class DecryptionCipher(AbstractCipher):
                         key,
                         nonce
                     )
-                    nonce = self.secondary_cipher.decrypt(
+                    rn = (
                         self.stream.read(self.header.exdata_size)
                         if self.header.legacy_bitmask[2]
                         or self.header.legacy_bitmask[3]
                         else self.stream.read(16)
                     )
-                if self.header.cipher_id == AES.MODE_OPENPGP:
+                    nonce = self.secondary_cipher.decrypt(rn)
+                elif self.header.cipher_id == AES.MODE_OPENPGP:
                     nonce = self.stream.read(18)
                 else:
                     nonce = self.stream.read(16)
@@ -741,6 +774,7 @@ _LEGACY_CIPHERS = {
     AES.MODE_ECB, AES.MODE_CBC, AES.MODE_CTR, AES.MODE_CFB, AES.MODE_OFB,
     AES.MODE_OPENPGP
 }
+_SKIP_NONCE = {AES.MODE_ECB, AES.MODE_OPENPGP}
 _SHORT_KEY_CIPHERS = {AES.MODE_EAX}
 
 

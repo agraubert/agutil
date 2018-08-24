@@ -78,7 +78,7 @@ class test(unittest.TestCase):
         with self.assertRaises(HeaderLengthError):
             decryptor = DecryptionCipher(data[:24], key)
 
-    def test_ciphers(self):
+    def test_all_ciphers(self):
         from agutil.security.src.cipher import EncryptionCipher, DecryptionCipher
         from Cryptodome.Cipher import AES
         ciphers = {
@@ -87,7 +87,6 @@ class test(unittest.TestCase):
             AES.MODE_GCM, AES.MODE_SIV, AES.MODE_OCB
         }
         for cipher in ciphers:
-            print("Testing:", cipher)
             source = os.urandom(1024 * random.randint(1,16))
             key = os.urandom(32)
             encryptor = EncryptionCipher(
@@ -99,6 +98,32 @@ class test(unittest.TestCase):
             decryptor = DecryptionCipher(data[:64], key)
             compare = decryptor.decrypt(data[64:]) + decryptor.finish()
             self.assertEqual(source, compare)
+            if cipher <= AES.MODE_OPENPGP:
+                source = os.urandom(1024 * random.randint(1,16))
+                key = os.urandom(32)
+                encryptor = EncryptionCipher(
+                    key,
+                    secondary_cipher_type=cipher,
+                    use_legacy_ciphers=True,
+                )
+                data = encryptor.encrypt(source) + encryptor.finish()
+                self.assertNotEqual(source, data)
+                decryptor = DecryptionCipher(data[:64], key)
+                compare = decryptor.decrypt(data[64:]) + decryptor.finish()
+                self.assertEqual(source, compare)
+
+                source = os.urandom(1024 * random.randint(1,16))
+                key = os.urandom(32)
+                encryptor = EncryptionCipher(
+                    key,
+                    secondary_cipher_type=cipher,
+                    encrypted_nonce=True
+                )
+                data = encryptor.encrypt(source) + encryptor.finish()
+                self.assertNotEqual(source, data)
+                decryptor = DecryptionCipher(data[:64], key)
+                compare = decryptor.decrypt(data[64:]) + decryptor.finish()
+                self.assertEqual(source, compare)
 
     def test_encryption_decryption(self):
         from agutil.security.src.cipher import configure_cipher, EncryptionCipher, DecryptionCipher
@@ -204,6 +229,21 @@ class test(unittest.TestCase):
                 encrypted_nonce=True,
                 legacy_randomized_nonce=True,
                 legacy_store_nonce=False
+            )
+            self.assertNotEqual(nonce, encryptor.header_buffer[-16:])
+            data = encryptor.encrypt(source) + encryptor.finish()
+            self.assertNotEqual(source, data)
+            decryptor = DecryptionCipher(data[:64], key)
+            compare = decryptor.decrypt(data[64:]) + decryptor.finish()
+            self.assertEqual(source, compare)
+            source = os.urandom(1024 * random.randint(1,16))
+            key = os.urandom(32)
+            nonce = os.urandom(16)
+            encryptor = EncryptionCipher(
+                key,
+                nonce,
+                encrypted_nonce=True,
+                encrypted_tag=True
             )
             self.assertNotEqual(nonce, encryptor.header_buffer[-16:])
             data = encryptor.encrypt(source) + encryptor.finish()

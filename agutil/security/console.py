@@ -156,9 +156,13 @@ def main(args_input=sys.argv[1:]):
                     call.progress = 0
                     return call
                 if args.action == 'encrypt':
-                    files.EncryptionCipher.encrypt = wrapper(files.EncryptionCipher.encrypt)
+                    files.EncryptionCipher.encrypt = wrapper(
+                        files.EncryptionCipher.encrypt
+                    )
                 else:
-                    files.DecryptionCipher.decrypt = wrapper(files.DecryptionCipher.decrypt)
+                    files.DecryptionCipher.decrypt = wrapper(
+                        files.DecryptionCipher.decrypt
+                    )
             try:
                 if args.action == 'encrypt':
                     files.encryptFile(
