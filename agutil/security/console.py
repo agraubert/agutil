@@ -149,16 +149,16 @@ def main(args_input=sys.argv[1:]):
                 )
 
                 def wrapper(func):
-                    def call(chunk, cipher):
+                    def call(cipher, chunk):
                         call.progress += len(chunk)
                         bar.update(call.progress)
-                        return func(chunk, cipher)
+                        return func(cipher, chunk)
                     call.progress = 0
                     return call
                 if args.action == 'encrypt':
-                    files._encrypt_chunk = wrapper(files._encrypt_chunk)
+                    files.EncryptionCipher.encrypt = wrapper(files.EncryptionCipher.encrypt)
                 else:
-                    files._decrypt_chunk = wrapper(files._decrypt_chunk)
+                    files.DecryptionCipher.decrypt = wrapper(files.DecryptionCipher.decrypt)
             try:
                 if args.action == 'encrypt':
                     files.encryptFile(
@@ -174,12 +174,12 @@ def main(args_input=sys.argv[1:]):
                         key,
                         compatability=args.legacy
                     )
-            except KeyError:
-                sys.exit("Failed!  The provided password may be incorrect")
             except ValueError:
+                if args.verbose:
+                    bar.clear()
                 sys.exit(
-                    "Failed!  The authenticity of the file could not be "
-                    "guaranteed"
+                    "Failed! The password may be incorrect or the file may be "
+                    "corrupt"
                 )
 
             if output_arg is None:

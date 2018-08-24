@@ -77,7 +77,29 @@ class test(unittest.TestCase):
         data = encryptor.encrypt(source) + encryptor.finish()
         with self.assertRaises(HeaderLengthError):
             decryptor = DecryptionCipher(data[:24], key)
-        
+
+    def test_ciphers(self):
+        from agutil.security.src.cipher import EncryptionCipher, DecryptionCipher
+        from Cryptodome.Cipher import AES
+        ciphers = {
+            AES.MODE_ECB, AES.MODE_CBC, AES.MODE_CTR, AES.MODE_CFB,
+            AES.MODE_OFB, AES.MODE_OPENPGP, AES.MODE_CCM, AES.MODE_EAX,
+            AES.MODE_GCM, AES.MODE_SIV, AES.MODE_OCB
+        }
+        for cipher in ciphers:
+            print("Testing:", cipher)
+            source = os.urandom(1024 * random.randint(1,16))
+            key = os.urandom(32)
+            encryptor = EncryptionCipher(
+                key,
+                cipher_type=cipher
+            )
+            data = encryptor.encrypt(source) + encryptor.finish()
+            self.assertNotEqual(source, data)
+            decryptor = DecryptionCipher(data[:64], key)
+            compare = decryptor.decrypt(data[64:]) + decryptor.finish()
+            self.assertEqual(source, compare)
+
     def test_encryption_decryption(self):
         from agutil.security.src.cipher import configure_cipher, EncryptionCipher, DecryptionCipher
         for trial in range(5):

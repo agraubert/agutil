@@ -69,6 +69,40 @@ def apply_user_options(defaults, opts):
             implications['enable_streaming'] = True
         else:
             implications['enable_streaming'] = False
+    if (
+        'cipher_type' in opts
+        and cipher_type(opts['cipher_type']) in _LEGACY_CIPHERS
+    ):
+        implications['store_tag'] = False
+    if (
+        'secondary_cipher_type' in opts
+        and cipher_type(opts['secondary_cipher_type']) == AES.MODE_CTR
+    ):
+        implications['cipher_nonce_length'] = 8
+    if (
+        (
+            'cipher_type' in opts
+            and cipher_type(opts['cipher_type']) == AES.MODE_OPENPGP
+        )
+        or (
+            'secondary_cipher_type' in opts
+            and cipher_type(opts['secondary_cipher_type']) == AES.MODE_OPENPGP
+        )
+    ):
+        implications['store_nonce'] = True
+        implications['legacy_store_nonce'] = True
+        implications['legacy_randomized_nonce'] = False
+        implications['encrypted_nonce'] = False
+    if 'cipher_type' in opts:
+        if (cipher_type(opts['cipher_type']) == AES.MODE_CTR):
+            implications['cipher_nonce_length'] = 8
+        elif cipher_type(opts['cipher_type']) == AES.MODE_CCM:
+            implications['cipher_nonce_length'] = 7
+        elif cipher_type(opts['cipher_type']) == AES.MODE_OCB:
+            implications['cipher_nonce_length'] = 15
+        elif cipher_type(opts['cipher_type']) == AES.MODE_SIV:
+            implications['store_tag'] = True
+            implications['enable_streaming'] = False
     if 'enable_compatability' in opts and opts['enable_compatability']:
         implications['store_nonce'] = False
         implications['encrypted_nonce'] = False
@@ -112,6 +146,18 @@ def validate_config(opts):
             raise InvalidHeaderError(
                 "CTR ciphers must have initial value in range [0, 65535]"
             )
+    if (
+        opts['cipher_type'] == AES.MODE_OPENPGP
+        or opts['secondary_cipher_type'] == AES.MODE_OPENPGP
+    ):
+        if not (opts['store_nonce'] and opts['legacy_store_nonce']):
+            raise InvalidHeaderError(
+                "OPENPGP ciphers require store_nonce and legacy_store_nonce"
+            )
+        if opts['encrypted_nonce']:
+            raise InvalidHeaderError(
+                'Cannot use encrypted_nonce with OPENPGP ciphers'
+            )
     if opts['cipher_type'] == AES.MODE_CCM:
         length = opts['cipher_nonce_length']
         if length < 7 or length > 13:
@@ -131,6 +177,12 @@ def validate_config(opts):
             raise InvalidHeaderError(
                 "OCB ciphers must have nonce in range [1, 15]"
             )
+    elif opts['cipher_type'] == AES.MODE_SIV and (
+        opts['enable_streaming'] or not opts['store_tag']
+    ):
+        raise InvalidHeaderError(
+            "SIV ciphers must disable streaming and must store the tag"
+        )
     if opts['enable_compatability'] and (opts['store_nonce']
                                          or opts['encrypted_nonce']
                                          or opts['store_tag']
@@ -351,6 +403,8 @@ class EncryptionCipher(AbstractCipher):
                 self.header.cipher_data[3:],
                 self.header.cipher_data[1]
             )
+            if self.header.cipher_id == AES.MODE_OPENPGP:
+                self.header_buffer = self.header_buffer[:-16]
         else:
             self.cipher = self._initialize_legacy_cipher(key, nonce)
             if self.header.legacy_bitmask[4]:
@@ -359,7 +413,10 @@ class EncryptionCipher(AbstractCipher):
                 self.header_buffer = b''
             if self.header.legacy_bitmask[2]:
                 self.header_buffer += self.cipher.encrypt(os.urandom(16))
-            elif self.header.legacy_bitmask[3]:
+            elif (
+                self.header.legacy_bitmask[3]
+                and not self.header.secondary_id == AES.MODE_OPENPGP
+            ):
                 self.header_buffer += nonce
             if self.header.legacy_bitmask[5]:
                 self.header_buffer += self.cipher.encrypt(b'\x00'*16)
@@ -376,6 +433,16 @@ class EncryptionCipher(AbstractCipher):
             self.header.cipher_data[3:],
             16
         )
+
+    def _siv_terminate(self, output):
+        ciphertext, tag = self.cipher.encrypt_and_digest(output)
+        if self.header.control_bitmask[5]:
+            if self.secondary_cipher is None:
+                raise EncryptionError(
+                    "Cannot encrypt tag without secondary cipher"
+                )
+            tag = self.secondary_cipher.encrypt(tag)
+        return ciphertext + tag
 
     def _terminate(self):
         output = b''
@@ -394,7 +461,11 @@ class EncryptionCipher(AbstractCipher):
         if len(output):
             # If there is any unencrypted data, encrypt it now
             # For non-streaming ciphers, this is the single encryption step
+            if self.header.cipher_id == AES.MODE_SIV:
+                return self._siv_terminate(output)
             output = self.cipher.encrypt(output)
+            if self.header.cipher_id == AES.MODE_OCB:
+                output += self.cipher.encrypt()
         if self.header.use_modern_cipher and self.header.control_bitmask[4]:
             # Generate a MAC tag, if we are configured to do so
             tag = self.cipher.digest()
@@ -492,6 +563,8 @@ class DecryptionCipher(AbstractCipher):
                         or self.header.legacy_bitmask[3]
                         else self.stream.read(16)
                     )
+                if self.header.cipher_id == AES.MODE_OPENPGP:
+                    nonce = self.stream.read(18)
                 else:
                     nonce = self.stream.read(16)
             if nonce is None and self.header.cipher_id != AES.MODE_ECB:
@@ -525,6 +598,8 @@ class DecryptionCipher(AbstractCipher):
         if self.header.secondary_id != AES.MODE_ECB:
             if self.header.legacy_bitmask[2]:
                 nonce = os.urandom(16)
+            elif self.header.secondary_id == AES.MODE_OPENPGP:
+                nonce = self.stream.read(18)
             elif self.header.legacy_bitmask[3]:
                 nonce = self.stream.read(16)
             elif nonce is None:
@@ -583,13 +658,17 @@ class DecryptionCipher(AbstractCipher):
                 self.decrypt(b'')
                 + self.cipher.decrypt(self.data_buffer)
             )
-        else:
+        elif self.header.cipher_id != AES.MODE_SIV:
             # If the cipher has not been streaming, then all the ciphertext is
             # currently buffered. Decrypt now
             output = self.cipher.decrypt(
                 b''.join(block for block in self._blk_read(self.stream.read()))
                 + self.data_buffer
             )
+        else:
+            return self._siv_terminate()
+        if self.header.cipher_id == AES.MODE_OCB:
+            output += self.cipher.decrypt()
         # At this point, all ciphertext has been decrypted and (if enabled)
         # the MAC tag remains in the tag buffer
         if self.header.use_modern_cipher and self.header.control_bitmask[4]:
@@ -634,6 +713,26 @@ class DecryptionCipher(AbstractCipher):
         if len(data):
             output += protocols.unpadstring(data)
         return output
+
+    def _siv_terminate(self):
+        output = (
+            b''.join(block for block in self._blk_read(self.stream.read()))
+            + self.data_buffer
+        )
+        if len(self.tag_buffer) != self.tag_size:
+            raise DecryptionError(
+                "No data left in stream"
+            )
+        if self.header.control_bitmask[5]:
+            if self.secondary_cipher is None:
+                raise DecryptionError(
+                    "Cannot decrypt tag without secondary cipher"
+                )
+            self.tag_buffer = self.secondary_cipher.decrypt(
+                self.tag_buffer
+            )
+        plaintext = self.cipher.decrypt_and_verify(output, self.tag_buffer)
+        return self._unpad_blocks(plaintext)
 
 
 _IV_CIPHERS = {AES.MODE_CBC, AES.MODE_CFB, AES.MODE_OFB, AES.MODE_OPENPGP}
