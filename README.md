@@ -37,7 +37,8 @@ The __security__ package:
 * SecureConnection (A high-level, multithreaded class for sending and receiving encrypted files and messages)
 * SecureServer (A low-level listen server to accept connections and return SecureConnection instances)
 * agutil-secure (A command line utility for encrypting and decrypting files)
-* Several utility methods for encrypting and decrypting files or file objects
+* EncryptionCipher and DecryptionCipher (Twin classes for agutil's modular encryption format)
+* Several other utility functions and classes for encrypting and decrypting data
 
 ## Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)
@@ -120,9 +121,13 @@ due to the significance of the change, it was written as a new class.
 The following changes have been made to `agutil.security.SecureSocket`:
 * The constructor no longer takes an `agutil.io.Socket` as an argument, but instead takes an address and port, like `agutil.io.Socket`
 * This class now derives from `agutil.io.MPlexSocket` instead of `agutil.io.QueuedSocket`
+* Added _sign_ argument to `sendRSA()`. `sendRSA()` and `recvRSA()` now handle signature
+validation internally
+* SecureSocket now uses `agutil.security.EncryptionCipher` and `agutil.security.EncryptionCipher`
+  as backends for `sendAES()` and `recvAES()`.
 
 ##### API
-* agutil.security.SecureSocket(_address_, _port_, _password_=`None`, _rsabits_=`4096`, _timeout_=`3`, _logmethod_=`agutil.DummyLog`) _(Constructor)_
+* SecureSocket(_address_, _port_, _password_=`None`, _rsabits_=`4096`, _timeout_=`3`, _logmethod_=`agutil.DummyLog`) _(Constructor)_
 
   _address_ and _port_ are used to establish a connection to a remote socket.
   If _password_ is set and not None, it is used to generate a new AES ECB cipher
@@ -133,6 +138,26 @@ The following changes have been made to `agutil.security.SecureSocket`:
   messages (must be None, or a non-negative integer). _logmethod_ specifies a
   logging object to use (it defaults to `agutil.DummyLog`), but may also be an
   `agutil.Logger` instance or a bound method returned by `agutil.Logger.bindToSender()`.
+
+* SecureSocket.send(_msg_, _channel_=`'\_\_rsa\_\_'`, _sign_=`'SHA-256'`)
+* SecureScoket.sendRSA(_msg_, _channel_=`'\_\_rsa\_\_'`, _sign_=`'SHA-256'`)
+  Encrypts _msg_ using the remote socket's public key and sends over the channel _channel_.
+  If _msg_ is longer than the remote public key can encrypt, it is broken into
+  chunks and each chunk is encrypted before transmission. _sign_ can be `False`,
+  or one of `'MD5'`, `'SHA-1'`, `'SHA-224'`, `'SHA-256'`, `'SHA-384'`, or `'SHA-512'`.
+  If _sign_ is not `False`, the rsa signature of _msg_ is computed using the specified
+  hashing algorithm and sent to the remote socket.
+
+* SecureSocket.recv(_channel_=`'\_\_rsa\_\_'`, _decode_=`False`, _timeout_=`-1`)
+* SecureSocket.recvRSA(_channel_=`'\_\_rsa\_\_'`, _decode_=`False`, _timeout_=`-1`)
+  Waits to receive a message on the _channel_ channel, then decrypts using this socket's private key.
+  If _decode_ is true, the decrypted bytes object is decoded into a str object.
+  _timeout_ sets the maximum time allowed for any single operation with the remote
+  socket (thus the `.recvRSA` method may take longer to complete as a whole).
+  If _timeout_ is -1, it defaults to the `SecureSocket`'s default timeout parameter.
+  If the remote socket elects to send a message signature (the default), the message will be
+  verified against the signature. This will raise `rsa.pkcs1.VerificationError`
+  if signature verification fails
 
 ### agutil (Main Module)
 The following changes have been made to the main `agutil` module:
@@ -335,31 +360,147 @@ worker interface above. It still defaults to a `ThreadWorker`
   name as the parameter, do not provide a class instance).
 
 ### agutil.security (module)
-The following change has been made to the `agutil.security` module:
+The following changes have been made to the `agutil.security` module:
+* Added `configure_cipher`, a utility method for generating a `CipherHeader` based
+on settings provided as keyword arguments
 * Added `agutil.security.encryptFileObj` and `agutil.security.decryptFileObj`
 methods. These methods take the same arguments as `agutil.security.encryptFile`
 and `agutil.security.decryptFile` methods except that they take _file-like_ objects
 instead of filenames
+* Updated cipher used by `agutil-secure`.
+  * To Encrypt/Decrypt files in the old format, use the new `-l\--legacy` flag.
+* Removed the `-f\--force` flag from `agutil-secure`
+* Changed the arguments for `agutil.security.encryptFile`,
+`agutil.security.encryptFileObj`, `agutil.security.decryptFile`, and
+`agutil.security.decryptFileObj`
+* Added the following exceptions:
+  * `CipherError`
+  * `HeaderError`
+  * `HeaderLengthError`
+  * `InvalidHeaderError`
+  * `EncryptionError`
+  * `Decryptionerror`
 
 ##### API
-* encryptFileObj(_reader_, _writer_, _cipher_, _validate_=`False`):
 
-  Encrypts the data read from _reader_ using _cipher_ and writes it to _writer_.
-  The cipher is not required to be any class, but it must support an `encrypt()`
-  method, which takes a chunk of text, and returns a ciphered chunk.  Padding is
-  handled internally (chunks are padded to 16-byte intervals).
-  If _validate_ is `True`, encrypt and prepend 16 known bytes to the beginning of the output file.
-  This enables file decryption to check the key immediately without decrypting the entire file
+* configure_cipher(\*\*_kwargs_):
 
-* decryptFileObj(_reader_, _writer_, _cipher_, _validate_=`False`):
+  Uses keyword arguments to determine cipher configuration and returns a `CipherHeader` reflecting the settings.
+  Keyword arguments:
+  * `cipher_type`: The AES cipher mode to use. Defaults to EAX.
+      Ciphers can be given as the AES.MODE enumeration or a string value
+      (Ex: 'EAX' or 9)
+  * `secondary_cipher_type`: The AES cipher mode to use for the legacy cipher.
+      Cannot be CCM, EAX, GCM, SIV, or OCB. Defaults to CBC
+  * `store_nonce`: Stores nonce data in output. If this is disabled, the nonce
+      must be communicated separately. Default: True
+  * `encrypted_nonce`: Use a legacy cipher to encrypt the primary cipher's nonce.
+      Implies `legacy_store_nonce` and not `legacy_randomized_nonce`.
+      Default: False
+  * `store_tag`: Stores a message tag to verify message authenticity. If this is
+      disabled, the validity and integrity of the message cannot be
+      guaranteed. Default: True
+  * `tag_length`: The length (in bytes) of tne message tag. Default: 16
+  * `chunk_length`: The length (in blocks of 256 bytes) of plaintext for each
+      chunk. The cipher stream will emit one chunk of ciphertext each time a
+      full plaintext chunk is read. Ciphertext and plaintext chunks are not
+      necessarily the same size. Default: 16 blocks (4096 bytes)
+  * `encrypted_tag`: Use a legacy cipher to encrypt the message authentication
+      block. Default: False
+  * `enable_streaming`: Configure the cipher to be able to encrypt data as it
+      becomes available. Implied value depends on cipher type. If this is
+      enabled in conjunction with a cipher that does not support streaming
+      (CCM), the entire plaintext must be read in before any output will
+      be produced. Default: True
+  * `cipher_nonce_length`: Sets the length of the nonce for CTR, CCM, and OCB
+      ciphers. Please check the [Pycryptodome](https://pycryptodome.readthedocs.io/en/latest/src/cipher/cipher.html#symmetric-ciphers)
+      docs for allowed sizes. For ciphers besides these three, this
+      parameter is ignored and a 16-byte nonce is used.
+      Default: Largest allowed nonce based on cipher type.
+  * `ccm_message_length`: Sets the length of the message for a CCM cipher.
+      If this parameter is provided, it will imply `enable_streaming`.
+      If streaming is enabled without this parameter, the cipher must read
+      the entire plaintext before producing any output.
+      Maximum value: 65535
+  * `ctr_initial_value`: Sets the initial value of the counter for a CTR cipher.
+    Maximum value: 65535. Default: 1.
+  * `enable_compatability`: Outputs data in a legacy format compataible with
+      older versions of agutil. For compatability with the oldest versions of
+      agutil, disable `legacy_validate_nonce`.
+      Implies `use_legacy_ciphers` and disables all non-legacy configuration
+      options. Default: False
+  * `use_legacy_ciphers`: Outputs data in the default modern format, but uses
+      a legacy cipher configuration. Required by `enable_compatability`.
+      Default: False
+  * `legacy_randomized_nonce`: Do not store Nonce or IV in output. Instead, a
+      CBC mode cipher will be used and a special data block will be stored
+      to allow Decryption without the IV. Exclusive to `legacy_store_nonce`.
+      Implies `secondary_cipher_type=CBC` and not `legacy_store_nonce`. Default: False
+  * `legacy_store_nonce`: Stores the nonce in plaintext. Exclusive to
+        `legacy_randomized_nonce`. If both this and `legacy_randomized_nonce`
+        are False, the nonce must be communicated separately. Default: True
+  * `legacy_validate_nonce`: Stores data in the EXData block so that the key and
+    nonce can be validated during Decryption. Exclusive to `encrypted_nonce`.
+    Disable for compatability with the oldest versions of agutil.
+    Default: True
+
+* encryptFile(_input\_filename_, _output\_filename_, _key_, _nonce_=`None`, \*\*_kwargs_):
+
+  Opens _input\_filename_ and _output\_filename_ and passes their file handles,
+  along with the other arguments, to `encryptFileObj()`. For a description of that
+  function, see below.
+
+* encryptFileObj(_reader_, _writer_, _key_, _nonce_=`None`, \*\*_kwargs_):
+
+  Encrypts the data read from _reader_ using the cipher and writes it to _writer_.
+  Initializes an `agutil.security.EncryptionCipher` to handle the encryption.
+  _kwargs_ are passed to the constructor of the `EncryptionCipher` and may be
+  any valid keyword argument to `configure_cipher()` (see above).
+  Padding is handled internally (chunks are padded to 16-byte intervals).
+
+* decryptFile(_input\_filename_, _output\_filename_, _key_, _nonce_=`None`, _compatability_=`False`):
+
+  Opens _input\_filename_ and _output\_filename_ and passes their file handles,
+  along with the other arguments, to `decryptFileObj()`. For a description of that
+  function, see below.
+
+* decryptFileObj(_reader_, _writer_, _key_, _nonce_=`None`, _compatability_=`False`):
 
   Decrypts the data read from _reader_ using _cipher_ and writes it to _writer_.
-  The cipher is not required to be any class, but it must support an `decrypt()`
-  method, which takes a chunk of ciphertext, and returns a deciphered chunk.
-  Unpadding is handled internally (chunks are padded to 16-byte intervals).
-  If _validate_ is `True`, decrypt the first 16 bytes of the file and check against the expected value.
-  If the bytes match the expectation, discard them and continue decryption as normal.
-  If the bytes do not match, raise a `KeyError`
+  Initializes an `agutil.security.DecryptionCipher` to handle decryption.
+  The cipher can handle data encrypted by `agutil` versions between 1.2.0 and 3.1.2.
+  _compatability_ must be `True` to decrypt data from earlier versions.
+
+* CipherError: _(Exception)_
+
+  `ValueError` -> `CipherError`
+  This is the parent exception type for other cipher errors
+
+* EncryptionError: _(Exception)_
+
+  `ValueError` -> `CipherError` -> `EncryptionError`
+  Raised by `agutil.security.EncryptionCipher` if there is an error during encryption
+
+  * DecryptionError: _(Exception)_
+
+    `ValueError` -> `CipherError` -> `DecryptionError`
+    Raised by `agutil.security.DecryptionCipher` if there is an error during decryption
+
+* HeaderError: _(Exception)_
+
+  `ValueError` -> `CipherError` -> `HeaderError`
+  Raised by ciphers if the header is in an invalid state
+
+* HeaderLengthError: _(Exception)_
+
+  `ValueError` -> `CipherError` -> `HeaderError` -> `HeaderLengthError`
+  Raised by `agutil.security.DecryptionCipher` if there was not enough initial data to initialize the cipher
+
+* InvalidHeaderError: _(Exception)_
+
+  `ValueError` -> `CipherError` -> `HeaderError` -> `InvalidHeaderError`
+  Raised by ciphers if the header is corrupt or does not specify a valid configuration
+
 
 ### agutil.security.SecureConnection
 The following changes have been made to `agutil.security.SecureConnection`:
@@ -415,3 +556,164 @@ task has been completed
 * SecureConnection.close():
 
   Closes the underlying socket
+
+### agutil.security.EncryptionCipher (New class)
+Added the `EncryptionCipher` class, which is a configurable cipher that provides
+the AES encryption backend for `agutil-secure` and the `agutil.security` module.
+
+##### API
+
+* EncryptionCipher(_key_, _nonce_=`None`, _header_=`None`, \*\*_kwargs_): _(Constructor)_
+
+  Constructs a new `EncryptionCipher`. _key_ and _nonce_ are used to initialize the underlying cipher.
+  If _nonce_ is `None`, a 16-byte nonce will be automatically generated.
+  _header_ should be an `agutil.security.CipherHeader` object to specify the cipher settings.
+  If _header_ is `None`, a header will be automatically generated using the provided _kwargs_ (cipher uses default settings if no _kwargs_ are provided).
+  See `agutil.security.configure_cipher` for details on different cipher configuration options.
+  **Note:** If a _nonce_ was not provided and your configuration disabled storing the nonce,
+  you can access the _nonce_ via `EncryptionCipher.nonce`.
+
+* EncryptionCipher.encrypt(_data_):
+
+  Passes the provided _data_ though the internal cipher and returns ciphertext.
+  _data_ should be a `Bytes` object.
+  This function always returns a `Bytes` object, but the size of the output depends on the length of _data_ and the cipher settings.
+  You may call this function as many times as you wish, with any amount of _data_ in each call and any total plaintext size.
+  For any given plaintext, calling `encrypt()` on the whole plaintext at once, and calling `encrypt()` on the plaintext in discrete chunks
+  will ultimately yield the same ciphertext after calling `finish()`.
+  **Note:** Ciphertext is never complete until you call `finish()`
+
+* EncryptionCipher.finish():
+
+  Encrypts any remaining data in the internal buffer and returns final output.
+  Complete ciphertext is produced by appending the output from `finish()` to the concatenation of the output from any calls to `encrypt()`.
+  In other words, `ciphertext = cipher.encrypt(plaintext) + cipher.finish()`
+
+### agutil.security.DecryptionCipher (New class)
+Added the `DecryptionCipher` class, which is a configurable cipher that provides
+the AES decryption backend for `agutil-secure` and the `agutil.security` module.
+
+##### API
+
+* DecryptionCipher(_init\_data_, _key_, _nonce_=`None`, _legacy\_force_=`False`): _(Constructor)_
+
+  Initializes a new `DecryptionCipher`.
+  _init\_data_ should be the some or all of the ciphertext produced by an `EncryptionCipher`.
+  _init\_data_ is used to determine cipher configuration and any unused data is buffered until calling `decrypt()`.
+  _init\_data_ needs to be at least 16 bytes, but depending on the inferred configuration, it may need to be longer to properly initialize the cipher.
+  The constructor will raise an `agutil.security.HeaderLengthError` if _init\_data_ was too short.
+  64 bytes is almost always enough data to initialize the cipher.
+  If the constructor fails due to _init\_data_ length, try again with more data.
+  _key_ and _nonce_ are used to initialize the underlying cipher.
+  If _nonce_ is `None`, the cipher expects to find a _nonce_ in the header data.
+  If the header appears invalid, the `DecryptionCipher` assumes that the input is in legacy (headerless) format and attempts to continue initialization.
+  Files encrypted by `agutil-secure` 1.2.0 through 3.1.2 can be handled silently.
+  Files encrypted by `agutil-secure` 1.1.3 and earlier require _legacy\_force_ to be `True`
+
+* DecryptionCipher.decrypt(_data_=`b''`):
+
+  Decrypts the provided ciphertext. _data_ should be a `Bytes` object.
+  This function always returns a `Bytes` object, but the size of the output depends on the length of _data_ and the cipher settings.
+  You may call this function as many times as you wish, with any amount of _data_ in each call and any total ciphertext size.
+  For any given cipher, calling `decrypt()` on the whole ciphertext at once, and calling `decrypt()` on the ciphertext in discrete chunks
+  will ultimately yield the same plaintext after calling `finish()`.
+  **Note:** Plaintext is never complete until you call `finish()`
+
+* DecryptionCipher.finish():
+
+  Decrypts any remaining data in the internal buffer and returns final output.
+  Complete plaintext is produced by appending the output from `finish()` to the concatenation of the output from any calls to `decrypt()`.
+  In other words, `plaintext = cipher.decrypt(ciphertext) + cipher.finish()`
+
+### agutil.security.CipherHeader (New class)
+Added the `CipherHeader` class, which stores the configuration of an `EncryptionCipher` or `DecryptionCipher`
+and can be used to produce the 16-byte cipher header representing the configuration
+
+##### API
+
+* CipherHeader(_header_=`None`): _(Constructor)_
+
+  Creates a new `CipherHeader`.
+  _header_ should be a **15-byte** long `Bytes` object (excludes final hamming weight byte)
+  representing a cipher configuration.
+  If _header_ is `None`, a blank header is produced.
+  **Note:** The default (blank) header is valid in the sense that it follows the
+  cipher header format, but it is not suitable for immediate use in a cipher.
+  After initializing a blank header, you must set its attributes into a valid
+  cipher configuration.
+
+* CipherHeader.valid: _(Property, readonly)_
+
+  Returns `True` if the header is in a valid state. `False` otherwise
+
+* CipherHeader.weight: _(Property, readonly)_
+
+  Returns the hamming weight of the header
+
+* CipherHeader.data: _(Property, readonly)_
+
+  Returns the **16-byte** representation of this header
+
+* CipherHeader.legacy_bitmask: _(Property)_
+
+  Returns a `Bitmask` object containing the state of the legacy cipher bitmask.
+  You may also assign a `Bitmask` object to this property to overwrite the bitmask
+
+* CipherHeader.control_bitmask: _(Property)_
+
+  Returns a `Bitmask` object containing the state of the main cipher bitmask.
+  You may also assign a `Bitmask` object to this property to overwrite the bitmask
+
+* CipherHeader.exdata_size: _(Property)_
+
+  Returns the size (in bytes) of the extra data block.
+  You may also assign an integer (maximum 255) to this property
+
+* CipherHeader.cipher_id: _(Property)_
+
+  Returns the ID of the primary cipher.
+  You may also assign an integer (maximum 255) to this property
+
+* CipherHeader.secondary_id: _(Property)_
+
+  Returns the ID of the legacy cipher.
+  You may also assign an integer (maximum 255) to this property
+
+* CipherHeader.cipher_data: _(Property)_
+
+  Returns the 6-byte cipher_data segment as a `Bytes` object.
+  You may also assign a 6-byte `Bytes` object to this property
+
+* CipherHeader.use_modern_cipher: _(Property, readonly)_
+
+  Returns `True` if the current header configuration would enable the use of
+  the primary (modern) cipher.
+
+### agutil.security.Bitmask (New class)
+Added the `Bitmask` class to allow reading and manipulating a single-byte bitmask
+using pythons `[]` indexing API. This class uses an `agutil.search_range` to perform
+underlying bit manipulations and queries
+
+##### API
+
+* Bitmask(_n_=`0`, _values_=`None`): _(Constructor)_
+
+  Constructs a new `Bitmask`.
+  _n_ should represent the integer value of the bitmask to start from.
+  `0` is an empty mask with no bits set.
+  Alternatively, _values_ may be a list of 8 boolean values to initialize
+  the bitmask.
+
+* Bitmask.\_\_getitem\_\_(_i_):
+
+  Gets the value of bit _i_ (Big Endian).
+
+* Bitmask.\_\_setitem\_\_(_i_, _v_):
+
+  Sets the value of bit _i_ (Big Endian).
+  If _v_ evaluates to `False`, the bit is un-set instead
+
+* Bitmask.set_range(_start_, _stop_, _value_=`True`):
+
+  Sets the bits in the range [_start_, _stop_).
+  If _value_ evaluates to `False`, the bits are un-set instead.
