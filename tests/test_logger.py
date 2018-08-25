@@ -12,7 +12,6 @@ from .utils import TempDir
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        sys.stdout = open(os.devnull, 'w')
         cls.script_path = os.path.join(
             os.path.dirname(
                 os.path.dirname(
@@ -32,21 +31,16 @@ class test(unittest.TestCase):
         random.seed()
         cls.test_dir = TempDir()
 
-    @classmethod
-    def tearDownClass(cls):
-        sys.stdout.close()
-        sys.stdout = sys.__stdout__
-
     def test_compilation(self):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
     def test_basic_logging(self):
         import agutil.src.logger
-        time_mock = unittest.mock.Mock(side_effect = lambda text:text)
+        time_mock = unittest.mock.Mock(side_effect = lambda fmt, time=0:fmt)
         agutil.src.logger.time.strftime = time_mock
         output_file = self.test_dir()
-        log = agutil.src.logger.Logger(output_file, stdout_level = agutil.src.logger.Logger.LOGLEVEL_DETAIL)
+        log = agutil.src.logger.Logger(output_file, loglevel=agutil.src.logger.Logger.LOGLEVEL_DETAIL)
         log.log("Test message")
         log.log("More messages!", sender="me")
         log.log("OH NO! This one's an error!", "Foo", "ERROR")
@@ -58,9 +52,9 @@ class test(unittest.TestCase):
         foo_bound("Message 3")
         log.unmute("Foo")
         log.log("I've been unmuted!", "Foo")
-        log.log("This should be ignored", "Anyone", "BLORG")
+        log.log("This should be a warning", "Anyone", "BLORG")
         time.sleep(.2)
-        log.setChannelFilters("BLORG", True, False)
+        log.addChannel("BLORG", 15)
         log.setChannelCollection("BLORG", True)
         log.log("This should be seen", "Anyone", "BLORG")
         log.setChannelCollection("WARN", False)
