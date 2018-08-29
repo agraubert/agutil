@@ -10,21 +10,16 @@ import os
 import time
 import io
 import port_for as pf
-from .utils import TempDir
+from .utils import TempDir, random_bytestring, random_asciistring
 
 TRAVIS = 'CI' in os.environ
 
 tempname = None #Bad practice...
 
-def make_random_string():
-    return "".join(chr(random.randint(0,255)) for i in range(25))
-
-def make_random_file(filename):
-    writer = open(filename, mode='w')
-    contents = '\n'.join(make_random_string() for _ in range(25))
-    writer.write(contents)
-    writer.close()
-    return contents
+def write_random_data(filepath):
+    with open(filepath, 'wb') as writer:
+        writer.write(random_bytestring(4096))
+    return filepath
 
 def server_comms(secureClass, port, payload):
     ss = secureClass(port, password='password', rsabits=1024)
@@ -40,7 +35,7 @@ def server_comms(secureClass, port, payload):
     ss.close()
     sock.sock.sendRAW("+")
     for trial in range(5):
-        payload.output.append(make_random_string())
+        payload.output.append(random_asciistring(256))
         confirmations.append(sock.send(payload.output[-1]))
         payload.intake.append(sock.read())
     for conf in confirmations:
@@ -57,7 +52,7 @@ def client_comms(secureclass, securesocketclass, port, payload):
     confirmations = []
     payload.comms_check = sock.sock.recvRAW(decode=True)
     for trial in range(5):
-        payload.output.append(make_random_string())
+        payload.output.append(random_asciistring(256))
         confirmations.append(sock.send(payload.output[-1]))
         payload.intake.append(sock.read())
     for conf in confirmations:
@@ -82,15 +77,15 @@ def server_comms_files(secureClass, port, payload):
             infile = tempname()
             sock.savefile(infile, force=True)
             reader = open(infile, mode='rb')
-            payload.intake.append(reader.read().decode())
+            payload.intake.append(reader.read())
             reader.close()
-            payload.output.append(make_random_file(outfile))
+            payload.output.append(write_random_data(outfile))
             sock.sendfile(outfile)
             sock.sock.recvRAW()
             os.remove(outfile)
             os.remove(infile)
         outfile = tempname()
-        payload.output.append(make_random_file(outfile))
+        payload.output.append(write_random_data(outfile))
         sock.sendfile(outfile)
         sock.sock.recvRAW()
         os.remove(outfile)
@@ -113,22 +108,25 @@ def client_comms_files(secureclass, port, payload):
         for trial in range(5):
             outfile = tempname()
             infile = tempname()
-            payload.output.append(make_random_file(outfile))
+            payload.output.append(write_random_data(outfile))
             sock.sendfile(outfile)
             sock.savefile(infile, force=True)
             sock.sock.sendRAW('+')
             reader = open(infile, mode='rb')
-            payload.intake.append(reader.read().decode())
+            payload.intake.append(reader.read())
             reader.close()
             os.remove(outfile)
             os.remove(infile)
         sys.stdout = open(os.devnull, 'w')
         infile = tempname()
         sys.stdin = io.StringIO("y"+os.linesep)
-        sock.savefile(infile)
+        sock.savefile(
+            infile,
+            force=sys.platform.startswith('win')
+        )
         sock.sock.sendRAW("+")
         reader = open(infile, mode='rb')
-        payload.intake.append(reader.read().decode())
+        payload.intake.append(reader.read())
         reader.close()
         sys.stdout.close()
         sys.stdout = sys.__stdout__
@@ -140,7 +138,7 @@ def client_comms_files(secureclass, port, payload):
         print("CERR", sock.sock.queue)
         raise
 
-@unittest.skipIf(sys.platform.startswith('win'), 'Socket tests broken on windows')
+# @unittest.skipIf(sys.platform.startswith('win'), 'Socket tests broken on windows')
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

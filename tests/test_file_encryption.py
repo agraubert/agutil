@@ -183,7 +183,7 @@ class test(unittest.TestCase):
     @unittest.skipIf(sys.version_info<(3,4), "This test is for python 3.4 and newer")
     def test_modern_decryption(self):
         import agutil.security.console
-        output_filename = tempname()
+        output_filename = self.test_dir()
         agutil.security.console.main([
             'decrypt',
             os.path.join(
@@ -206,7 +206,7 @@ class test(unittest.TestCase):
 
     def test_modern_decryption_33(self):
         import agutil.security.console
-        output_filename = tempname()
+        output_filename = self.test_dir()
         agutil.security.console.main([
             'decrypt',
             os.path.join(
