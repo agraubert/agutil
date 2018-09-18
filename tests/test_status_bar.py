@@ -77,3 +77,11 @@ class test(unittest.TestCase):
             self.assertIsInstance(i,int)
             self.assertEqual(bar.current, i)
             self.assertEqual(bar.progress, int(i*bar.cols/1000.0))
+
+    def test_passthrough(self):
+        from agutil import status_bar
+        with status_bar(10000, debugging=True) as bar:
+            for i in range(10000):
+                x = random.random()
+                self.assertEqual(bar.current, i)
+                self.assertEqual(x, bar.passthrough(x))

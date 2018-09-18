@@ -25,7 +25,8 @@ class status_bar:
         append="",
         cols=int(get_terminal_size()[0]/2),
         update_threshold=.00005,
-        debugging=False
+        debugging=False,
+        file=sys.stdout
     ):
         if maximum <= 0:
             raise ValueError(
@@ -44,6 +45,7 @@ class status_bar:
         self.post_start = 0
         self.cursor = 0
         self.threshold = self.maximum / self.cols
+        self.file = file
         self.debugging = debugging
         self.update_threshold = (
             self.maximum*update_threshold if show_percent else -1
@@ -74,8 +76,8 @@ class status_bar:
 
     def _write(self, text):
         if not self.debugging:
-            sys.stdout.write(text)
-            sys.stdout.flush()
+            self.file.write(text)
+            self.file.flush()
         self.display = (
             self.display[:self.cursor] + text +
             self.display[self.cursor + len(text):]
@@ -85,8 +87,12 @@ class status_bar:
     def _backtrack_to(self, index):
         if index < self.cursor:
             if not self.debugging:
-                sys.stdout.write('\b'*(self.cursor-index))
+                self.file.write('\b'*(self.cursor-index))
             self.cursor = index
+
+    def passthrough(self, value):
+        self.update()
+        return value
 
     def update(self, value=None):
         if self.pending_text_update or not self.initialized:

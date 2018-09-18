@@ -18,16 +18,16 @@ def server_comms(secureclass, queueclass, ss, payload):
     global startup_lock
     startup_lock.release()
     try:
-        sock = secureclass(ss.accept(), rsabits=1024)
+        sock = ss.accept(secureclass, rsabits=1024)
         payload.exception1 = False
     except ValueError:
         payload.exception1 = True
     try:
-        sock = secureclass(ss.accept(), rsabits=1024)
+        sock = ss.accept(secureclass, rsabits=1024)
         payload.exception2 = False
     except ValueError:
         payload.exception2 = True
-    sock = secureclass(ss.accept(), rsabits=1024)
+    sock = ss.accept(secureclass, rsabits=1024)
     ss.close()
     payload.intake=[]
     payload.output=[]
@@ -46,17 +46,15 @@ def client_comms(secureclass, queueclass, _sockClass, port, payload):
     global startup_lock
     startup_lock.acquire()
     startup_lock.release()
+    sock = queueclass('localhost', port)
+    sock.send('<potato>', '__protocol__')
+    sock.close()
     try:
-        sock = secureclass(_sockClass('localhost', port), rsabits=1024, _useIdentifier="<potato>")
-        payload.exception1 = False
+        sock = secureclass('localhost', port, rsabits=1024, password="potato")
+        payload.exception = False
     except ValueError:
-        payload.exception1 = True
-    try:
-        sock = secureclass(_sockClass('localhost', port), rsabits=1024, password="potato")
-        payload.exception2 = False
-    except ValueError:
-        payload.exception2 = True
-    sock = secureclass(_sockClass('localhost', port), rsabits=1024)
+        payload.exception = True
+    sock = secureclass('localhost', port, rsabits=1024)
     payload.intake=[]
     payload.output=[]
     for trial in range(5):
@@ -130,8 +128,7 @@ class test(unittest.TestCase):
         client_payload.sock.close()
         self.assertTrue(server_payload.exception1)
         self.assertTrue(server_payload.exception2)
-        self.assertTrue(client_payload.exception1)
-        self.assertTrue(client_payload.exception2)
+        self.assertTrue(client_payload.exception)
         self.assertEqual(len(server_payload.intake), len(client_payload.output))
         self.assertEqual(len(server_payload.output), len(client_payload.intake))
         self.assertListEqual(server_payload.intake, client_payload.output)

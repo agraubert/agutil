@@ -1,7 +1,9 @@
-from itertools import chain, islice, zip_longest
+from itertools import tee, chain, islice, zip_longest
 import hashlib
 from math import log
 import re
+from contextlib import contextmanager
+from .active_timeout import TimeoutExceeded
 
 replacement = re.compile(r'\.0+$')
 
@@ -25,7 +27,7 @@ def bytesToInt(num):
     return result
 
 
-def split_iterable(seq, length):
+def clump(seq, length):
     getter = iter(seq)
     while True:
         try:
@@ -33,6 +35,32 @@ def split_iterable(seq, length):
             yield chain([tmp], islice(getter, length-1))
         except StopIteration:
             return
+
+
+split_iterable = clump  # for compatability
+
+
+def _getelem(iterator, elem):
+    for row in iterator:
+        yield row[elem]
+
+
+def splice(seq):
+    """
+    Takes an iterable (which must iterate over a rectangular dataset)
+    For an iterator which yields m rows of n elements each
+    return n elements of length m, each yielding a different
+    column of the original sequence
+    """
+    getter = iter(seq)
+    first = next(getter)
+    return [
+        _getelem(iterator, i)
+        for iterator, i in zip(
+            tee(chain([first], getter), len(first)),
+            range(len(first))
+        )
+    ]
 
 
 def byte_xor(b1, b2):
@@ -55,8 +83,10 @@ def hashfile(filepath, algorithm='sha1', length=None):
 def byteSize(n):
     if n == 0:
         return '0B'
-    index = min(7, int(log(abs(n), 1024)))
-    suffix = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB'][index]
+    index = min(8, int(log(abs(n), 1024)))
+    suffix = [
+        'B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'
+    ][index]
     output = '%.1f' % (n / 1024**index)
     return replacement.sub('', output)+suffix
 
@@ -70,3 +100,20 @@ def first(iterable, predicate=lambda x: True):
     for item in iterable:
         if func(item):
             return item
+
+
+class LockTimeoutExceeded(TimeoutExceeded):
+    pass
+
+
+@contextmanager
+def context_lock(lock, timeout=-1):
+    attempt = lock.acquire(timeout=timeout)
+    if not attempt:
+        raise LockTimeoutExceeded(
+            "Failed to acquire %s after %d seconds" % (lock, timeout)
+        )
+    try:
+        yield lock
+    finally:
+        lock.release()

@@ -2,8 +2,8 @@ from .exceptions import _ParallelBackgroundException
 from .worker import ThreadWorker, ProcessWorker
 from itertools import zip_longest
 
-WORKERTYPE_THREAD = 0
-WORKERTYPE_PROCESS = 1
+WORKERTYPE_THREAD = ThreadWorker
+WORKERTYPE_PROCESS = ProcessWorker
 
 
 class IterDispatcher:
@@ -19,19 +19,19 @@ class IterDispatcher:
         self.maximum = maximum
         self.args = [iter(arg) for arg in args]
         self.kwargs = {key: iter(v) for (key, v) in kwargs.items()}
-        self.worker = (
-            ThreadWorker if workertype == WORKERTYPE_THREAD
-            else ProcessWorker
-        )
+        self.worker = workertype
 
     def run(self):
+        yield from self.dispatch()
+
+    def dispatch(self):
         self.worker = self.worker(self.maximum)
         try:
             output = []
             for args, kwargs in self._iterargs():
                 # _args = args if args is not None else []
                 # _kwargs = kwargs if kwargs is not None else {}
-                output.append(self.worker.dispatch(
+                output.append(self.worker.work(
                     self.func,
                     *args,
                     **kwargs
@@ -66,7 +66,7 @@ class IterDispatcher:
             yield args, kwargs
 
     def __iter__(self):
-        yield from self.run()
+        yield from self.dispatch()
 
     def is_alive(self):
         return self.worker.is_alive()
@@ -76,14 +76,11 @@ class DemandDispatcher:
     def __init__(self, func, maximum=15, workertype=WORKERTYPE_THREAD):
         self.maximum = maximum
         self.func = func
-        self.worker = (
-            ThreadWorker(self.maximum) if workertype == WORKERTYPE_THREAD
-            else ProcessWorker(self.maximum)
-        )
+        self.worker = workertype(self.maximum)
 
     def dispatch(self, *args, **kwargs):
         try:
-            return self.worker.dispatch(self.func, *args, **kwargs)
+            return self.worker.work(self.func, *args, **kwargs)
         except BaseException:
             self.worker.close()
             raise

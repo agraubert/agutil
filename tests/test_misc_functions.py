@@ -5,6 +5,7 @@ import sys
 import hashlib
 import random
 import tempfile
+import threading
 
 def make_random_string(length=25, lower=0, upper=255):
     return "".join(chr(random.randint(lower,upper)) for i in range(length))
@@ -128,3 +129,31 @@ class test(unittest.TestCase):
             target = data[random.randint(0,999)]
             self.assertEqual(target, first(data, target))
             self.assertEqual(target, first(data, lambda x:x==target))
+
+    def test_splicing(self):
+        from agutil import splice
+        for trial in range(25):
+            width = random.randint(1, 100)
+            data = [
+                [random.random() for c in range(width)]
+                for r in range(random.randint(1,10000))
+            ]
+            column_iters = splice(data)
+            self.assertEqual(len(column_iters), width)
+            i = 0
+            for r in range(len(data)):
+                for c in range(width):
+                    self.assertEqual(next(column_iters[c]), data[r][c])
+                i += 1
+            self.assertEqual(i,len(data))
+
+    def test_context_lock(self):
+        from agutil import context_lock, LockTimeoutExceeded
+        lock = threading.Lock()
+        with context_lock(lock) as l:
+            # This assertion is mostly to ensure we reach this block
+            self.assertEqual(lock, l)
+        lock.acquire()
+        with self.assertRaises(LockTimeoutExceeded):
+            with context_lock(lock, 1):
+                self.fail("context_lock somehow managed to acquire")

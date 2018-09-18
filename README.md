@@ -4,25 +4,23 @@
 
 A collection of python utilities
 
-__Version:__ 3.1.2
+__Version:__ 4.0.0
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
 * status_bar (A simple progress bar indicator)
 * Logger (A class for fast, simple, logging)
+* ActiveTimeout (A class for enforcing a timeout for a set of operations)
 * Several standalone utility methods (See the [agutil module page](https://github.com/agraubert/agutil/wiki/agutil-%28main-module%29) on the wiki)
-
-The __bio__ package:
-
-* ~~maf2bed (A command line utility for parsing a .maf file and converting coordinates from 1-based (maf standard) to 0-based (bed standard))~~
-
-  **Deprecated: Will be removed in a future release**
 
 The __io__ package:
 
 * Socket (A low-level network IO class built on top of the standard socket class)
 * SocketServer (A low-level listen server to accept connections and return Socket classes)
-* QueuedSocket (A low-level network IO class built to manage input across multiple channels)
+* MPlexSocket (A low-level network IO class which multiplexes I/O through multiple channels. Threadless version of `QueuedSocket`)
+* ~~QueuedSocket (A low-level network IO class built to manage input across multiple channels)~~
+
+  **Deprecated: Will be removed in a future release.** Please transition to `agutil.io.MPlexSocket` which is a threadless version of the same interface
 
 The __parallel__ package:
 
@@ -38,8 +36,9 @@ The __security__ package:
 * SecureSocket (A mid-level network IO class built to manage encrypted network communications)
 * SecureConnection (A high-level, multithreaded class for sending and receiving encrypted files and messages)
 * SecureServer (A low-level listen server to accept connections and return SecureConnection instances)
-* encryptFile and decryptFile (Simple methods for encrypting and decrypting local files)
 * agutil-secure (A command line utility for encrypting and decrypting files)
+* EncryptionCipher and DecryptionCipher (Twin classes for agutil's modular encryption format)
+* Several other utility functions and classes for encrypting and decrypting data
 
 ## Documentation:
 Detailed documentation of these packages can be found on the [agutil Github wiki page](https://github.com/agraubert/agutil/wiki)

@@ -32,7 +32,8 @@ class test(unittest.TestCase):
             'pwd',
             'echo hi',
             'ps -o command',
-            'df',
+            'df -h',
+            'du -sh .'
             'which python',
             'whoami'
         ]
