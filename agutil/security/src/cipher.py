@@ -256,9 +256,10 @@ def configure_cipher(**kwargs):
     encrypted_tag: Use a legacy cipher to encrypt the message authentication
         block. Default: False
     enable_streaming: Configure the cipher to be able to encrypt data as it
-        becomes available. Implied value depends on cipher type. If this is
-        enabled in conjunction with a cipher that does not support streaming
-        (CCM), the entire plaintext must be read in before any output will
+        becomes available. Implied value depends on cipher type.
+        If streaming is disabled, either explicitly, or implicitly (by using a
+        cipher which does not support output), the entire plaintext must be encrypted
+        before any output will be produced
         be produced. Default: True
     cipher_nonce_length: Sets the length of the nonce for CTR, CCM, and OCB
         ciphers. Please check the Pycryptodome docs for allowed sizes.
@@ -267,8 +268,7 @@ def configure_cipher(**kwargs):
         Default: Largest allowed nonce based on cipher type.
     ccm_message_length: Sets the length of the message for a CCM cipher.
         If this parameter is provided, it will imply enable_streaming.
-        If streaming is enabled without this parameter, the cipher must read
-        the entire plaintext before producing any output.
+        CCM ciphers cannot enable streaming without this setting.
         Maximum value: 65535
     ctr_initial_value: Sets the initial value of the counter for a CTR cipher.
         Maximum value: 65535. Default: 1.

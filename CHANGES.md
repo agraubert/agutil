@@ -1,5 +1,126 @@
 # CHANGELOG
 
+## 4.0.0
+
+**Feature Removal:**
+
+* The `maf2bed` utility and its associated code has been removed
+
+**Deprecation Notice:**
+
+* `agutil.io.QueuedSocket` is now deprecated in favor of `agutil.io.MPlexSocket`
+
+### agutil (Main Module)
+* `agutil.split_iterable` is now also available as `agutil.clump` which was chosen
+as it more clearly describes the function. `agutil.split_iterable` _may_ be removed
+in a future release, but this is not yet planned
+* Added a function `agutil.splice` which takes a iterable of at least 2 dimensions (M rows by N columns)
+and returns an iterable for each column (N iterables of length M).
+* `agutil.byteSize` now supports yottabytes
+* Added `agutil.context_lock` method, which enforces a timeout when acquiring a native lock
+* New exceptions: `agutil.TimeoutExceeded` and `agutil.LockTimeoutExceeded`
+
+### agutil.ActiveTimeout (new class)
+This class has been added to manage a timeout over a set of operations. Specifically,
+to enforce that several blocking operations all complete within the given timeout.
+The enforcement is not automatic, but relies on checking the timeout when possible
+
+### agutil.Logger
+* The class has been rewritten to integrate with the builtin `logging` module
+
+### agutil.status_bar
+* Added a `passthrough()` method which takes one argument and returns it unchanged
+while incrementing the bar by 1.
+* Added a _file_ argument to the `status_bar()` constructor
+
+### agutil.io.SocketServer
+* The `accept()` method now takes a `socket_type` argument to determine which type of Socket in the `agutil` socket class tree will be returned.
+The method also takes a variable number of keyword arguments which will be passed to the returned socket's constructor. The method defaults
+to returning `agutil.io.Socket` instances
+
+### agutil.io.QueuedSocket
+* **Deprecation Notice:** `agutil.io.QueuedSocket` is now deprecated in favor of `agutil.io.MPlexSocket`. The latter provides the same interface but in a lighter-weight and threadless manner.
+* The constructor no longer takes an `agutil.io.Socket` as argument, but instead takes an address and port, like `agutil.io.Socket`
+* Outgoing messages are no longer sent in a FIFO order. The socket will continuously rotate
+through all channels waiting to send messages, sending one message from each (in FIFO).
+
+### agutil.io.MPlexSocket (new class)
+This class provides the same interface as `agutil.io.QueuedSocket` but does so without
+the use of background threads. It is meant to serve as a drop-in replacement, but
+due to the significance of the change, it was written as a new class.
+`agutil.security.SecureSocket` now derives from this class
+
+### agutil.security (module)
+* Added `configure_cipher`, a utility method for generating a `CipherHeader` based
+on settings provided as keyword arguments
+* Added `agutil.security.encryptFileObj` and `agutil.security.decryptFileObj`
+methods. These methods take the same arguments as `agutil.security.encryptFile`
+and `agutil.security.decryptFile` methods except that they take _file-like_ objects
+instead of filenames
+* Updated cipher used by `agutil-secure`.
+  * To Encrypt/Decrypt files in the old format, use the new `-l\--legacy` flag.
+* Removed the `-f\--force` flag from `agutil-secure`
+* Changed the arguments for `agutil.security.encryptFile`,
+`agutil.security.encryptFileObj`, `agutil.security.decryptFile`, and
+`agutil.security.decryptFileObj`
+* Added the following exceptions:
+  * `CipherError`
+  * `HeaderError`
+  * `HeaderLengthError`
+  * `InvalidHeaderError`
+  * `EncryptionError`
+  * `Decryptionerror`
+
+### agutil.security.SecureSocket
+* The constructor no longer takes an `agutil.io.Socket` as an argument, but instead takes an address and port, like `agutil.io.Socket`
+* This class now derives from `agutil.io.MPlexSocket` instead of `agutil.io.QueuedSocket`
+* Added _sign_ argument to `sendRSA()`. `sendRSA()` and `recvRSA()` now handle signature
+validation internally
+* SecureSocket now uses `agutil.security.EncryptionCipher` and `agutil.security.EncryptionCipher`
+  as backends for `sendAES()` and `recvAES()`.
+
+### agutil.security.SecureConnection
+* This class has been overhauled to be more efficient, and mostly threadless.
+* The _retries_ argument of the `send()` function has been removed
+* Added a `confirm()` method to await confirmation from the remote socket that a
+task has been completed
+* Removed the _timeout_ argument from `close()` and `shutdown()`
+
+### agutil.security.EncryptionCipher (New class)
+Added the `EncryptionCipher` class, which is a configurable cipher that provides
+the AES encryption backend for `agutil-secure` and the `agutil.security` module.
+
+### agutil.security.DecryptionCipher (New class)
+Added the `DecryptionCipher` class, which is a configurable cipher that provides
+the AES decryption backend for `agutil-secure` and the `agutil.security` module.
+
+### agutil.security.CipherHeader (New class)
+Added the `CipherHeader` class, which stores the configuration of an `EncryptionCipher` or `DecryptionCipher`
+and can be used to produce the 16-byte cipher header representing the configuration
+
+### agutil.security.Bitmask (New class)
+Added the `Bitmask` class to allow reading and manipulating a single-byte bitmask
+using pythons `[]` indexing API. This class uses an `agutil.search_range` to perform
+underlying bit manipulations and queries
+
+### agutil.parallel (module)
+The following change has been made to the `agutil.parallel` module:
+* The WORKERTYPE constants, `WORKERTYPE_THREAD` and `WORKERTYPE_PROCESS`, have been
+updated to reference the actual worker classes, `ThreadWorker` and `ProcessWorker`,
+instead of being enumerations for the types. The consequence is that the parallelization
+decorators and dispatchers can now be given any class which follows the worker interface
+(see changes to dispatchers below for details)
+
+### agutil.parallel.IterDispatcher
+* The _workertype_ argument to the constructor may now be any object which follows the
+worker interface. It still defaults to a `ThreadWorker`
+* Added `Iterdispatcher.dispatch` as the preferred method for operating the dispatcher,
+but operates identically to `IterDispatcher.run`
+
+### agutil.parallel.DemandDispatcher
+* The _workertype_ argument to the constructor may now be any object which follows the
+worker interface. It still defaults to a `ThreadWorker`
+
 ## 3.1.2
 
 * Fixed `setup.py` to allow installation using pip >=10 and python <3.6
