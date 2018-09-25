@@ -16,3 +16,6 @@ from .src.misc import (
 )
 from .src.shell import cmd, StdOutAdapter, ShellReturnObject
 from .src.active_timeout import ActiveTimeout, TimeoutExceeded
+
+
+__version__ = '4.0.0'

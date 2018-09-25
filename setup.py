@@ -12,22 +12,16 @@ if sys.version_info<(3,3):
     sys.exit(1)
 
 long_desc = "A collection of python utilities"
-version = None
 
-import re
-try:
+import re, os
+if os.path.isfile('README.rst'):
     reader = open("README.rst", mode='r')
-    long_desc = reader.read()
-    version = re.search(r'\*\*Version:\*\* ([0-9\.a-zA-Z]*)', long_desc).group(1)
-    reader.close()
-except OSError:
-    pass
-
-if not version:
+else:
     reader = open("README.md", mode='r')
-    long_desc = reader.read()
-    version = re.search(r'__Version:__ ([0-9\.a-zA-Z]*)', long_desc).group(1)
-    reader.close()
+long_desc = reader.read()
+reader.close()
+
+from agutil import __version__ as version
 
 setup(
     name="agutil",
