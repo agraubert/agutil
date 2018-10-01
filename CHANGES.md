@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 4.0.1
+
+### agutil.status_bar
+* Set the _file_ argument to the `agutil.status_bar` constructor to default to `None`.
+During initialization, if _file_ is `None`, it becomes `sys.stdout`. This allows
+`status_bar` to be affected by changes to `sys.stdout`
+
 ## 4.0.0
 
 **Feature Removal:**
