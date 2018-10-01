@@ -26,7 +26,7 @@ class status_bar:
         cols=int(get_terminal_size()[0]/2),
         update_threshold=.00005,
         debugging=False,
-        file=sys.stdout
+        file=None
     ):
         if maximum <= 0:
             raise ValueError(
@@ -45,7 +45,7 @@ class status_bar:
         self.post_start = 0
         self.cursor = 0
         self.threshold = self.maximum / self.cols
-        self.file = file
+        self.file = file if file is not None else sys.stdout
         self.debugging = debugging
         self.update_threshold = (
             self.maximum*update_threshold if show_percent else -1
