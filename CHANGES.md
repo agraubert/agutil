@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 4.0.2
+
+### agutil-secure
+* Fixed the progress bar not displaying properly when encrypting/decrypting multiple
+files at the same time
+
+## agutil.parallel.ProcessWorker
+* Fixed exceptions not being raised until all other jobs had finished. Exceptions
+will now be raised immediately and shutdown the ProcessWorker
+
 ## 4.0.1
 
 ### agutil.status_bar

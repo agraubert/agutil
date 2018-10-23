@@ -11,6 +11,12 @@ def exception_test_function(i):
     time.sleep(random.random() * 5)
     raise IndexError()
 
+def early_exception_test_function(i):
+    time.sleep(random.random() * 5)
+    if i == 3:
+        raise IndexError()
+    return i
+
 def standard_test_function(i):
     time.sleep(random.random() * 5)
     return i
@@ -70,7 +76,28 @@ class test(unittest.TestCase):
             tworker.dispatch(exception_test_function,1)()
 
         with self.assertRaises(IndexError):
-            pworker.dispatch(exception_test_function,1)(5)
+            pworker.dispatch(exception_test_function,1)()
+
+        tworker = ThreadWorker(1)
+        pworker = ProcessWorker(1)
+
+        callbacks = [
+            tworker.dispatch(early_exception_test_function, i)
+            for i in range(5)
+        ]
+
+        with self.assertRaises(IndexError):
+            for callback in callbacks:
+                assert callback() < 3
+
+        callbacks = [
+            pworker.dispatch(early_exception_test_function, i)
+            for i in range(5)
+        ]
+
+        with self.assertRaises(IndexError):
+            for callback in callbacks:
+                assert callback() < 3
 
         tworker.close()
         pworker.close()
