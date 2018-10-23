@@ -43,6 +43,9 @@ class ThreadWorker:
     def close(self):
         self.shutdown = True
 
+    # def halt(self):
+    #     self.close()
+
     def is_alive(self):
         return not self.shutdown
 
@@ -83,6 +86,13 @@ class ThreadWorker:
                 ]
 
 
+def process_runner(func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except BaseException as e:
+        return _ParallelBackgroundException(e)
+
+
 class ProcessWorker:
     def __init__(self, maximum):
         self.pool = mp.Pool(maximum)
@@ -92,11 +102,28 @@ class ProcessWorker:
         return self.work(func, *args, **kwargs)
 
     def work(self, func, *args, **kwargs):
-        callback = self.pool.apply_async(func, args, kwargs)
-        return lambda x=None: callback.get(x)
+        callback = self.pool.apply_async(
+            process_runner,
+            [func] + [*args],
+            kwargs
+        )
+
+        def get(timeout=None):
+            result = callback.get(timeout)
+            if isinstance(result, _ParallelBackgroundException):
+                self.halt()
+                raise result.exc
+            return result
+
+        return get
 
     def close(self):
         self.pool.close()
+        self.pool.join()
+        self.closed = True
+
+    def halt(self):
+        self.pool.terminate()
         self.pool.join()
         self.closed = True
 
