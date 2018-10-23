@@ -104,7 +104,7 @@ class ProcessWorker:
     def work(self, func, *args, **kwargs):
         callback = self.pool.apply_async(
             process_runner,
-            [func] + [*args],
+            [func] + list(args),
             kwargs
         )
 
