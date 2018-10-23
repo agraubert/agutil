@@ -6,6 +6,7 @@ import Cryptodome.Cipher.AES as AES
 from getpass import getpass
 from itertools import chain
 from contextlib import ExitStack
+from functools import wraps
 from .src.cipher import EncryptionCipher, DecryptionCipher, configure_cipher
 
 try:
@@ -107,6 +108,8 @@ def main(args_input=sys.argv[1:]):
             "Must specify the same number of input files as outputs "
             "if explicitly providing output files"
         )
+    files.EncryptionCipher.encrypt.__wrapped__ = files.EncryptionCipher.encrypt
+    files.DecryptionCipher.decrypt.__wrapped__ = files.DecryptionCipher.decrypt
     with ExitStack() as exitStack:
         for (input_file, output_arg) in zip(
             args.input, chain(args.output, [None]*len(args.input))
@@ -149,6 +152,7 @@ def main(args_input=sys.argv[1:]):
                 )
 
                 def wrapper(func):
+                    @wraps(func)
                     def call(cipher, chunk):
                         call.progress += len(chunk)
                         bar.update(call.progress)
@@ -157,11 +161,11 @@ def main(args_input=sys.argv[1:]):
                     return call
                 if args.action == 'encrypt':
                     files.EncryptionCipher.encrypt = wrapper(
-                        files.EncryptionCipher.encrypt
+                        files.EncryptionCipher.encrypt.__wrapped__
                     )
                 else:
                     files.DecryptionCipher.decrypt = wrapper(
-                        files.DecryptionCipher.decrypt
+                        files.DecryptionCipher.decrypt.__wrapped__
                     )
             try:
                 if args.action == 'encrypt':
