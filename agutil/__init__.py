@@ -10,3 +10,4 @@ from .src.misc import (
     byteSize,
 )
 from .src.shell import cmd, StdOutAdapter, ShellReturnObject
+from .src.args import FileType, DirType, FOFNType
