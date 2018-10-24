@@ -8,10 +8,13 @@ import contextlib
 import shutil
 from argparse import ArgumentTypeError as argError
 
+def tohex(b):
+    return ''.join('%02x' % n for n in b)
+
 def make_random_filename(directory, ext=None):
     name = os.path.join(
         directory,
-        os.urandom(8).hex()
+        tohex(os.urandom(8))
         + '.' + make_random_exts(ext)
     )
     with open(name, 'w') as w:
@@ -19,7 +22,7 @@ def make_random_filename(directory, ext=None):
 
 def make_random_exts(ext):
     if ext is None:
-        ext = os.urandom(1).hex()
+        ext = tohex(os.urandom(1))
     return ext
 
 def make_fofn(directory, *files):
@@ -63,7 +66,7 @@ class test(unittest.TestCase):
                 with self.assertRaises(argError):
                     checker(__file__)
                 with self.assertRaises(argError):
-                    checker(make_random_filename(workspace, os.urandom(2).hex()))
+                    checker(make_random_filename(workspace, tohex(os.urandom(2))))
                 for ext in exts:
                     goodfile = os.path.abspath(make_random_filename(workspace, ext))
                     gzfile = os.path.abspath(make_random_filename(workspace, ext+'.gz'))
@@ -172,7 +175,7 @@ class test(unittest.TestCase):
                 all_checker = FOFNType(DirType(), FileType(*exts, compression=True), as_list=True, allow_direct=True)
                 acceptable = [make_random_filename(workspace, ext) for ext in exts]
                 acceptable_fofn = make_fofn(workspace, *acceptable)
-                _dir = os.path.join(workspace, 'dir-'+os.urandom(8).hex())
+                _dir = os.path.join(workspace, 'dir-'+tohex(os.urandom(8)))
                 os.mkdir(_dir)
                 with_dirs = acceptable + [_dir] + [
                     make_random_filename(workspace, ext+'.gz') for ext in exts
