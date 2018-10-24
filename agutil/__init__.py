@@ -16,6 +16,7 @@ from .src.misc import (
 )
 from .src.shell import cmd, StdOutAdapter, ShellReturnObject
 from .src.active_timeout import ActiveTimeout, TimeoutExceeded
+from .src.args import FileType, DirType, FOFNType
 
 
 __version__ = '4.0.2'
