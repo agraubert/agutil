@@ -28,27 +28,38 @@ class test(unittest.TestCase):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    def test_dispatch(self):
-        from agutil.parallel import Dispatcher
+    def test_iter(self):
+        from agutil.parallel import IterDispatcher
 
         def test(i):
             time.sleep(random.random() * 5)
             return i
 
-        disp = Dispatcher(
+        disp = IterDispatcher(
             test,
             i=range(100)
         )
         t0 = time.monotonic()
         for x,y in zip(disp, range(100)):
             self.assertEqual(x,y)
-        t1 = time.monotonic()
-        for x,y in zip(disp, range(100)):
-            self.assertEqual(x,y)
-        self.assertLess(time.monotonic()-t1, t1-t0)
+        self.assertLess(time.monotonic()-t0, 35) # Worst case parallel performance
+
+    def test_demand(self):
+        from agutil.parallel import DemandDispatcher
+
+        def test(i):
+            time.sleep(random.random() * 5)
+            return i
+
+        disp = DemandDispatcher(test)
+        t0 = time.monotonic()
+        for x,y in [(disp.dispatch(i),i) for i in range(100)]:
+            self.assertEqual(x(),y)
+        self.assertLess(time.monotonic()-t0, 35) # Worst case parallel performance
+        disp.close()
 
     def test_exceptions(self):
-        from agutil.parallel import Dispatcher
+        from agutil.parallel import IterDispatcher
 
         def test(i):
             time.sleep(random.random() * 5)
@@ -57,7 +68,7 @@ class test(unittest.TestCase):
             return i
 
         with self.assertRaises(SystemExit):
-            disp = Dispatcher(
+            disp = IterDispatcher(
                 test,
                 i=range(15)
             )
@@ -68,7 +79,7 @@ class test(unittest.TestCase):
             time.sleep(random.random() * 5)
             return SystemExit()
 
-        disp = Dispatcher(
+        disp = IterDispatcher(
             test2,
             range(10)
         )

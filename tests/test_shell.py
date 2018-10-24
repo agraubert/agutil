@@ -32,7 +32,8 @@ class test(unittest.TestCase):
             'pwd',
             'echo hi',
             'ps -o command',
-            'df',
+            'df -h',
+            'du -sh .'
             'which python',
             'whoami'
         ]
@@ -41,7 +42,8 @@ class test(unittest.TestCase):
                 command,
                 shell=True,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT
+                stderr=subprocess.STDOUT,
+                executable=os.environ['SHELL'] if 'SHELL' in os.environ else None
             )
             expected.wait()
             observed = cmd(command, display=False)

@@ -75,7 +75,7 @@ def cmd(expr, display=True):
         stderr=adapter.writeFD,
         stdin=stdinFD,
         universal_newlines=False,
-        executable=os.environ['SHELL'] if 'SHELL' in os.environ else 'cmd'
+        executable=os.environ['SHELL'] if 'SHELL' in os.environ else None
     )
     proc.wait()
     adapter.kill()

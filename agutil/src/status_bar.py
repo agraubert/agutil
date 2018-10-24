@@ -4,6 +4,18 @@ from shutil import get_terminal_size
 
 
 class status_bar:
+
+    @classmethod
+    def iter(cls, iterable, maximum=None, *_, iter_debug=False, **kwargs):
+        if maximum is None:
+            maximum = len(iterable)
+        with status_bar(maximum, **kwargs) as bar:
+            if iter_debug:
+                yield bar
+            for obj in iterable:
+                yield obj
+                bar.update()
+
     def __init__(
         self,
         maximum,
@@ -13,7 +25,8 @@ class status_bar:
         append="",
         cols=int(get_terminal_size()[0]/2),
         update_threshold=.00005,
-        debugging=False
+        debugging=False,
+        file=None
     ):
         if maximum <= 0:
             raise ValueError(
@@ -32,6 +45,7 @@ class status_bar:
         self.post_start = 0
         self.cursor = 0
         self.threshold = self.maximum / self.cols
+        self.file = file if file is not None else sys.stdout
         self.debugging = debugging
         self.update_threshold = (
             self.maximum*update_threshold if show_percent else -1
@@ -62,8 +76,8 @@ class status_bar:
 
     def _write(self, text):
         if not self.debugging:
-            sys.stdout.write(text)
-            sys.stdout.flush()
+            self.file.write(text)
+            self.file.flush()
         self.display = (
             self.display[:self.cursor] + text +
             self.display[self.cursor + len(text):]
@@ -73,12 +87,18 @@ class status_bar:
     def _backtrack_to(self, index):
         if index < self.cursor:
             if not self.debugging:
-                sys.stdout.write('\b'*(self.cursor-index))
+                self.file.write('\b'*(self.cursor-index))
             self.cursor = index
 
-    def update(self, value):
+    def passthrough(self, value):
+        self.update()
+        return value
+
+    def update(self, value=None):
         if self.pending_text_update or not self.initialized:
             self._initialize()
+        if value is None:
+            value = self.current + 1
         if value < 0:
             value = 0
         elif value > self.maximum:

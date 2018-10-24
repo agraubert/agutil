@@ -2,10 +2,13 @@ import argparse
 import hashlib
 import sys
 import os
-import Crypto.Cipher.AES as AES
+import Cryptodome.Cipher.AES as AES
 from getpass import getpass
 from itertools import chain
 from contextlib import ExitStack
+from functools import wraps
+from .src.cipher import EncryptionCipher, DecryptionCipher, configure_cipher
+from .. import __version__ as version
 
 try:
     from .src import files
@@ -39,7 +42,7 @@ def main(args_input=sys.argv[1:]):
     parser.add_argument(
         '--version',
         action='version',
-        version="%(prog)s (agutil) verion "+get_distribution('agutil').version,
+        version="%(prog)s (agutil) verion "+version,
         help="Display the current version and exit"
     )
     parser.add_argument(
@@ -76,11 +79,14 @@ def main(args_input=sys.argv[1:]):
         "3.3 compatable pbkdf2_hmac "
     )
     parser.add_argument(
-        '-f', '--force',
-        action='store_false',
-        help="Attempts to decrypt the file without verifying the password. "
-        "Files encrypted with agutil version 1.1.3 and earlier MUST "
-        "be decrypted with this option"
+        '-l', '--legacy',
+        action='store_true',
+        help="Enables compatability with agutil version 1.1.3 and earlier. "
+        "Encrypting in this mode will produce output which can be decrypted "
+        "by agutil 1.1.3 and earlier without additonal options and by agutil "
+        "3.1.2 and earlier with the '-f' option. "
+        "Decrypting in this mode is compatable only with files encrypted under"
+        " the conditions described above."
     )
     parser.add_argument(
         '-v', '--verbose',
@@ -103,6 +109,8 @@ def main(args_input=sys.argv[1:]):
             "Must specify the same number of input files as outputs "
             "if explicitly providing output files"
         )
+    files.EncryptionCipher.encrypt.__wrapped__ = files.EncryptionCipher.encrypt
+    files.DecryptionCipher.decrypt.__wrapped__ = files.DecryptionCipher.decrypt
     with ExitStack() as exitStack:
         for (input_file, output_arg) in zip(
             args.input, chain(args.output, [None]*len(args.input))
@@ -122,8 +130,14 @@ def main(args_input=sys.argv[1:]):
                 b'this is some serious salt, yo',
                 250000
             )).digest()
+            nonce = key[-16:]
             iv = os.urandom(16)
-            cipher = AES.new(key, AES.MODE_CBC, iv)
+            legacy_cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+            modern_cipher = AES.new(
+                hashlib.md5(key).digest(),
+                mode=AES.MODE_EAX,
+                nonce=nonce
+            )
             if args.verbose:
                 # this is definitely a hacky solution, but it looks better from
                 # the user's perspective.  I have no way of reporting the
@@ -139,35 +153,43 @@ def main(args_input=sys.argv[1:]):
                 )
 
                 def wrapper(func):
-                    def call(chunk, cipher):
+                    @wraps(func)
+                    def call(cipher, chunk):
                         call.progress += len(chunk)
                         bar.update(call.progress)
-                        return func(chunk, cipher)
+                        return func(cipher, chunk)
                     call.progress = 0
                     return call
                 if args.action == 'encrypt':
-                    files._encrypt_chunk = wrapper(files._encrypt_chunk)
+                    files.EncryptionCipher.encrypt = wrapper(
+                        files.EncryptionCipher.encrypt.__wrapped__
+                    )
                 else:
-                    files._decrypt_chunk = wrapper(files._decrypt_chunk)
+                    files.DecryptionCipher.decrypt = wrapper(
+                        files.DecryptionCipher.decrypt.__wrapped__
+                    )
             try:
                 if args.action == 'encrypt':
                     files.encryptFile(
                         input_file.name,
                         output_file.name,
-                        cipher,
-                        validate=args.force,
-                        _prechunk=True
+                        key,
+                        enable_compatability=args.legacy
                     )
                 else:
                     files.decryptFile(
                         input_file.name,
                         output_file.name,
-                        cipher,
-                        validate=args.force,
-                        _prechunk=True
+                        key,
+                        compatability=args.legacy
                     )
-            except KeyError:
-                sys.exit("Failed!  The provided password may be incorrect")
+            except ValueError:
+                if args.verbose:
+                    bar.clear()
+                sys.exit(
+                    "Failed! The password may be incorrect or the file may be "
+                    "corrupt"
+                )
 
             if output_arg is None:
                 from shutil import copyfile

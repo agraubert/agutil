@@ -1,59 +1,69 @@
 from . import protocols
 from os import urandom
+import hashlib
+import sys
+import os
+import Cryptodome.Cipher.AES as AES
+from .cipher import EncryptionCipher, DecryptionCipher, CipherHeader
 
 
-def encryptFile(
-    input_filename,
-    output_filename,
-    cipher,
-    validate=False,
-    _prechunk=False
-):
-    reader = open(input_filename, mode='rb')
-    writer = open(output_filename, mode='wb')
-    if _prechunk:
-        writer.write(cipher.encrypt(urandom(16)))
-    if validate:
-        writer.write(cipher.encrypt(b'\x00'*16))
-    intake = reader.read(4095)
+def encryptFileObj(reader, writer, key, nonce=None, **kwargs):
+    if not isinstance(key, bytes):
+        raise TypeError("key must be a bytes object")
+    if not (isinstance(nonce, bytes) or nonce is None):
+        raise TypeError("nonce must be a bytes object or None")
+    cipher = EncryptionCipher(key, nonce, **kwargs)
+    intake = reader.read(4096)
     while len(intake):
-        writer.write(_encrypt_chunk(intake, cipher))
+        writer.write(cipher.encrypt(intake))
         writer.flush()
-        intake = reader.read(4095)
-    reader.close()
-    writer.close()
+        intake = reader.read(4096)
+    writer.write(cipher.finish())
+    writer.flush()
+    return cipher.nonce
+
+
+def encryptFile(input_filename, output_filename, key, nonce=None, **kwargs):
+    with open(input_filename, mode='rb') as reader:
+        with open(output_filename, mode='wb') as writer:
+            return encryptFileObj(reader, writer, key, nonce, **kwargs)
+
+
+def decryptFileObj(
+    reader,
+    writer,
+    key,
+    nonce=None,
+    compatability=False
+):
+    if not isinstance(key, bytes):
+        raise TypeError("key must be a bytes object")
+    if not (isinstance(nonce, bytes) or nonce is None):
+        raise TypeError("nonce must be a bytes object or None")
+    intake = reader.read(64)  # read header data
+    cipher = DecryptionCipher(intake, key, nonce, compatability)
+    intake = reader.read(4096)
+    while len(intake):
+        writer.write(cipher.decrypt(intake))
+        writer.flush()
+        intake = reader.read(4096)
+    writer.write(cipher.finish())
+    writer.flush()
 
 
 def decryptFile(
     input_filename,
     output_filename,
-    cipher,
-    validate=False,
-    _prechunk=False
+    key,
+    nonce=None,
+    compatability=False
 ):
-    reader = open(input_filename, mode='rb')
-    writer = open(output_filename, mode='wb')
-    if _prechunk:
-        cipher.decrypt(reader.read(16))
-    if validate:
-        if cipher.decrypt(reader.read(16)) != b'\x00'*16:
-            reader.close()
-            writer.close()
-            raise KeyError(
-                "Decryption Failed! The cipher used may be incorrect"
+    with open(input_filename, mode='rb') as reader:
+        with open(output_filename, mode='wb') as writer:
+            decryptFileObj(
+                reader,
+                writer,
+                key,
+                nonce,
+                compatability
             )
-    intake = reader.read(4096)
-    while len(intake):
-        writer.write(_decrypt_chunk(intake, cipher))
-        writer.flush()
-        intake = reader.read(4096)
-    reader.close()
-    writer.close()
-
-
-def _encrypt_chunk(chunk, cipher):
-    return cipher.encrypt(protocols.padstring(chunk))
-
-
-def _decrypt_chunk(chunk, cipher):
-    return protocols.unpadstring(cipher.decrypt(chunk))

@@ -1,5 +1,8 @@
 from setuptools import setup
-from pip.req import parse_requirements
+try:
+    from pip.req import parse_requirements
+except ImportError:
+    from pip._internal.req import parse_requirements
 
 import sys
 if sys.version_info<(3,3):
@@ -9,29 +12,22 @@ if sys.version_info<(3,3):
     sys.exit(1)
 
 long_desc = "A collection of python utilities"
-version = None
 
-import re
-try:
+import re, os
+if os.path.isfile('README.rst'):
     reader = open("README.rst", mode='r')
-    long_desc = reader.read()
-    version = re.search(r'\*\*Version:\*\* ([0-9\.a-zA-Z]*)', long_desc).group(1)
-    reader.close()
-except OSError:
-    pass
-
-if not version:
+else:
     reader = open("README.md", mode='r')
-    long_desc = reader.read()
-    version = re.search(r'__Version:__ ([0-9\.a-zA-Z]*)', long_desc).group(1)
-    reader.close()
+long_desc = reader.read()
+reader.close()
+
+from agutil import __version__ as version
 
 setup(
     name="agutil",
     version=version,
     packages=[
         "agutil",
-        "agutil.bio",
         "agutil.io",
         "agutil.io.src",
         "agutil.parallel",
@@ -42,7 +38,6 @@ setup(
     ],
     entry_points={
         "console_scripts":[
-            "maf2bed = agutil.bio.maf2bed:main",
             "agutil-secure = agutil.security.console:main"
         ]
     },
@@ -72,7 +67,9 @@ setup(
         "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6"
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3 :: Only"
     ],
 
     author = "Aaron Graubert",
