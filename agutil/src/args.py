@@ -14,7 +14,14 @@ class ArgType(object):
 
 
 class FileType(ArgType):
-    def __init__(self, *extensions, compression=False, output=None, **kwargs):
+    def __init__(
+        self,
+        *extensions,
+        compression=False,
+        output=None,
+        existence=os.path.isfile,
+        **kwargs
+    ):
         """
         Create a new FileType checker.
         Provide a list of valid extensions for the file.
@@ -50,6 +57,7 @@ class FileType(ArgType):
             pattern += r'(\.(?:{}))?'.format('|'.join(self.compression))
         self.pattern = re.compile(pattern + r'$')
         self.output = output
+        self.existence = existence
         self.kwargs = {k: v for k, v in kwargs.items()}
 
     def __call__(self, arg):
@@ -60,7 +68,7 @@ class FileType(ArgType):
         Returns either an absolute filepath or a file-like object, as
         determined by arguments to __init__
         """
-        if not os.path.isfile(arg):
+        if not self.existence(arg):
             raise argparse.ArgumentTypeError("No such file: "+arg)
         match = self.pattern.match(os.path.basename(arg))
         if not match:
@@ -91,8 +99,11 @@ class FileType(ArgType):
 
 
 class DirType(ArgType):
+    def __init__(self, existence=os.path.isdir):
+        self.existence = existence
+
     def __call__(self, arg):
-        if not os.path.isdir(arg):
+        if not self.existence(arg):
             raise argparse.ArgumentTypeError("No such directory: "+arg)
         return os.path.abspath(arg)
 
@@ -105,6 +116,7 @@ class FOFNType(ArgType):
         as_list=False,
         as_handle=False,
         allow_direct=False,
+        existence=os.path.isfile,
         **kwargs
     ):
         """
@@ -152,6 +164,7 @@ class FOFNType(ArgType):
         self.as_list = as_list
         self.as_handle = as_handle
         self.allow_direct = allow_direct
+        self.existence = existence
         self.kwargs = {k: v for k, v in kwargs.items()}
 
     def check_path(self, path):
@@ -206,7 +219,7 @@ class FOFNType(ArgType):
         single object or a list of objects (determined by as_list). Object will
         either be a filepath or a file handle (determined by as_handle)
         """
-        if not os.path.isfile(arg):
+        if not self.existence(arg):
             raise argparse.ArgumentTypeError("No such file: "+arg)
         try:
             if self.as_list or self.min_paths >= 1:

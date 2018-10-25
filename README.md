@@ -52,7 +52,7 @@ the absolute filepath or a file handle
 
 ##### API
 
-* FileType(\*_extensions_, _compression_=`False`, _output_=`None`, \*\*_kwargs_) _(Constructor)_
+* FileType(\*_extensions_, _compression_=`False`, _output_=`None`, _existence_=`os.path.isfile`, \*\*_kwargs_) _(Constructor)_
 
   Initializes a new `FileType` object. When called on a string, the `FileType` instance
   will check that the string is a valid filepath ending in one of the provided _extensions_.
@@ -62,7 +62,8 @@ the absolute filepath or a file handle
   by ".gz", ".bgz", or ".bz2". If _compression_ is a list, it is taken to be the
   set of allowed compression extensions. _output_ and arbitrary keyword arguments
   control the type of output from calling the `FileType` instance. For descriptions
-  of those arguments, see `FileType.__call__`
+  of those arguments, see `FileType.__call__`. _existence_ should be a callable,
+  which is used to determine if a given argument exists. It defaults to `os.path.isfile`
 
 * FileType.\_\_call\_\_(_arg_) _(Call operator)_
 
@@ -87,9 +88,11 @@ filepath is a valid directory, then returns the absolute filepath
 
 ##### API
 
-* DirType() _(Constructor)_
+* DirType(_existence_=`os.path.isdir`) _(Constructor)_
 
-  Initializes a new `DirType` object. The constructor takes no arguments
+  Initializes a new `DirType` object.
+  _existence_ should be a callable, which is used to determine if a given argument
+  exists. It defaults to `os.path.isdir`
 
 * DirType.\_\_call\_\_(_arg_) _(Call operator)_
 
@@ -105,12 +108,13 @@ the files
 
 ##### API
 
-* FOFNType(\*_extensions_, _min\_paths_=`1`, _as\_list_=`False`, _as\_handle_=`False`, _allow\_direct_=`False`, \*\*_kwargs_) _(Constructor)_
+* FOFNType(\*_extensions_, _min\_paths_=`1`, _as\_list_=`False`, _as\_handle_=`False`, _allow\_direct_=`False`, _existence_=`os.path.isfile`, \*\*_kwargs_) _(Constructor)_
 
   Initializes a new `FOFNType` instance. _extensions_ should be a list of `str`,
   `FileType`, `DirType`, or `FOFNType` instances, together representing the set
   of acceptable files in the FOFN. Remaining arguments are stored and affect the
-  behavior of `FOFNTYPE.__call__`.
+  behavior of `FOFNTYPE.__call__`. _existence_ should be a callable, which is used
+  to determine if a given argument exists. It defaults to `os.path.isfile`
 
 * FOFNType.\_\_call\_\_(_arg_) _(Call operator)_
 
