@@ -95,7 +95,7 @@ class FileType(ArgType):
                 self.output,
                 **self.kwargs
             )
-        return os.path.abspath(arg)
+        return os.path.abspath(arg) if os.path.isfile(arg) else arg
 
 
 class DirType(ArgType):
@@ -105,7 +105,7 @@ class DirType(ArgType):
     def __call__(self, arg):
         if not self.existence(arg):
             raise argparse.ArgumentTypeError("No such directory: "+arg)
-        return os.path.abspath(arg)
+        return os.path.abspath(arg) if os.path.isdir(arg) else arg
 
 
 class FOFNType(ArgType):
@@ -207,7 +207,7 @@ class FOFNType(ArgType):
             return filepath
         if self.as_handle:
             return open(path, **self.kwargs)
-        return os.path.abspath(path)
+        return os.path.abspath(path) if os.path.isfile(path) else path
 
     def __call__(self, arg):
         """
