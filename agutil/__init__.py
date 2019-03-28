@@ -19,4 +19,4 @@ from .src.active_timeout import ActiveTimeout, TimeoutExceeded
 from .src.args import FileType, DirType, FOFNType
 
 
-__version__ = '4.0.2'
+__version__ = '4.1.0'
