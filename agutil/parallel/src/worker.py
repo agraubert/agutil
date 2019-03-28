@@ -1,6 +1,17 @@
 from .exceptions import _ParallelBackgroundException
 import threading
 import multiprocessing as mp
+from functools import wraps
+
+
+def execute_with_context(ctx, func):
+
+    @wraps(func)
+    def call(*args, **kwargs):
+        with ctx:
+            return func(*args, **kwargs)
+
+    return call
 
 
 class ThreadWorker:
@@ -37,7 +48,14 @@ class ThreadWorker:
                 raise result.exc
             return result
 
+        def poll():
+            return evt.is_set()
+
         self.input_event.set()
+        unpack.func = func
+        unpack.args = args
+        unpack.kwargs = kwargs
+        unpack.poll = poll
         return unpack
 
     def close(self):
@@ -115,6 +133,10 @@ class ProcessWorker:
                 raise result.exc
             return result
 
+        get.func = func
+        get.args = args
+        get.kwargs = kwargs
+        get.poll = callback.ready
         return get
 
     def close(self):

@@ -140,3 +140,10 @@ the files
   containing _arg_ and nothing else. Depending on the return type, a temporary
   file may be created, in which case, it will automatically be deleted when the
   interpreter exits
+
+### agutil.parallel.ThreadWorker and agutil.parallel.ProcessWorker
+* The callbacks returned by `Worker.work()` now have the following new attributes:
+    * `func` : The function executed
+    * `args` : The positional argument given
+    * `kwargs` : The keyword arguments given
+    * `poll` : A function which returns True if the function has completed execution and is ready to return a result
