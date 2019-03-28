@@ -5,29 +5,28 @@ except ImportError:
     from pip._internal.req import parse_requirements
 
 import sys
-if sys.version_info<(3,3):
+if sys.version_info == (3.3):
+    import warnings
+    warnings.warn(
+        "Warning: Python 3.3 is no longer officially supported by agutil"
+    )
+elif sys.version_info<(3,4):
     print("This python version is not supported:")
     print(sys.version)
-    print("agutil requires python 3.3 or greater")
+    print("agutil requires python 3.4 or greater")
     sys.exit(1)
 
 long_desc = "A collection of python utilities"
-version = None
 
-import re
-try:
+import re, os
+if os.path.isfile('README.rst'):
     reader = open("README.rst", mode='r')
-    long_desc = reader.read()
-    version = re.search(r'\*\*Version:\*\* ([0-9\.a-zA-Z]*)', long_desc).group(1)
-    reader.close()
-except OSError:
-    pass
-
-if not version:
+else:
     reader = open("README.md", mode='r')
-    long_desc = reader.read()
-    version = re.search(r'__Version:__ ([0-9\.a-zA-Z]*)', long_desc).group(1)
-    reader.close()
+long_desc = reader.read()
+reader.close()
+
+from agutil import __version__ as version
 
 setup(
     name="agutil",
@@ -70,7 +69,6 @@ setup(
 
         'License :: OSI Approved :: MIT License',
 
-        "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",

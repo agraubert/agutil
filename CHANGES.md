@@ -1,12 +1,39 @@
 # CHANGELOG
 
+## 4.1.0
+
+### agutil.parallel.ThreadWorker and agutil.parallel.ProcessWorker
+* The callbacks returned by `Worker.work()` now have the following new attributes:
+    * `func` : The function executed
+    * `args` : The positional argument given
+    * `kwargs` : The keyword arguments given
+    * `poll` : A function which returns True if the function has completed execution and is ready to return a result
+
+### agutil.FileType (new class)
+This class serves as an `argparse` type checker useful for providing as a _type_ argument
+to `argparse.ArgumentParser.add_argument`. `FileType` checks that the user's provided
+filepath is a valid file with one of the allowed extensions, then returns either
+the absolute filepath or a file handle
+
+### agutil.DirType (new class)
+This class serves as an `argparse` type checker useful for providing as a _type_ argument
+to `argparse.ArgumentParser.add_argument`. `DirType` checks that the user's provided
+filepath is a valid directory, then returns the absolute filepath
+
+### agutil.FOFNType (new class)
+This class serves as an `argparse` type checker useful for providing as a _type_ argument
+to `argparse.ArgumentParser.add_argument`. `FOFNType` checks that the provided argument
+is a valid filepath which contains a list of files. Arguments to the constructor
+of `FOFNType` configure what is acceptable as a member of the FOFN and how to return
+the files
+
 ## 4.0.2
 
 ### agutil-secure
 * Fixed the progress bar not displaying properly when encrypting/decrypting multiple
 files at the same time
 
-## agutil.parallel.ProcessWorker
+### agutil.parallel.ProcessWorker
 * Fixed exceptions not being raised until all other jobs had finished. Exceptions
 will now be raised immediately and shutdown the ProcessWorker
 

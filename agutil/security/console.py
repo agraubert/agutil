@@ -8,6 +8,7 @@ from itertools import chain
 from contextlib import ExitStack
 from functools import wraps
 from .src.cipher import EncryptionCipher, DecryptionCipher, configure_cipher
+from .. import __version__ as version
 
 try:
     from .src import files
@@ -41,7 +42,7 @@ def main(args_input=sys.argv[1:]):
     parser.add_argument(
         '--version',
         action='version',
-        version="%(prog)s (agutil) verion "+get_distribution('agutil').version,
+        version="%(prog)s (agutil) verion "+version,
         help="Display the current version and exit"
     )
     parser.add_argument(
