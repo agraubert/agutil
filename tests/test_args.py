@@ -123,7 +123,10 @@ class test(unittest.TestCase):
                 with self.assertRaises(argError):
                     checker(make_fofn(workspace, 'not-a-real-file'))
                 with self.assertRaises(argError):
-                    checker(make_fofn(workspace, make_random_filename(workspace)))
+                    rext = make_random_exts(None)
+                    while rext in exts:
+                        rext = make_random_exts(None)
+                    checker(make_fofn(workspace, make_random_filename(workspace, rext)))
                 self.assertIsInstance(empty_list_checker(empty_fofn), list)
                 self.assertListEqual(empty_list_checker(empty_fofn), [])
                 acceptable = [make_random_filename(workspace, ext) for ext in exts]
