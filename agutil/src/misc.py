@@ -79,7 +79,11 @@ def hashfile(filepath, algorithm='sha1', length=None):
         try:
             return hasher.digest(length)
         except TypeError:
-            print("Variable-length digests not supported for", algorithm, "algorithm on this platform")
+            print(
+                "Variable-length digests not supported for",
+                algorithm,
+                "algorithm on this platform"
+            )
     return hasher.digest()
 
 
