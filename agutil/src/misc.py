@@ -76,7 +76,14 @@ def hashfile(filepath, algorithm='sha1', length=None):
         chunk = reader.read(4096)
     reader.close()
     if isinstance(length, int):
-        return hasher.digest(length)
+        try:
+            return hasher.digest(length)
+        except TypeError:
+            print(
+                "Variable-length digests not supported for",
+                algorithm,
+                "algorithm on this platform"
+            )
     return hasher.digest()
 
 

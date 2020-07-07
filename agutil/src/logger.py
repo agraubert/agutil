@@ -125,10 +125,10 @@ class Logger(object):
             )
         )
 
-    def _set_level(self, l):
-        self.logger.setLevel(l)
+    def _set_level(self, lvl):
+        self.logger.setLevel(lvl)
 
-    def _get_level(self, l):
+    def _get_level(self, lvl):
         return self.logger.getEffectiveLevel()
 
     level = property(_get_level, _set_level)
