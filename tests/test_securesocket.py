@@ -68,6 +68,7 @@ def client_comms(secureclass, queueclass, _sockClass, port, payload):
             payload.intake.append(sock.recvRSA(decode=True))
     payload.sock = sock
 
+@unittest.skipIf(sys.platform.startswith('win'), 'Socket tests broken on windows')
 class test(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

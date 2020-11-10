@@ -7,14 +7,7 @@ import random
 import time
 import tempfile
 from filecmp import cmp
-
-def make_random_string(length=25, lower=0, upper=255):
-    return "".join(chr(random.randint(lower,upper)) for i in range(length))
-
-def tempname():
-    (handle, name) = tempfile.mkstemp()
-    os.close(handle)
-    return name
+from .utils import TempDir
 
 class test(unittest.TestCase):
     @classmethod
@@ -36,17 +29,17 @@ class test(unittest.TestCase):
         )
         sys.path.append(os.path.dirname(os.path.dirname(cls.script_path)))
         random.seed()
+        cls.test_dir = TempDir()
 
     def test_compilation(self):
         compiled_path = compile(self.script_path)
         self.assertTrue(compiled_path)
 
-    @unittest.skipIf(sys.platform.startswith('win'), "Tempfile cannot be used in this way on Windows")
     def test_basic_logging(self):
         import agutil.src.logger
         time_mock = unittest.mock.Mock(side_effect = lambda fmt, time=0:fmt)
         agutil.src.logger.time.strftime = time_mock
-        output_file = tempname()
+        output_file = self.test_dir()
         log = agutil.src.logger.Logger(output_file, loglevel=agutil.src.logger.Logger.LOGLEVEL_DETAIL)
         log.log("Test message")
         log.log("More messages!", sender="me")
@@ -77,4 +70,5 @@ class test(unittest.TestCase):
                 'logger_compare.txt'
             )
         ))
+        log.close()
         os.remove(output_file)
