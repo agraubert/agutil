@@ -1,9 +1,11 @@
 # agutil
-[![Master Build Status](https://travis-ci.org/agraubert/agutil.svg?branch=master)](https://travis-ci.org/agraubert/agutil) [![Dev Coverage Status](https://coveralls.io/repos/github/agraubert/agutil/badge.svg?branch=dev)](https://coveralls.io/github/agraubert/agutil?branch=dev)
+[![Master Build Status](https://gitlab.graubert.com/agraubert/agutil/badges/master/pipeline.svg)](https://gitlab.graubert.com/agraubert/agutil/-/pipelines)
 
 A collection of python utilities
 
-**Version:** [![Live Package Version](https://img.shields.io/pypi/v/agutil.svg)](https://pypi.python.org/pypi/agutil)
+**Version:** [![Live Package Version](https://img.shields.io/pypi/v/agutil)](https://pypi.python.org/pypi/agutil)
+
+## Note: This project has moved to [GitLab](https://gitlab.graubert.com/agraubert/agutil)
 
 ###### Tools:
 * search_range (A utility for manipulating numerical ranges)
